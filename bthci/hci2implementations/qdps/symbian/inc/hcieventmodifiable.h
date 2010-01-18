@@ -47,6 +47,8 @@ public:
 	 */
 
 	void SetErrorCode(THCIErrorCode aErrorCode);
+	
+	TPtrC8& EventData();
 
 private:
 	/* explicit constructor */

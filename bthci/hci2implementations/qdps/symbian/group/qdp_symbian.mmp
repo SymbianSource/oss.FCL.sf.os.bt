@@ -28,8 +28,23 @@ CAPABILITY CommDD PowerMgmt ReadDeviceData WriteDeviceData TrustedUI ProtServ Ne
 
 SOURCEPATH ../src
 
-MACRO BROKEN_CASIRA_1_1
-MACRO BROKEN_BELKIN_2_1
+// Macros to enable particular fixes in the QDP:
+//
+// Most controllers require LPM requests to be serialised.
+MACRO SERIAL_LOW_POWER_MODE_REQUESTS
+//
+// CSR controllers (version 1.1) error a set event mask even though it is 
+// just the specification default mask that is provided as a parameter.
+MACRO IGNORE_INVALID_HCI_PARAMETER_ERROR_ON_SET_EVENT_MASK_ON_VERSION_1_1
+//
+// Some Broadcom controllers don't complete outstanding events on disconnection.
+// Generally linked with ADD_CONNECTION_HANDLE_FOR_TRUNCATED_INVALID_CONNECTION_HANDLE_ERROR_EVENTS
+MACRO FAKE_COMPLETION_EVENTS_ON_DISCONNECTION
+//
+// Some Broadcom controllers truncate certain command complete events that
+// should include a connection handle (when the reported error is "invalid
+// connection handle".  Generally linked with FAKE_COMPLETION_EVENTS_ON_DISCONNECTION
+MACRO ADD_CONNECTION_HANDLE_FOR_TRUNCATED_INVALID_CONNECTION_HANDLE_ERROR_EVENTS
 
 RESOURCE qdp_symbian.rss
 

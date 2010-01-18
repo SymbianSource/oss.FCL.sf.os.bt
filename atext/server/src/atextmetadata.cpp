@@ -21,21 +21,21 @@
  * future needs:
  *
  * Three types of support:
- * 1) Master (M): Does not send to S if support found.
- * 2) Primary (P): Sends to all S if support found.
- * 3) Secondary (S): Process the command and give or not give reply, based on
+ * 1) Master (M): Sends to all O if support found. Panics if > 1 M.
+ * 2) Partial (P): Sends to all O if support found. Replies "ERROR" if two P supports.
+ * 3) Observer (O): Process the command and give or not give reply, based on
  *    the following logic:
  *
- * => [If] M found, handle command and send reply, stop, [else]
- * [If] P found, handle command and send reply + send to N S {no reply}, stop, [else]
- * [If] > 1 S found, send to N S {no reply}, stop, [else]
- * [If] only 1 S found, handle command and send reply, stop, [else]
+ * => [If] M found, handle command and send reply + send to N O {no reply}, stop, [else]
+ * [If] P found, handle command and send reply + send to N O {no reply}, stop, [else]
+ * [If] > 1 O found, send to N O {no reply}, stop, [else]
+ * [If] only 1 O found, handle command and send reply, stop, [else]
  * Write "ERROR" to client, complete message with KErrNone
  *
  * When incoming reply:
  * => If reply from M, write to client, stop, [else]
  * If reply from P, write to client, stop, [else]
- * If reply from S and M, P nor other S exist, write to client, stop, [else]
+ * If reply from O and M, P nor other O exist, write to client, stop, [else]
  * Complete message with KErrNone and empty string
  *
  * Note: Empty string and "ERROR" string are managed already in HandleCommand()
@@ -1359,14 +1359,17 @@ TInt CATExtMetadata::ExtractNextCommand( const TDesC8& aCommands,
         case 'm':
             aSupportType = ESupportTypeMaster;
             break;
-        case 'P':  // Primary plugin
+        case 'P':  // Partial plugin
         case 'p':
-            aSupportType = ESupportTypePrimary;
+            aSupportType = ESupportTypePartial;
             break;
-        case 'S':  // Secondary plugin
-        case 's':
-            aSupportType = ESupportTypeSecondary;
+        case 'O':  // Observer plugin
+        case 'o':
+            aSupportType = ESupportTypeObserver;
             break;
+        default:
+            _LIT( KPluginType, "PluginType" );
+            User::Panic( KPluginType, EPanicCategoryPluginType );
         }
     i++;
     if ( i >= count )
@@ -1519,18 +1522,18 @@ TInt CATExtMetadata::AddNewMetadataEntryLinkL(
                                                      oneCmdSupport );
             }
             break;
-        case ESupportTypePrimary:
+        case ESupportTypePartial:
             {
-            retVal = AddNewPrimaryMetadataEntryLinkL( aEntries,
+            retVal = AddNewPartialMetadataEntryLinkL( aEntries,
                                                       aSearchHelper,
                                                       oneCmdSupport );
             }
             break;
-        case ESupportTypeSecondary:
+        case ESupportTypeObserver:
             {
-            retVal = AddNewSecondaryMetadataEntryLinkL( aEntries,
-                                                        aSearchHelper,
-                                                        oneCmdSupport );
+            retVal = AddNewObserverMetadataEntryLinkL( aEntries,
+                                                       aSearchHelper,
+                                                       oneCmdSupport );
             }
             break;
         default:
@@ -1552,79 +1555,88 @@ TInt CATExtMetadata::AddNewMasterMetadataEntryLinkL(
     TATExtOneCmdSupport& aOneCmdSupport )
     {
     TRACE_FUNC_ENTRY
-    aEntries->InsertL( 0, aOneCmdSupport );
-    if ( aSearchHelper.iPrimaryIndex >= 0 )
-       {
-        aSearchHelper.iPrimaryIndex++;
-        }
-    if ( aSearchHelper.iSecondaryIndex >= 0 )
+    if ( aEntries->Count() > 0 )
         {
-        aSearchHelper.iSecondaryIndex++;
+        TATExtOneCmdSupport& oneCmdSupport = (*aEntries)[0];
+        if ( oneCmdSupport.iSupportType == ESupportTypeMaster )
+            {
+            _LIT( KFaultyMaster, "FaultyMaster" );
+            User::Panic( KFaultyMaster, EPanicCategoryFaultyMaster );
+            }
+        }
+    aEntries->InsertL( 0, aOneCmdSupport );
+    if ( aSearchHelper.iPartialIndex >= 0 )
+       {
+        aSearchHelper.iPartialIndex++;
+        }
+    if ( aSearchHelper.iObserverIndex >= 0 )
+        {
+        aSearchHelper.iObserverIndex++;
         }
     TRACE_FUNC_EXIT
     return 0;
     }
 
 // ---------------------------------------------------------------------------
-// Adds new primary plugin entry link from plugin support entry to plugin
+// Adds new partial plugin entry link from plugin support entry to plugin
 // entry
 // ---------------------------------------------------------------------------
 //
-TInt CATExtMetadata::AddNewPrimaryMetadataEntryLinkL(
+TInt CATExtMetadata::AddNewPartialMetadataEntryLinkL(
     CArrayFixFlat<TATExtOneCmdSupport>* aEntries,
     TATExtSearchHelper& aSearchHelper,
     TATExtOneCmdSupport& aOneCmdSupport )
     {
     TRACE_FUNC_ENTRY
-    TInt i = aSearchHelper.iPrimaryIndex;
+    TInt i = aSearchHelper.iPartialIndex;
     if ( i < 0 )
         {
         TInt count = aEntries->Count();
         for ( i=0; i<count; i++ )
             {
             TATExtOneCmdSupport& oneCmdSupport = (*aEntries)[i];
-            if ( oneCmdSupport.iSupportType==ESupportTypePrimary ||
-                 oneCmdSupport.iSupportType==ESupportTypeSecondary )
+            if ( oneCmdSupport.iSupportType==ESupportTypePartial ||
+                 oneCmdSupport.iSupportType==ESupportTypeObserver )
                 {
                 break;
                 }
             }
-        aSearchHelper.iPrimaryIndex = i;
+        aSearchHelper.iPartialIndex = i;
         }
     aEntries->InsertL( i, aOneCmdSupport );
-    if ( aSearchHelper.iSecondaryIndex >= 0 )
+    if ( aSearchHelper.iObserverIndex >= 0 )
         {
-        aSearchHelper.iSecondaryIndex++;
+        aSearchHelper.iObserverIndex++;
         }
     TRACE_FUNC_EXIT
     return i;
     }
 
 // ---------------------------------------------------------------------------
-// Adds new secondary plugin entry link from plugin support entry to plugin
-// entry. Search starts from the front as there could be multiple S plugins
+// Adds new observer plugin entry link from plugin support entry to plugin
+// entry. Search starts from the front as there could be multiple O plugins
 // but only one or two M/P plugins.
 // ---------------------------------------------------------------------------
 //
-TInt CATExtMetadata::AddNewSecondaryMetadataEntryLinkL(
+TInt CATExtMetadata::AddNewObserverMetadataEntryLinkL(
     CArrayFixFlat<TATExtOneCmdSupport>* aEntries,
     TATExtSearchHelper& aSearchHelper,
     TATExtOneCmdSupport& aOneCmdSupport )
     {
     TRACE_FUNC_ENTRY
-    TInt i = aSearchHelper.iSecondaryIndex;
+    TInt i = aSearchHelper.iObserverIndex;
     if ( i < 0 )
         {
         TInt count = aEntries->Count();
         for ( i=0; i<count; i++ )
             {
             TATExtOneCmdSupport& oneCmdSupport = (*aEntries)[i];
-            if ( oneCmdSupport.iSupportType == ESupportTypeSecondary )
+            if ( oneCmdSupport.iSupportType == ESupportTypeObserver )
                 {
                 break;
                 }
             }
-        aSearchHelper.iSecondaryIndex = i;
+        aSearchHelper.iObserverIndex = i;
         }
     aEntries->InsertL( i, aOneCmdSupport );
     TRACE_FUNC_EXIT
@@ -1974,20 +1986,26 @@ void CATExtMetadata::DoCreateAndFindSupportL(
         entrySupport.iEntry = &(*iPluginData)[oneCmdSupport.iEntryIndex];
         if ( oneCmdSupport.iSupportType == ESupportTypeMaster )
             {
-            supported = HandleMasterPluginSupportL(
-                entrySupport,
-                aComplInfo.iReplyExpected );
-            }
-        else if ( oneCmdSupport.iSupportType == ESupportTypePrimary )
-            {
-            supported = HandlePrimaryPluginSupportL(
+            supported = HandleMasterAndPartialPluginSupportL(
                 entrySupport,
                 i+1,
                 aComplInfo.iReplyExpected );
             }
-        else if ( oneCmdSupport.iSupportType == ESupportTypeSecondary )
+        else if ( oneCmdSupport.iSupportType == ESupportTypePartial )
             {
-            supported = HandleSecondaryPluginSupportL(
+            supported = FindExclusivePartialSupportL( entrySupport );
+            if ( !supported )
+                {
+                break;
+                }
+            supported = HandleMasterAndPartialPluginSupportL(
+                entrySupport,
+                i+1,
+                aComplInfo.iReplyExpected );
+            }
+        else if ( oneCmdSupport.iSupportType == ESupportTypeObserver )
+            {
+            supported = HandleObserverPluginSupportL(
                 entrySupport,
                 i+1,
                 aComplInfo.iReplyExpected );
@@ -2022,50 +2040,27 @@ void CATExtMetadata::CreateSelfReplyData( const RMessage2& aMessage )
     }
 
 // ---------------------------------------------------------------------------
-// Handles support when a master plugin is detected in the plugin data via
-// support data's link (support for a full AT command). If a master plugin is
-// detected then reply is detected from that plugin. No further sending to
-// primary or secondary plugins is repformed.
+// Handles support when a master or partial plugin is detected in the plugin
+// data via support data's link. If a partial or master plugin is detected
+// then reply is expected from that plugin. Also if one or more observer
+// plugins are detected then no reply is expected from them.
 // ---------------------------------------------------------------------------
 //
-TBool CATExtMetadata::HandleMasterPluginSupportL(
-    TATExtEntrySupport& aEntrySupport,
-    TBool& aReplyExpected )
-    {
-    TRACE_FUNC_ENTRY
-    aReplyExpected = EFalse;
-    TBool supported = HandleCommandSupportL( aEntrySupport );
-    if ( !supported )
-        {
-        TRACE_FUNC_EXIT
-        return EFalse;
-        }
-    iCmdData.iReplyExpected = ETrue;  // Set before HandleCommandL()
-    HandleCommandL( aEntrySupport, ETrue );
-    aReplyExpected = ETrue;
-    TRACE_FUNC_EXIT
-    return ETrue;
-    }
-
-// ---------------------------------------------------------------------------
-// Handles support when a primary plugin is detect in the plugin data via
-// support data's link. If a primary plugin is detected then reply is expected
-// from that plugin. Also if one or more secondary plugins are detected then
-// no reply is expected from them.
-// ---------------------------------------------------------------------------
-//
-TBool CATExtMetadata::HandlePrimaryPluginSupportL(
+TBool CATExtMetadata::HandleMasterAndPartialPluginSupportL(
     TATExtEntrySupport& aEntrySupport,
     TInt aStartIndex,
     TBool& aReplyExpected )
     {
     TRACE_FUNC_ENTRY
     aReplyExpected = EFalse;
-    TBool supported = HandleCommandSupportL( aEntrySupport );
-    if ( !supported )
+    if ( !aEntrySupport.iSupportFound )
         {
-        TRACE_FUNC_EXIT
-        return EFalse;
+        TBool supported = HandleCommandSupportL( aEntrySupport );
+        if ( !supported )
+            {
+            TRACE_FUNC_EXIT
+            return EFalse;
+            }
         }
     // If HandleCommand() is implemented synchronously, the command must be
     // saved before executing as CompleteCommandMessage() closes the string
@@ -2076,7 +2071,7 @@ TBool CATExtMetadata::HandlePrimaryPluginSupportL(
     iCmdData.iReplyExpected = ETrue;  // Set before HandleCommandL()
     HandleCommandL( aEntrySupport, ETrue );
     aEntrySupport.iStartIndex = aStartIndex;
-    SendToMultipleSecondaryL( aEntrySupport, atCmdFull );
+    SendToMultipleObserverL( aEntrySupport, atCmdFull );
     CleanupStack::PopAndDestroy( atCmdFull );
     aReplyExpected = ETrue;
     TRACE_FUNC_EXIT
@@ -2084,28 +2079,31 @@ TBool CATExtMetadata::HandlePrimaryPluginSupportL(
     }
 
 // ---------------------------------------------------------------------------
-// Handles support when a secondary plugin is detected in the plugin data via
-// support data's link. If only one secondary plugin is detected then reply is
-// expected from that plugin. Instead, if more than one secondary plugins are
+// Handles support when a observer plugin is detected in the plugin data via
+// support data's link. If only one observer plugin is detected then reply is
+// expected from that plugin. Instead, if more than one observer plugins are
 // detected then no reply is expected from them.
 // ---------------------------------------------------------------------------
 //
-TBool CATExtMetadata::HandleSecondaryPluginSupportL(
+TBool CATExtMetadata::HandleObserverPluginSupportL(
     TATExtEntrySupport& aEntrySupport,
     TInt aStartIndex,
     TBool& aReplyExpected )
     {
     TRACE_FUNC_ENTRY
     aReplyExpected = EFalse;
-    TBool supported = HandleCommandSupportL( aEntrySupport );
-    if ( !supported )
+    if ( !aEntrySupport.iSupportFound )
         {
-        TRACE_FUNC_EXIT
-        return EFalse;
+        TBool supported = HandleCommandSupportL( aEntrySupport );
+        if ( !supported )
+            {
+            TRACE_FUNC_EXIT
+            return EFalse;
+            }
         }
     TATExtEntrySupport nextSupport = aEntrySupport;
     nextSupport.iStartIndex = aStartIndex;
-    TBool entryFound = FindFirstSecondarySupportL( nextSupport );
+    TBool entryFound = FindFirstObserverSupportL( nextSupport );
     if ( entryFound )
         {
         // Entry found; send all without reply request
@@ -2116,7 +2114,7 @@ TBool CATExtMetadata::HandleSecondaryPluginSupportL(
         atCmdFullPtr.Copy( aEntrySupport.iAtCmdFull );
         // Now execute the HandleCommand()
         HandleCommandL( aEntrySupport, EFalse );
-        SendToMultipleSecondaryL( nextSupport, atCmdFull );
+        SendToMultipleObserverL( nextSupport, atCmdFull );
         CleanupStack::PopAndDestroy( atCmdFull );
         }
     else
@@ -2125,6 +2123,41 @@ TBool CATExtMetadata::HandleSecondaryPluginSupportL(
         iCmdData.iReplyExpected = ETrue;  // Set before HandleCommandL()
         HandleCommandL( aEntrySupport, ETrue );
         aReplyExpected = ETrue;
+        }
+    TRACE_FUNC_EXIT
+    return ETrue;
+    }
+
+// ---------------------------------------------------------------------------
+// Finds exclusive partial plugin support
+// ---------------------------------------------------------------------------
+//
+TBool CATExtMetadata::FindExclusivePartialSupportL(
+    TATExtEntrySupport& aEntrySupport )
+    {
+    TRACE_FUNC_ENTRY
+    TInt i;
+    TInt supports;
+    TInt count = aEntrySupport.iSupport->Count();
+    for ( i=0,supports=0; i<count; i++ )
+        {
+        TATExtOneCmdSupport& oneCmdSupport = (*aEntrySupport.iSupport)[i];
+        if ( oneCmdSupport.iSupportType == ESupportTypePartial )
+            {
+            aEntrySupport.iSupportFound = EFalse;
+            aEntrySupport.iEntry = &(*iPluginData)[oneCmdSupport.iEntryIndex];
+            TBool supported = HandleCommandSupportL( aEntrySupport );
+            if ( supported )
+                {
+                aEntrySupport.iSupportFound = ETrue;
+                supports++;
+                }
+            if ( supports != 1 )
+                {
+                TRACE_FUNC_EXIT
+                return EFalse;
+                }
+            }
         }
     TRACE_FUNC_EXIT
     return ETrue;
@@ -2171,8 +2204,8 @@ CArrayFixFlat<TATExtOneCmdSupport>* CATExtMetadata::FindEntriesForCommandLC(
         }
     // Now, as the normal data was inserted *before* the auxiliary data, the
     // auxiliary data is in front of the created "support" array for each M, P
-    // and S entry. This insertion is faster than the other way around as there
-    // can be multiple S plugins for the same command but usually much less
+    // and O entry. This insertion is faster than the other way around as there
+    // can be multiple O plugins for the same command but usually much less
     // auxiliary entries for the same command.
 #if defined(_DEBUG) && defined( PRJ_PRINT_SUPPORT_DATA )
     PrintFoundEntries( support );
@@ -2290,7 +2323,7 @@ void CATExtMetadata::HandleCommandL( TATExtEntrySupport& aEntrySupport,
         iCmdData.iCmdMessage = aEntrySupport.iMessage;
         iCmdData.iHandler = aEntrySupport.iEntry;
         }
-    // No "else" here as HandleCommandL() is used also with secondary plugins
+    // No "else" here as HandleCommandL() is used also with observer plugins
     if ( !aAtCmdFull )
         {
         TRACE_INFO(( _L8("Handling command '%S' for UID:0x%08X, aReplyNeeded=%d..."), &iCmdData.iCmdBuffer, aEntrySupport.iEntry->iPluginUid, aReplyNeeded ));
@@ -2311,11 +2344,11 @@ void CATExtMetadata::HandleCommandL( TATExtEntrySupport& aEntrySupport,
     }
 
 // ---------------------------------------------------------------------------
-// Sends an AT commands to multiple secondary plugins, starting from a given
+// Sends an AT commands to multiple observer plugins, starting from a given
 // position.
 // ---------------------------------------------------------------------------
 //
-void CATExtMetadata::SendToMultipleSecondaryL(
+void CATExtMetadata::SendToMultipleObserverL(
     TATExtEntrySupport& aEntrySupport,
     const TDesC8* aAtCmdFull )
     {
@@ -2330,25 +2363,34 @@ void CATExtMetadata::SendToMultipleSecondaryL(
     for ( i=aEntrySupport.iStartIndex; i<count; i++ )
         {
         TATExtOneCmdSupport& oneCmdSupport = (*aEntrySupport.iSupport)[i];
-        if ( oneCmdSupport.iSupportType != ESupportTypeSecondary )
+        if ( oneCmdSupport.iSupportType != ESupportTypeObserver )
             {
             continue;
             }
-        aEntrySupport.iEntry = &(*iPluginData)[i];
-        TBool supported = HandleCommandSupportL( aEntrySupport, aAtCmdFull );
+        aEntrySupport.iEntry = &(*iPluginData)[oneCmdSupport.iEntryIndex];
+        TBool supported = EFalse;
+        if ( !aEntrySupport.iSupportFound )
+            {
+            supported = HandleCommandSupportL( aEntrySupport, aAtCmdFull );
+            }
         if ( supported )
             {
             HandleCommandL( aEntrySupport, EFalse, aAtCmdFull );
+            aEntrySupport.iSupportFound = ETrue;
+            }
+        if ( i < count-1 )
+            {
+            aEntrySupport.iSupportFound = EFalse;
             }
         }
     TRACE_FUNC_EXIT
     }
 
 // ---------------------------------------------------------------------------
-// Finds the first secondary plugin support from a given starting position
+// Finds the first observer plugin support from a given starting position
 // ---------------------------------------------------------------------------
 //
-TBool CATExtMetadata::FindFirstSecondarySupportL(
+TBool CATExtMetadata::FindFirstObserverSupportL(
     TATExtEntrySupport& aEntrySupport )
     {
     TRACE_FUNC_ENTRY
@@ -2362,14 +2404,16 @@ TBool CATExtMetadata::FindFirstSecondarySupportL(
     for ( i=aEntrySupport.iStartIndex; i<count; i++ )
         {
         TATExtOneCmdSupport& oneCmdSupport = (*aEntrySupport.iSupport)[i];
-        if ( oneCmdSupport.iSupportType != ESupportTypeSecondary )
+        if ( oneCmdSupport.iSupportType != ESupportTypeObserver )
             {
             continue;
             }
-        aEntrySupport.iEntry = &(*iPluginData)[i];
+        aEntrySupport.iSupportFound = EFalse;
+        aEntrySupport.iEntry = &(*iPluginData)[oneCmdSupport.iEntryIndex];
         TBool supported = HandleCommandSupportL( aEntrySupport );
         if ( supported )
             {
+            aEntrySupport.iSupportFound = ETrue;
             TRACE_FUNC_EXIT
             return ETrue;
             }

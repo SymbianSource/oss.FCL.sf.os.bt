@@ -26,6 +26,11 @@ void THCIEventModifiable::SetErrorCode(THCIErrorCode aErrorCode)
 	iErrorCode = aErrorCode;
 	}
 
+TPtrC8& THCIEventModifiable::EventData()
+	{
+	return iEventData;
+	}
+
 THCIEventModifiable::THCIEventModifiable()
    : THCIEventBase(KNullDesC8)
 	{

@@ -203,11 +203,11 @@ TInt StartServer()
     const TUidType serverUid( KNullUid, KNullUid, KATExtSrvUid3 );
     RProcess server;
     TInt retTemp = server.Create( KATExtCommonSrvExe, KNullDesC, serverUid );
-    server.SetPriority( EPriorityHigh );
     if ( retTemp != KErrNone )
         {
         return retTemp;
         }
+    server.SetPriority( EPriorityHigh );
     TRequestStatus status;
     server.Rendezvous( status );
     if ( status != KRequestPending )

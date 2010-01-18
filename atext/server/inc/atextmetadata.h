@@ -15,7 +15,6 @@
 *
 */
 
-
 #ifndef C_CATEXTMETADATA_H
 #define C_CATEXTMETADATA_H
 
@@ -26,13 +25,20 @@
 class CATExtPluginBase;
 class CATExtListen;
 
-/**  Support types supported by RSS file (M|P|S) */
+/** Panic categories */
+enum TATExtPanicCategories
+    {
+    EPanicCategoryFaultyMaster = 1,
+    EPanicCategoryPluginType   = 2
+    };
+
+/**  Support types supported by RSS file (M|P|O) */
 enum TATExtSupportType
     {
     ESupportTypeUndefined = KErrNotFound,
     ESupportTypeMaster    = 0,
-    ESupportTypePrimary,
-    ESupportTypeSecondary
+    ESupportTypePartial,
+    ESupportTypeObserver
     };
 
 /**  Operation types, either for command handling or for URC receiving */
@@ -128,25 +134,25 @@ NONSHARABLE_CLASS( TATExtSearchHelper )
 
 public:
 
-    TATExtSearchHelper() : iPrimaryIndex( KErrNotFound ),
-                           iSecondaryIndex( KErrNotFound ) {}
+    TATExtSearchHelper() : iPartialIndex( KErrNotFound ),
+                           iObserverIndex( KErrNotFound ) {}
 
     /**
-     * Index to the primary entry
+     * Index to the partial entry
      */
-    TInt iPrimaryIndex;
+    TInt iPartialIndex;
 
     /**
-     * Index to the secondary entry
+     * Index to the observer entry
      */
-    TInt iSecondaryIndex;
+    TInt iObserverIndex;
 
     };
 
 /**
  *  Class to store data needed for one AT command support.
  *  This includes the support's type and the plugin entry.
- *  Thus one plugin's RSS file may contain multiple M|P|S entries.
+ *  Thus one plugin's RSS file may contain multiple M|P|O entries.
  *
  *  @since S60 v5.0
  */
@@ -156,7 +162,7 @@ NONSHARABLE_CLASS( TATExtOneCmdSupport )
 public:
 
     /**
-     * Support's type (M|P|S)
+     * Support's type (M|P|O)
      */
     TATExtSupportType iSupportType;
 
@@ -313,7 +319,10 @@ public:
                         CArrayFixFlat<TATExtOneCmdSupport>* aSupport ) :
                         iAtCmdFull( aAtCmdFull ),
                         iMessage( aMessage ),
-                        iSupport( aSupport ) {}
+                        iSupport( aSupport ),
+                        iEntry( NULL ),
+                        iStartIndex( KErrNotFound ),
+                        iSupportFound( EFalse ){}
 
     /**
      * Full AT command for which to check the support
@@ -328,7 +337,7 @@ public:
 
     /**
      * AT command's plugin entry support data.
-     * Used by SendToMultipleSecondaryL() and FindFirstSecondarySupportL().
+     * Used by SendToMultipleObserverL() and FindFirstObserverSupportL().
      */
     CArrayFixFlat<TATExtOneCmdSupport>* iSupport;
 
@@ -338,10 +347,15 @@ public:
     TATExtPluginEntry* iEntry;
 
     /**
-     * Starts index for searches with HandlePrimaryPluginSupportL() and
-     * HandleSecondaryPluginSupportL()
+     * Start index for searches with HandlePartialAndMasterPluginSupportL() and
+     * HandleObserverPluginSupportL()
      */
     TInt iStartIndex;
+
+    /**
+     * Found plugin support for HandlePartialAndMasterPluginSupportL().
+     */
+    TBool iSupportFound;
 
     };
 
@@ -835,7 +849,7 @@ private:
      * @param aCommands Command buffer from where to extract the next subcommand
      * @param aStartIndex Start index for the found command
      * @param aEndIndex End index for the found command
-     * @param aSupportType Support's type (M|P|S)
+     * @param aSupportType Support's type (M|P|O)
      * @return Symbian error code on error, KErrNone otherwise
      */
     TInt ExtractNextCommand( const TDesC8& aCommands,
@@ -855,7 +869,7 @@ private:
      * @param aAtCmdBase Base AT command which to add to support data
      *                   (base part without parameters)
      * @param aPluginUid Plugin's UID to find from plugin data
-     * @param aSupportType Support's type (M|P|S)
+     * @param aSupportType Support's type (M|P|O)
      * @param aCleanupInfo Cleanup information
      * @return None
      */
@@ -870,7 +884,7 @@ private:
      * @since S60 5.0
      * @param aEntries Plugin entries for support
      * @param aEntryIndex Plugin index entry
-     * @param aSupportType Support's type (M|P|S)
+     * @param aSupportType Support's type (M|P|O)
      * @param aSearchHelper The search helper
      * @return Index to the added entry, KErrNotSupported otherwise
      */
@@ -893,26 +907,26 @@ private:
         TATExtOneCmdSupport& aOneCmdSupport );
 
     /**
-     * Adds new primary plugin entry link from plugin support entry to plugin
+     * Adds new partial plugin entry link from plugin support entry to plugin
      * entry
      *
      * @since S60 5.0
      * @return Index to the added entry, KErrNotSupported otherwise
      */
-    TInt AddNewPrimaryMetadataEntryLinkL(
+    TInt AddNewPartialMetadataEntryLinkL(
         CArrayFixFlat<TATExtOneCmdSupport>* aEntries,
         TATExtSearchHelper& aSearchHelper,
         TATExtOneCmdSupport& aOneCmdSupport );
 
     /**
-     * Adds new secondary plugin entry link from plugin support entry to plugin
-     * entry. Search starts from the front as there could be multiple S plugins
+     * Adds new observer plugin entry link from plugin support entry to plugin
+     * entry. Search starts from the front as there could be multiple O plugins
      * but only one or two M/P plugins.
      *
      * @since S60 5.0
      * @return Index to the added entry, KErrNotSupported otherwise
      */
-    TInt AddNewSecondaryMetadataEntryLinkL(
+    TInt AddNewObserverMetadataEntryLinkL(
         CArrayFixFlat<TATExtOneCmdSupport>* aEntries,
         TATExtSearchHelper& aSearchHelper,
         TATExtOneCmdSupport& aOneCmdSupport );
@@ -1054,56 +1068,50 @@ private:
     void CreateSelfReplyData( const RMessage2& aMessage );
 
     /**
-     * Handles support when a master plugin is detected in the plugin data
-     * via support data's link (support for a full AT command). If a master
-     * plugin is detected then reply is detected from that plugin. No further
-     * sending to primary or secondary plugins is repformed.
-     *
-     * @since S60 5.0
-     * @param aEntrySupport Support data to the first found master plugin
-     * @param aReplyExpected ETrue if reply is expected from the master plugin,
-     *                       EFalse if no reply is expected from the master plugin,
-     *                       (i.e. no support found)
-     * @return ETrue if support found, EFalse otherwise
-     */
-    TBool HandleMasterPluginSupportL( TATExtEntrySupport& aEntrySupport,
-                                      TBool& aReplyExpected );
-
-    /**
-     * Handles support when a primary plugin is detect in the plugin data
-     * via support data's link. If a primary plugin is detected then reply is
-     * expected from that plugin. Also if one or more secondary plugins are
-     * detected then no reply is expected from them.
-     *
-     * @since S60 5.0
-     * @param aEntrySupport Support data to the first found primary plugin
-     * @param aStartIndex Start index to search the next secondary plugin
-     * @param aReplyExpected ETrue if reply is expected from the primary plugin,
-     *                       EFalse if no reply is expected from the primary plugin,
-     *                       (i.e. no support found)
-     * @return ETrue if support found, EFalse otherwise
-     */
-    TBool HandlePrimaryPluginSupportL( TATExtEntrySupport& aEntrySupport,
-                                       TInt aStartIndex,
-                                       TBool& aReplyExpected );
-
-    /**
-     * Handles support when a secondary plugin is detected in the plugin data
-     * via support data's link. If only one secondary plugin is detected then
-     * reply is expected from that plugin. Instead, if more than one secondary
+     * Handles support when a master or partial plugin is detected in the plugin
+     * data via support data's link. If a partial or master plugin is detected
+     * then reply is expected from that plugin. Also if one or more observer
      * plugins are detected then no reply is expected from them.
      *
      * @since S60 5.0
-     * @param aEntrySupport Support data to the first found secondary plugin
+     * @param aEntrySupport Support data to the first found partial or master plugin
+     * @param aStartIndex Start index to search the next observer plugin
+     * @param aReplyExpected ETrue if reply is expected from the partial or master plugin,
+     *                       EFalse if no reply is expected from the partial or master plugin,
+     *                       (i.e. no support found)
+     * @return ETrue if support found, EFalse otherwise
+     */
+    TBool HandleMasterAndPartialPluginSupportL(
+        TATExtEntrySupport& aEntrySupport,
+        TInt aStartIndex,
+        TBool& aReplyExpected );
+
+    /**
+     * Handles support when a observer plugin is detected in the plugin data
+     * via support data's link. If only one observer plugin is detected then
+     * reply is expected from that plugin. Instead, if more than one observer
+     * plugins are detected then no reply is expected from them.
+     *
+     * @since S60 5.0
+     * @param aEntrySupport Support data to the first found observer plugin
      *                      entry
-     * @param aStartIndex Start index to search the next secondary plugin
+     * @param aStartIndex Start index to search the next observer plugin
      * @param aReplyExpected ETrue if reply is expected from one or more plugins,
      *                       EFalse if no reply is expected from any of the plugins
      * @return ETrue if support found, EFalse otherwise
      */
-    TBool HandleSecondaryPluginSupportL( TATExtEntrySupport& aEntrySupport,
-                                         TInt aStartIndex,
-                                         TBool& aReplyExpected );
+    TBool HandleObserverPluginSupportL( TATExtEntrySupport& aEntrySupport,
+                                        TInt aStartIndex,
+                                        TBool& aReplyExpected );
+
+    /**
+     * Finds exclusive partial plugin support
+     *
+     * @since S60 5.0
+     * @param aEntrySupport Support data to the first found partial plugin entry
+     * @return ETrue if exclusive support found, EFalse otherwise
+     */
+    TBool FindExclusivePartialSupportL( TATExtEntrySupport& aEntrySupport );
 
     /**
      * Finds support entries from support data for a given base AT command
@@ -1173,27 +1181,27 @@ private:
                          const TDesC8* aAtCmdFull=NULL );
 
     /**
-     * Sends an AT commands to multiple secondary plugins, starting from a
+     * Sends an AT commands to multiple observer plugins, starting from a
      * given position.
      *
      * @since S60 5.0
      * @param aEntrySupport Entry support data to position from where to start
-     *                      sending to the found secondary plugins
+     *                      sending to the found observer plugins
      * @param aAtCmdFull Full AT command to send (base part + parameters)
      * @return None
      */
-    void SendToMultipleSecondaryL( TATExtEntrySupport& aEntrySupport,
+    void SendToMultipleObserverL( TATExtEntrySupport& aEntrySupport,
                                    const TDesC8* aAtCmdFull );
 
     /**
-     * Finds the first secondary plugin support from a given starting position
+     * Finds the first observer plugin support from a given starting position
      *
      * @since S60 5.0
      * @param aEntrySupport Entry support data to the next entry after the found
-     *                      secondary plugin entry; marks the start for search
+     *                      observer plugin entry; marks the start for search
      * @return ETrue if support found, EFalse otherwise
      */
-    TBool FindFirstSecondarySupportL( TATExtEntrySupport& aEntrySupport );
+    TBool FindFirstObserverSupportL( TATExtEntrySupport& aEntrySupport );
 
     /**
      * Extracts one NVRAM entry from a pipe-character delimited NVRAM buffer
