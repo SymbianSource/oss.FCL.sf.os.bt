@@ -70,15 +70,17 @@ NONSHARABLE_CLASS(CArbitrationDelayTimer) : public CTimer
 	{
 public:
 	static CArbitrationDelayTimer* NewL(CPhysicalLink* aParent);
-	void Start();
+    void Start(TBool aLocalPriority=EFalse);
 	
 private:
 	CArbitrationDelayTimer(CPhysicalLink* aParent);
 	void ConstructL();
 	void RunL();
-	
-public:	
+    void DoCancel();
+    
+private:
 	CPhysicalLink* 	iParent;
+    TBool iLocalPriority;	
 	};
 
 
@@ -301,7 +303,8 @@ public:
 		TUint16 aMaxLatency, TUint16 aVoiceSettings,
 		TUint8 aRetransmissionEffort, const TBTSyncPacketTypes aUserPacketTypes);
 	TInt PassiveOpen();
-	TInt Arbitrate(const TBool aImmediately=EFalse, const TBool aLocalPriority=EFalse);	
+    TInt Arbitrate(TBool aImmediately=EFalse, TBool aLocalPriority=EFalse); 
+    TInt DoArbitrate(TBool aLocalPriority);
 	void SetPassKey(const TDesC8& aPassKey);
 	const TBTPinCode& PassKey() const;		
 

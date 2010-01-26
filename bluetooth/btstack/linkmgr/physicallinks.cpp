@@ -1711,7 +1711,7 @@ TInt CPhysicalLink::GetOption(TUint aLevel,TUint aName,TDes8& aOption) const
 		}
 	}
 
-TInt CPhysicalLink::Arbitrate(const TBool aImmediately, const TBool aLocalPriority)
+TInt CPhysicalLink::Arbitrate(TBool aImmediately, TBool aLocalPriority)
 	{
 	LOG_FUNC
 	if (!IsConnected())
@@ -1720,12 +1720,26 @@ TInt CPhysicalLink::Arbitrate(const TBool aImmediately, const TBool aLocalPriori
 	if ( aImmediately )
 		{
 		iArbitrationDelay->Cancel();
+        return DoArbitrate(aLocalPriority);		
 		}
 	else if (iArbitrationDelay->IsActive())
 		{
 		return KErrNone;
 		}
+    else
+        {
+        iArbitrationDelay->Start(aLocalPriority);
+        return KErrNone;
+        }
+    }
 
+TInt CPhysicalLink::DoArbitrate(TBool aLocalPriority)
+    {
+    if (!IsConnected())
+        {
+        return KErrDisconnected;
+        }
+	    
 	//start arbitrate process with what our local controller supports
 	TUint8 allowedModesMask = EHoldMode | EParkMode | ESniffMode; // local features sorted out later
 	TBool roleSwitchAllowed = EFalse;
@@ -3417,13 +3431,13 @@ CArbitrationDelayTimer* CArbitrationDelayTimer::NewL(CPhysicalLink* aParent)
 	return self;
 	}
 
-void CArbitrationDelayTimer::Start()
-	{
-	LOG_FUNC
-	if (IsActive())
-		{
-		Cancel();
-		}
+void CArbitrationDelayTimer::Start(TBool aLocalPriority)
+    {
+    LOG_FUNC
+    // Work out what the local priority will be now
+    TBool localPriority = iLocalPriority || aLocalPriority;
+    Cancel(); // cancel current timer (will also reset priority so ...
+    iLocalPriority = localPriority; // set the new priority)
 	After(KBTArbitrationDelay);
 	}
 
@@ -3436,9 +3450,16 @@ Allow arbitration of low power modes when the timer expires
 	LOG_FUNC
 	if (iParent)
 		{
-		iParent->Arbitrate();
+        iParent->DoArbitrate(iLocalPriority);
 		}
 	}
+
+void CArbitrationDelayTimer::DoCancel()
+    {
+    LOG_FUNC
+    CTimer::DoCancel();
+    iLocalPriority = EFalse;
+    }
 
 TInt CPhysicalLink::GetNumPendingHandles(TInt& aConnectionHandles, TLinkType aLinkType) const
 	{
