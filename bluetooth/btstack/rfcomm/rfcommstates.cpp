@@ -1653,6 +1653,13 @@ void TRfcommStateWaitForStart::Error(CRfcommSAP& aSAP, TInt /*aErr*/,
 	ChangeState(aSAP,CRfcommStateFactory::ECloseOnStart);
 	}
 
+	
+void TRfcommStateWaitForStart::Exit(CRfcommSAP& aSAP)
+	{
+	aSAP.RegisterCodService();
+	}
+
+	
 /******************************************************************/
 /*
   The Close On Start state.

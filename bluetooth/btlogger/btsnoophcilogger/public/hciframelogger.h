@@ -35,6 +35,9 @@ static const TUint KHCILoggerControllerToHost	= 0x00000001;
 static const TUint KHCILoggerACLDataFrame		= 0; // For future use if required
 static const TUint KHCILoggerSynchronousDataFrame = 0; // For future use if required
 
+//KHCILoggerGenericDataFrame can be used instead of the above two flags as BTSnoop logger does not 
+//differencaite between the different types of data frames
+static const TUint KHCILoggerGenericDataFrame 	= 0; 
 static const TUint KHCILoggerCommandOrEvent		= 0x00000002;
 
 static const TUint KHCILoggerFrameFragmented	= 0x80000000;

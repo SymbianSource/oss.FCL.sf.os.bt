@@ -1105,10 +1105,10 @@ EXPORTS
 	??0CVendorDebugCommand@@IAE@G@Z @ 1104 NONAME ; CVendorDebugCommand::CVendorDebugCommand(unsigned short)
 	?ConstructL@CVendorDebugCommand@@IAEXXZ @ 1105 NONAME ; void CVendorDebugCommand::ConstructL(void)
 	?Extension_@CVendorDebugCommand@@UAEHIAAPAXPAX@Z @ 1106 NONAME ; int CVendorDebugCommand::Extension_(unsigned int, void * &, void *)
-	?SetCreditsConsumed@CVendorDebugCommand@@IAEXI@Z @ 1107 NONAME ; void CVendorDebugCommand::SetCreditsConsumed(unsigned int)
-	?SetExpectsCommandCompleteEvent@CVendorDebugCommand@@IAEXH@Z @ 1108 NONAME ; void CVendorDebugCommand::SetExpectsCommandCompleteEvent(int)
-	?SetExpectsCommandStatusEvent@CVendorDebugCommand@@IAEXH@Z @ 1109 NONAME ; void CVendorDebugCommand::SetExpectsCommandStatusEvent(int)
-	?SetExpectsCompletingEvent@CVendorDebugCommand@@IAEHH@Z @ 1110 NONAME ; int CVendorDebugCommand::SetExpectsCompletingEvent(int)
+	?SetCreditsConsumed@CVendorDebugCommand@@QAEXI@Z @ 1107  NONAME ; void CVendorDebugCommand::SetCreditsConsumed(unsigned int)
+	?SetExpectsCommandCompleteEvent@CVendorDebugCommand@@QAEXH@Z @ 1108  NONAME ; void CVendorDebugCommand::SetExpectsCommandCompleteEvent(int)
+	?SetExpectsCommandStatusEvent@CVendorDebugCommand@@QAEXH@Z @ 1109  NONAME ; void CVendorDebugCommand::SetExpectsCommandStatusEvent(int)
+	?SetExpectsCompletingEvent@CVendorDebugCommand@@QAEHH@Z @ 1110  NONAME ; int CVendorDebugCommand::SetExpectsCompletingEvent(int)
 	?VendorDebugEvent@TVendorDebugCompleteEvent@@QBE?AVTPtrC8@@XZ @ 1111 NONAME ; class TPtrC8 TVendorDebugCompleteEvent::VendorDebugEvent(void) const
 	?AsNullTerminatedString@THCIEventBase@@IBE?AVTPtrC8@@H@Z @ 1112 NONAME ; class TPtrC8 THCIEventBase::AsNullTerminatedString(int) const
 	??0TNopCompleteEvent@@QAE@ABVTDesC8@@@Z @ 1113 NONAME ; TNopCompleteEvent::TNopCompleteEvent(class TDesC8 const &)

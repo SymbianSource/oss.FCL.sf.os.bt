@@ -520,6 +520,7 @@ public:
 	void DISC(CRfcommSAP& aSAP);
 	void Error(CRfcommSAP& aSAP, TInt aErr,
 				CRfcommSAP::TErrorTypes aType);
+	void Exit(CRfcommSAP& aSAP);
 	};
 
 /**

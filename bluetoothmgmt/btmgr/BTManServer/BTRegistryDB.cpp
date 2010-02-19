@@ -1354,7 +1354,12 @@ void CBTRegistry::SetupDefaultRegistryL()
 	defaultDevice.SetDeviceName(KDefaultLocalName);
 	defaultDevice.SetScanEnable(EPageScanOnly);
 	defaultDevice.SetLimitedDiscoverable(EFalse);
-	defaultDevice.SetDeviceClass(0);
+	
+	// set the default device class to be phone|smartphone
+	// MajorServiceClass set to zero as there are no default service class bits
+	TBTDeviceClass defaultCod (0, EMajorDevicePhone, EMinorDevicePhoneSmartPhone);
+	defaultDevice.SetDeviceClass(defaultCod.DeviceClass());
+	
 	// The registry is being kicked off with a default channel assessment 
 	// mode setting of 'enabled'. This is the default if h/w supports 
 	// channel assessment. If h/w does not support channel assessment,
