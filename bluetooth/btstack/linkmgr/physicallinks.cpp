@@ -384,49 +384,12 @@ void CPhysicalLink::RegistryTaskComplete(CBTRegistryHelperBase* aHelper,
 	// Store the result of the retrieval for usage later.
 	iDeviceResult = aResult;
 
-	// the HW asked earlier for a link key - we can respond now
-	__ASSERT_DEBUG(iDevice.IsValidAddress(), Panic(EBTPhysicalLinksInvalidAddress));
-	if(iWaitingForLinkKeyFromRegistry)
+	if (iLinkKeyRequestOutstanding)
 		{
-		if (aResult == KErrNone && iDevice.IsValidLinkKey())
-			{
-			if ( iDevice.LinkKeyType() != ELinkKeyCombination)
-				{
-				if (iLinksMan.SecMan().DebugMode() && iDevice.LinkKeyType() != ELinkKeyDebug)
-					{
-					LOG(_L("CPhysicalLink: Debug mode - Link to debug link key"))
-					iAuthenticationCtrl.LinkKeyRequestNegativeReply(iDevice.Address());
-					}
-				else
-				if (iRequireAuthenticatedLinkKey && iDevice.LinkKeyType() == ELinkKeyUnauthenticatedUpgradable && IsPairable())
-					{
-					LOG(_L("CPhysicalLink: Requiring Authenticated link key but currently only have unauthenticated"))
-					iAuthenticationCtrl.LinkKeyRequestNegativeReply(iDevice.Address());
-					}
-				else
-					{
-					LOG(_L("CPhysicalLink: Issuing link key to HC now"))
-					iAuthenticationCtrl.LinkKeyRequestReply(iDevice.Address(), iDevice.LinkKey());
-					}
-				}
-			else if(IsPasskeyMinLengthOK() && SimplePairingMode() != EPhySimplePairingEnabled)
-				{
-				LOG(_L("CPhysicalLink: Issuing link key to HC now"))
-				iAuthenticationCtrl.LinkKeyRequestReply(iDevice.Address(), iDevice.LinkKey());
-				}
-			else
-				{
-				LOG(_L("CPhysicalLink: Current PIN code too short!"))
-				iAuthenticationCtrl.LinkKeyRequestNegativeReply(iDevice.Address());
-				}
-			}
-		else
-			{
-			iAuthenticationCtrl.LinkKeyRequestNegativeReply(iDevice.Address());
-			}	
+		// the HW asked earlier for a link key - we can respond now
+		__ASSERT_DEBUG(iDevice.IsValidAddress(), Panic(EBTPhysicalLinksInvalidAddress));
+		LinkKeyRequestResponseAttempt(ETrue);
 		}
-	iRequireAuthenticatedLinkKey = EFalse;
-	iWaitingForLinkKeyFromRegistry = EFalse;
 
 	RegistryTaskComplete(aHelper, aResult);	 // cleans up our helper
 	}
@@ -708,15 +671,9 @@ void CPhysicalLink::ReadRemoteSupportedFeaturesComplete(THCIErrorCode aErr, THCI
 			}
 		else
 			{
-			// If the remote doesn't support extended features, then neither they support SSP
-			// (no way to indicate the host supported bit).  So set it as disabled.
-			TPhysicalLinkSimplePairingMode previousSetting = SimplePairingMode();
-			__ASSERT_DEBUG(((SimplePairingMode() == EPhySimplePairingDisabled) || (SimplePairingMode() == EPhySimplePairingUndefined)),Panic(EBTSSPModeChangedDuringConnection));
-			iSimplePairingMode = EPhySimplePairingDisabled;
-			if(SimplePairingMode() != previousSetting)
-				{
-				iLinksMan.SecMan().SimplePairingSupportDetermined(BDAddr());
-				}
+			// If the remote doesn't support extended features, then they cannot support SSP
+			// (no way to indicate the host supported bit).  So set feature as disabled.
+			RemoteSimplePairingModeDetermined(EPhySimplePairingDisabled);
 			}
 		}
 	else
@@ -740,18 +697,12 @@ void CPhysicalLink::ReadRemoteExtendedFeaturesComplete(THCIErrorCode aErr, THCIC
 
 			if (aErr == EOK && aBitMask & (1 << ESecureSimplePairingHostSupportBit) && iLinksMan.SecMan().LocalSimplePairingMode())
 				{
-				__ASSERT_DEBUG(((SimplePairingMode() == EPhySimplePairingEnabled) || (SimplePairingMode() == EPhySimplePairingUndefined)),Panic(EBTSSPModeChangedDuringConnection));
-				iSimplePairingMode = EPhySimplePairingEnabled;
+				RemoteSimplePairingModeDetermined(EPhySimplePairingEnabled);
 				}
 			else
 				{
-				__ASSERT_DEBUG(((SimplePairingMode() == EPhySimplePairingDisabled) || (SimplePairingMode() == EPhySimplePairingUndefined)),Panic(EBTSSPModeChangedDuringConnection));
-				iSimplePairingMode = EPhySimplePairingDisabled;
+				RemoteSimplePairingModeDetermined(EPhySimplePairingDisabled);
 				}
-			if(SimplePairingMode()!=currentSetting)
-				{
-				iLinksMan.SecMan().SimplePairingSupportDetermined(BDAddr());
-				}			
 			break;
 			}
 		default:
@@ -2835,18 +2786,19 @@ void CPhysicalLink::PinRequest(const TBTDevAddr& aAddr, MPINCodeResponseHandler&
 
 	SetAuthenticationPending(EPinRequestPending); // if not already set (because the remote initiated authentication).
 
-	__ASSERT_DEBUG(iSimplePairingMode != EPhySimplePairingEnabled, Panic(EBTSSPModeChangedDuringConnection));
-	if (iSimplePairingMode == EPhySimplePairingUndefined)
-		{
-		iSimplePairingMode = EPhySimplePairingDisabled;
-		}
-	
 	if (!IsConnected())
 		{
-		iPeerInSecurityMode3 = ETrue;
+		// If the ACL to the peer device is not yet connected, and the peer has initiated
+		// authentication then it must be in security mode 3.  This information is stored and
+		// if the connection completes the link will be set as authenticated.
+		SetPeerInSecurityMode3();
 		}
 
-	
+	// We can receive "fast" PIN requests if the remote device initiates pairing and indicates
+	// it doesn't have a link key.  If we see this then we know that we are not engaging in 
+	// simple pairing on this particular link.
+	RemoteSimplePairingModeDetermined(EPhySimplePairingDisabled);
+
 	if (iPinRequester)
 		{
 		return;
@@ -3056,9 +3008,14 @@ TBool CPhysicalLink::IsPasskeyMinLengthOK()
 	return isPasskeyMinLengthOK;
 	}
 
-void CPhysicalLink::LinkKeyRequest(const TBTDevAddr& aAddr, MLinkKeyResponseHandler& /*aRequester*/)
+void CPhysicalLink::LinkKeyRequest(const TBTDevAddr& __DEBUG_ONLY(aAddr), MLinkKeyResponseHandler& /*aRequester*/)
 	{
 	LOG_FUNC
+	__ASSERT_DEBUG(aAddr == BDAddr(), Panic(EBTConnectionBadDeviceAddress));
+	ASSERT_DEBUG(!iLinkKeyRequestOutstanding);
+
+	iLinkKeyRequestOutstanding = ETrue;
+
 	// we don't keep a copy of the device record - we just leave the one copy with
 	// the baseband - it can tell us if there's a link key
 	// we can tell if the baseband has the device record or not
@@ -3070,68 +3027,13 @@ void CPhysicalLink::LinkKeyRequest(const TBTDevAddr& aAddr, MLinkKeyResponseHand
 	// if the connection completes the link will be set as authenticated.
 	if (!IsConnected())
 		{
-		iPeerInSecurityMode3 = ETrue;
+		SetPeerInSecurityMode3();
 		}
 
-	if(!iPeerInSecurityMode3 && iLinksMan.SecMan().IsDedicatedBondingAttempted(iDevice.Address()))
-		{
-		// If we are doing DedicatedBonding then we should ignore the existing linkkey
-		// in an attempt to generate a stronger one if possible.
-		// Security mode 3 is a odd case - because we get what looks like double pairing (the remote
-		// initiated pairing on connection, then the dedicated bonding pairing).  So we have removed
-		// this feature for security mode 3 devices...they will have to suffer for their transgressions
-		LOG(_L("CPhysicalLink: Dedicated bonding attempt - Sending link key request negative reply"));
-		iAuthenticationCtrl.LinkKeyRequestNegativeReply(aAddr);
-		iRequireAuthenticatedLinkKey = EFalse;
+	if (iLinkKeyRequestOutstanding)
+		{ // might have already been called via SetPeerInSecurityMode3()
+		LinkKeyRequestResponseAttempt();
 		}
-	else if (iDeviceResult==KErrNone && iDevice.IsValidLinkKey())
-		{
-		if (iLinksMan.SecMan().DebugMode() && iDevice.LinkKeyType() != ELinkKeyDebug)
-			{
-			LOG(_L("CPhysicalLink: Debug mode - Link to debug link key"))
-			iAuthenticationCtrl.LinkKeyRequestNegativeReply(aAddr);
-			}
-		else
-			{
-			if (iDevice.LinkKeyType() != ELinkKeyCombination)
-				{
-				if (iRequireAuthenticatedLinkKey && iDevice.LinkKeyType() == ELinkKeyUnauthenticatedUpgradable && IsPairable())
-					{
-					LOG(_L("CPhysicalLink: Requiring Authenticated link key but currently only have unauthenticated"))
-					iAuthenticationCtrl.LinkKeyRequestNegativeReply(aAddr);
-					}
-				else
-					{
-					LOG(_L("CPhysicalLink: Issuing link key to HC now"))
-					iAuthenticationCtrl.LinkKeyRequestReply(aAddr, iDevice.LinkKey());
-					}
-				}
-			else if(IsPasskeyMinLengthOK() && SimplePairingMode() != EPhySimplePairingEnabled)
-				{
-				LOG(_L("CPhysicalLink: Issuing link key to HC now"))
-				iAuthenticationCtrl.LinkKeyRequestReply(aAddr, iDevice.LinkKey());
-				}
-			else
-				{
-				LOG(_L("CPhysicalLink: Current PIN code too short!"))
-				iAuthenticationCtrl.LinkKeyRequestNegativeReply(aAddr);
-				}
-			}
-		iRequireAuthenticatedLinkKey = EFalse;
-		}
-	else if (iDeviceResult==KErrNone && !iDevice.IsValidLinkKey() || iDeviceResult==KErrNotFound)
-		{
-		LOG(_L("CPhysicalLink: No Link key available for the device"));
-		iAuthenticationCtrl.LinkKeyRequestNegativeReply(aAddr);
-		iRequireAuthenticatedLinkKey = EFalse;
-		}
-	else
-		{
-		LOG(_L("CPhysicalLink: Waiting for link key from Registry!"))
-		// we're still waiting for the device....we'll respond when it turns up
-		iWaitingForLinkKeyFromRegistry = ETrue;
-		}
-
 	}
 
 TInt CPhysicalLink::PINCodeRequestReply(const TBTDevAddr& aDevAddr, const TDesC8& aPin) const
@@ -3613,16 +3515,11 @@ void CPhysicalLink::IOCapabilityAskForResponse(THCIIoCapability aIOCapability, T
 	iOOBDataPresence = aOOBDataPresence;
 	iAuthenticationRequirement = aAuthenticationRequirement;
 	
-	//If we haven't determined the SSP pairing mode till now then enable it and notify the state m/c.
-	//This condition is to cater the fast remote device which responds very quickly,  
-	//even before we determine whether it supports simple pairing!*/ 
-	__ASSERT_DEBUG(((SimplePairingMode() == EPhySimplePairingEnabled) || (SimplePairingMode() == EPhySimplePairingUndefined)),Panic(EBTSSPModeChangedDuringConnection));
-	if(SimplePairingMode() == EPhySimplePairingUndefined)
-		{
-		//Since we have received a I/O cap response the simple pairing must be enabled
-		iSimplePairingMode = EPhySimplePairingEnabled;
-		iLinksMan.SecMan().SimplePairingSupportDetermined(BDAddr());
-		}
+	// If we haven't determined the SSP pairing mode the link is operating in yet then enable it,
+	// since we have received a I/O cap response the simple pairing must be enabled.
+	// This condition is to cater the fast remote device which responds very quickly,
+	// even before we determine whether it supports simple pairing!
+	RemoteSimplePairingModeDetermined(EPhySimplePairingEnabled);
 	}
 
 
@@ -3755,6 +3652,131 @@ void CPhysicalLink::PasskeyEntryKeyPressed(THCIPasskeyEntryNotificationType aKey
 TBasebandTime CPhysicalLink::GetSniffInterval() const
 	{
 	return iSniffInterval;
+	}
+
+void CPhysicalLink::LinkKeyRequestResponseAttempt(TBool aForceResponse)
+	{
+	ASSERT_DEBUG(iLinkKeyRequestOutstanding);
+
+	if(!iPeerInSecurityMode3 && iLinksMan.SecMan().IsDedicatedBondingAttempted(iDevice.Address()))
+		{
+		// If we are doing DedicatedBonding then we should ignore the existing linkkey
+		// in an attempt to generate a stronger one if possible.
+		// Security mode 3 is a odd case - because we get what looks like double pairing (the remote
+		// initiated pairing on connection, then the dedicated bonding pairing).  So we have removed
+		// this feature for security mode 3 devices...they will have to suffer for their transgressions
+		LOG(_L("CPhysicalLink: Dedicated bonding attempt - Sending link key request negative reply"));
+		DoLinkKeyResponse(EFalse);
+		iRequireAuthenticatedLinkKey = EFalse;
+		}
+	else if (iDeviceResult==KErrNone && iDevice.IsValidLinkKey())
+		{
+		if (iLinksMan.SecMan().DebugMode() && iDevice.LinkKeyType() != ELinkKeyDebug)
+			{
+			LOG(_L("CPhysicalLink: Debug mode - Link to debug link key"))
+			DoLinkKeyResponse(EFalse);
+			}
+		else if (iDevice.LinkKeyType() != ELinkKeyCombination)
+			{
+			if (iRequireAuthenticatedLinkKey && iDevice.LinkKeyType() == ELinkKeyUnauthenticatedUpgradable && IsPairable())
+				{
+				LOG(_L("CPhysicalLink: Requiring Authenticated link key but currently only have unauthenticated"))
+				DoLinkKeyResponse(EFalse);
+				}
+			else
+				{
+				LOG(_L("CPhysicalLink: non - combination key, auth OK"))
+				DoLinkKeyResponse(ETrue);
+				}
+			}
+		else // Standard (legacy) Combination Key
+			{
+			if (SimplePairingMode() == EPhySimplePairingUndefined)
+				{
+				LOG(_L("CPhysicalLink: Waiting for Secure Simple Pairing mode to be determined"));
+				// wait for ssp mode to be determined...then try again
+				}
+			else if (IsPasskeyMinLengthOK() && SimplePairingMode() == EPhySimplePairingDisabled)
+				{
+				LOG(_L("CPhysicalLink: Combination key, Passkey len OK, no SSP"));
+				DoLinkKeyResponse(ETrue);
+				}
+			else
+				{
+				LOG(_L("CPhysicalLink: Current link key is not sufficient!"))
+				DoLinkKeyResponse(EFalse);
+				}
+			}
+		iRequireAuthenticatedLinkKey = EFalse;
+		}
+	else if (iDeviceResult==KErrNone && !iDevice.IsValidLinkKey() || iDeviceResult==KErrNotFound)
+		{
+		LOG(_L("CPhysicalLink: No Link key available for the device"));
+		DoLinkKeyResponse(EFalse);
+		iRequireAuthenticatedLinkKey = EFalse;
+		}
+	else if (aForceResponse)
+		{
+		LOG(_L("CPhysicalLink: Forcing a link key response (-ve as we don't have a link key yet)"));
+		DoLinkKeyResponse(EFalse);
+		}
+	else
+		{
+		LOG(_L("CPhysicalLink: Waiting for link key from Registry!"))
+		// we're still waiting for the device....we'll respond when it turns up
+		}
+	}
+
+/**
+Send a link key response for an outstanding request, assumes that all details
+have be validated.
+*/
+void CPhysicalLink::DoLinkKeyResponse(TBool aPositive)
+	{
+	LOG_FUNC
+	ASSERT_DEBUG(iLinkKeyRequestOutstanding);
+
+	if(aPositive)
+		{
+		LOG(_L("CPhysicalLink: Providing link key to HC..."))
+		ASSERT_DEBUG(iDevice.IsValidLinkKey());
+		iAuthenticationCtrl.LinkKeyRequestReply(iDevice.Address(), iDevice.LinkKey());
+		}
+	else
+		{
+		LOG(_L("CPhysicalLink: Indicating no link key to HC..."));
+		iAuthenticationCtrl.LinkKeyRequestNegativeReply(iDevice.Address());
+		}
+	iLinkKeyRequestOutstanding = EFalse;
+	}
+
+void CPhysicalLink::RemoteSimplePairingModeDetermined(TPhysicalLinkSimplePairingMode aSimplePairingMode)
+	{
+	LOG2(_L8("Current SimplePairingMode = %d, aSimplePairingMode = %d"), SimplePairingMode(), aSimplePairingMode);
+	ASSERT_DEBUG(aSimplePairingMode != EPhySimplePairingUndefined); // must be a definite value
+	__ASSERT_DEBUG(SimplePairingMode() == aSimplePairingMode || SimplePairingMode() == EPhySimplePairingUndefined, Panic(EBTSSPModeChangedDuringConnection));
+
+	const TPhysicalLinkSimplePairingMode previousSetting = iSimplePairingMode;
+	iSimplePairingMode = aSimplePairingMode;
+	if (previousSetting != iSimplePairingMode)
+		{
+		iLinksMan.SecMan().SimplePairingSupportDetermined(BDAddr());
+
+		// Also we may be waiting to respond to a link key request.
+		if (iLinkKeyRequestOutstanding)
+			{
+			LinkKeyRequestResponseAttempt();
+			}
+		}
+	}
+
+void CPhysicalLink::SetPeerInSecurityMode3()
+	{
+	iPeerInSecurityMode3 = ETrue;
+
+	// We also now know that the remote cannot possibly do SSP, *and* the LMP will
+	// likely lock our finding if the remote does SSP anyway while we do SM3.
+	RemoteSimplePairingModeDetermined(EPhySimplePairingDisabled);
 	}
 
 //

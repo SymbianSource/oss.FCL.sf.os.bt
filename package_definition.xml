@@ -70,6 +70,11 @@
         <unit mrp="bluetoothapitest/bluetoothsvs/group/bluetoothsvs.mrp" bldFile="bluetoothapitest/bluetoothsvs/group"/>
       </component>
     </collection>
+    <collection id="atext" name="AT Extensions" level="server">
+      <component id="atext_build" name="AT Extension Build" introduced="^3" purpose="optional" filter="s60">
+        <unit bldFile="atext/group"/>
+      </component>
+    </collection>
     <collection id="bt_info" name="Bluetooth Info" level="app-if">
       <component id="bt_plat" filter="s60" class="api">
         <unit bldFile="bt_plat/group"/>

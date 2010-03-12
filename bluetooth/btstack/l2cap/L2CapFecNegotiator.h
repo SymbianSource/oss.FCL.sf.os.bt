@@ -46,6 +46,12 @@ public:
 			   							const TRetransmissionAndFlowControlOption& aPeer) const;
 	virtual void BuildNegativeResponse(TRetransmissionAndFlowControlOption& aPreferred,
 									   const TRetransmissionAndFlowControlOption& aPeer) const;
+
+	virtual void BuildRequestBasedOnUnacceptableParamsResponse(
+					TRetransmissionAndFlowControlOption& aPreferred,
+					const TRetransmissionAndFlowControlOption& aPeer,
+					const TL2CapFecNegotiator& aFecNegotiator) const;
+
 	// In general configuration procedure (spec chapter 7 General Procedures) if the remote accepts
 	// an option from our ConfigReq, it doesn't have to include it in the response. So before
 	// processing the options from a ConfigRsp we've received, we go through the preferred values
@@ -104,6 +110,11 @@ public:
 	virtual TBool IsOptionValid(const TRetransmissionAndFlowControlOption& aFecOption) const;
 	virtual TBool IsPeerResponseAcceptable(const TRetransmissionAndFlowControlOption& aPreferred,
 										   const TRetransmissionAndFlowControlOption& aPeer) const;
+	virtual void BuildRequestBasedOnUnacceptableParamsResponse(
+                        TRetransmissionAndFlowControlOption& aPreferred,
+                        const TRetransmissionAndFlowControlOption& aPeer,
+                        const TL2CapFecNegotiator& aFecNegotiator) const;
+
 	virtual void SetMaxTransmit(TRetransmissionAndFlowControlOption& aFecOption, TUint8 aMaxTransmit) const;
 	};
 
@@ -132,6 +143,9 @@ public:
 									   const TRetransmissionAndFlowControlOption& aPeer) const;
 	inline void BuildNegativeResponse(TRetransmissionAndFlowControlOption& aPreferred,
 									  const TRetransmissionAndFlowControlOption& aPeer) const;
+	inline void BuildRequestBasedOnUnacceptableParamsResponse(TRetransmissionAndFlowControlOption& aPreferred,
+															  const TRetransmissionAndFlowControlOption& aPeer,
+															  const TL2CapFecNegotiator& aFecNegotiator) const;
 	inline void PrepareImplicitPeerResponse(TRetransmissionAndFlowControlOption& aImplicitResponse,
 											const TRetransmissionAndFlowControlOption& aPreferred) const;
 	inline void SetMaxTransmit(TRetransmissionAndFlowControlOption& aFecOption, TUint8 aMaxTransmit) const;

@@ -214,7 +214,6 @@ private:
 
 	void StartBondingL(const RMessage2& aMessage);
 	void DoAccessRequestL();
-	void ConnectCompleteL();
 	void Shutdown();
 
 	void Complete(TInt aError);

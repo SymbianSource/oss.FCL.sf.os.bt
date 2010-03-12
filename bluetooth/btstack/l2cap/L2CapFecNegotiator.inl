@@ -72,6 +72,19 @@ inline void TFecOptionHandlerDelegator::BuildNegativeResponse(TRetransmissionAnd
 	Handler(aPreferred).BuildNegativeResponse(aPreferred, aPeer);
 	}
 
+inline void
+TFecOptionHandlerDelegator::BuildRequestBasedOnUnacceptableParamsResponse(
+		TRetransmissionAndFlowControlOption& aPreferred,
+		const TRetransmissionAndFlowControlOption& aPeer,
+		const TL2CapFecNegotiator& aFecNegotiator) const
+	{
+#ifdef __FLOG_ACTIVE
+	LogCurrentValues(aPreferred, aPeer);
+#endif
+	// Response has suggested mode, dispatch on that.
+	Handler(aPeer).BuildRequestBasedOnUnacceptableParamsResponse(aPreferred, aPeer, aFecNegotiator);
+	}
+
 inline void TFecOptionHandlerDelegator::PrepareImplicitPeerResponse(TRetransmissionAndFlowControlOption& aImplicitResponse,
 																	const TRetransmissionAndFlowControlOption& aPreferred) const
 	{

@@ -775,12 +775,18 @@ void CDedicatedBondingSession::StartBondingL(const RMessage2& aMessage)
 	iProxySap = CBTProxySAP::NewL(iPhysicalLinksManager, NULL);
 
 	CleanupStack::Pop(this); // the start message cleaner
-
+	
+	// Now we've entered the realm of not leaving with an error, since the connection
+	// process has started.  Errors from now on must be via the Error() function call.
 	iState = EInitialConnectionPending;
 	iProxySap->SetNotify(this);
 	iProxySap->SetRemName(addr);
 	iProxySap->ActiveOpen();
-	DoAccessRequestL();
+	TRAPD(err, DoAccessRequestL());
+	if(err != KErrNone)
+		{
+		Error(err);
+		}
 	}
 
 void CDedicatedBondingSession::CleanupStartMessage(TAny* aPtr)
@@ -816,7 +822,11 @@ void CDedicatedBondingSession::AccessRequestComplete(TInt aResult)
 			addr.SetBTAddr(iProxySap->RemoteAddress());
 			iProxySap->SetRemName(addr); // triggers finding a link again.
 			iProxySap->ActiveOpen();
-			DoAccessRequestL();
+			TRAPD(err, DoAccessRequestL());
+			if(err != KErrNone)
+				{
+				Error(err);
+				}
 			break;
 			}
 		// else not deferred so complete now....
@@ -864,7 +874,7 @@ void CDedicatedBondingSession::CanSend()
 	__ASSERT_DEBUG(EFalse, PANIC(KPairingServerFaultCat, EPairingServerUnexpectedSocketCallback));
 	}
 
-void CDedicatedBondingSession::ConnectCompleteL()
+void CDedicatedBondingSession::ConnectComplete()
 	{
 	LOG_FUNC
 	switch(iState)
@@ -879,20 +889,15 @@ void CDedicatedBondingSession::ConnectCompleteL()
 	case EFinalConnection:
 		// Apparently multiple connect completes are allowed by CSocket
 		break;
+	case EShutdown:
+		// If an error occurred just after the connection request then we
+		// might receive a connection complete before the async shutdown request
+		// has been executed.
+		break;
 	default:
 		LOG1(_L("Unexpected Connect Complete in state %d"), iState);
 		__ASSERT_DEBUG(EFalse, PANIC(KPairingServerFaultCat, EPairingServerUnexpectedSocketCallback));
 		break;
-		}
-	}
-
-void CDedicatedBondingSession::ConnectComplete()
-	{
-	LOG_FUNC
-	TRAPD(err, ConnectCompleteL());
-	if(err != KErrNone)
-		{
-		Error(err);
 		}
 	}
 

@@ -487,6 +487,12 @@ private:
 	
 	inline TBool IsAuthenticationPending() const;
 
+	void LinkKeyRequestResponseAttempt(TBool aForceResponse = EFalse);
+	void DoLinkKeyResponse(TBool aPositive);
+
+	void RemoteSimplePairingModeDetermined(TPhysicalLinkSimplePairingMode aSimplePairingMode);
+	void SetPeerInSecurityMode3();
+
 private: // from MPINCodeResponseHandler
 	TInt PINCodeRequestReply(const TBTDevAddr& aDevAddr,const TDesC8& aPin) const;
 	TInt PINCodeRequestNegativeReply(const TBTDevAddr& aDevAddr) const;
@@ -519,9 +525,11 @@ private:
 	// the PHY's supported logical links...
 	RPointerArray<CACLLink>					iACLLogicalLinks;
 	CBTSynchronousLink*						iSyncLogicalLink; // stack only supports a signal one per PHY
-	
 
-	MPINCodeResponseHandler*	iPinHandler;
+	TBool						iLinkKeyRequestOutstanding;	// for if we have to wait for Registry or SSP support status
+
+	MPINCodeResponseHandler*	iPinHandler;		// for forwarding responses to
+
 	TBTConnect 					iLastPendingConnection;		// for if we have to wait for Registry to decide whether to rject or accept a connection
 	TBool						iPendingConnection;  // is a connection request waiting for a reply
 	TSglQue<CBTProxySAP>		iProxySAPs;			// the proxies bound to us
@@ -570,8 +578,6 @@ private:
 
 	TBool						iNewPinCodeValid;
 	TBTPinCode					iNewPinCode;
-
-	TBool						iWaitingForLinkKeyFromRegistry;
 
 private:
 	/**
