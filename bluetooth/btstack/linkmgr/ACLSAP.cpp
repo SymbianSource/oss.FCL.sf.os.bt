@@ -60,6 +60,7 @@ void CACLLinkStateFactory::ConstructL()
 	iStates[EOpen]					=new (ELeave) TACLLinkStateOpen(*this);
 	iStates[EOpenParked]			=new (ELeave) TACLLinkStateOpenParked(*this);
 	iStates[EClosing]				=new (ELeave) TACLLinkStateClosing(*this);
+	iStates[EAcceptingClosing]		=new (ELeave) TACLLinkStateAcceptingClosing(*this);
 	}
 
 CACLLinkStateFactory::~CACLLinkStateFactory()
@@ -432,7 +433,7 @@ void TACLLinkStateAccepting::Shutdown(CACLLink& aContext, CServProviderBase::TCl
 	{
 	LOG_FUNC
 	// we're not wanted - close
-	ChangeState(aContext, CACLLinkStateFactory::EClosing);
+	ChangeState(aContext, CACLLinkStateFactory::EAcceptingClosing);
 	}
 
 //----------------------------------------------------------------------------------
@@ -497,7 +498,7 @@ void TACLLinkStateWaitForStart::Shutdown(CACLLink& aContext, CServProviderBase::
 	{
 	LOG_FUNC
 	// just go
-	ChangeState(aContext, CACLLinkStateFactory::EClosing);
+	ChangeState(aContext, CACLLinkStateFactory::EAcceptingClosing);
 	}
 
 //----------------------------------------------------------------------------------
@@ -866,6 +867,38 @@ void TACLLinkStateClosing::Error(CACLLink& aContext, TInt /*aError*/) const
 	ChangeState(aContext, CACLLinkStateFactory::EClosed);
 	aContext.Socket()->CanClose();
 	}
+
+//----------------------------------------------------------------------------------
+
+TACLLinkStateAcceptingClosing::TACLLinkStateAcceptingClosing(CACLLinkStateFactory& aFactory)
+: TACLLinkState(aFactory)
+	{
+	LOG_FUNC
+	STATENAME("AcceptingClosing");
+	}
+
+void TACLLinkStateAcceptingClosing::Shutdown(CACLLink& /*aContext*/, CServProviderBase::TCloseType /*aCloseType*/) const
+	{
+	LOG_FUNC
+	// we are!  just ignore and continue
+	}
+
+void TACLLinkStateAcceptingClosing::Deletion(CACLLink& aContext) const
+	{
+	LOG_FUNC
+	aContext.ListeningSAP()->RemoveChild(&aContext);
+	}
+
+void TACLLinkStateAcceptingClosing::Error(CACLLink& aContext, TInt /*aError*/) const
+	{
+	LOG_FUNC
+	// This method is reached by receiving a Disconnection Complete Event with Status field != EOk,
+	// in this case we don't want to error the socket - so instead it is just closed
+	aContext.ListeningSAP()->RemoveChild(&aContext);
+	ChangeState(aContext, CACLLinkStateFactory::EClosed);
+	aContext.Socket()->CanClose();
+	}
+
 
 //----------------------------------------------------------------------------------
 

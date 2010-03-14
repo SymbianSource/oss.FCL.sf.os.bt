@@ -539,7 +539,7 @@ void CBTAccessRequester::IOCapsRequested(TBTSecEvent& aEvent)
 		
 		// If MITM protection is required by a service, or the device is in paired only connections mode
 		// the require MITM protection.
-		if (iRequirements.MitmProtection() != EMitmNotRequired || iSecMan.ConnectionsManager().IsAcceptPairedOnlyMode())
+		if (iRequirements.MitmProtection() != EMitmNotRequired)
 			{
 			if (iAccessType == EDedicatedBonding)
 				{

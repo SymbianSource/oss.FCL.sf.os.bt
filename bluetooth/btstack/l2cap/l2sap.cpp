@@ -141,6 +141,8 @@ CL2CAPConnectionSAP* CL2CAPConnectionSAP::CloneListeningSAP(const TBTDevAddr& aA
 			clone->SetState(iState->iFactory.GetState(CL2CAPSAPStateFactory::EPassiveLinkPending));
 			clone->SetListeningSAP(*this);
 			
+			clone->SetCodServiceBits(iCodServiceBits);
+			
 			// Copy the details required for security.
 			clone->iSecurity = iSecurity;
 			clone->iRemoteDev = aAddr; 

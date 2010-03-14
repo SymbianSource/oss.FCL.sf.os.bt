@@ -909,12 +909,16 @@ void TAVStreamStateOpening::OpenConfirm(CAVStream& aStream, TInt aResult, TSEID 
 // now we kick TCs into life
 	if (aResult)
 		{
-		// can return to Idle, user could try this operation again
-		// the way Open works means we have transport sessions interested in result of this
-		// they need to tell their sockets that their connects failed
-		
-		ChangeState(aStream, CAVStreamStateFactory::EStreamStateIdle);
-		
+		// late reply or connection problem, abort
+
+		CSignallingChannel* sigch = aStream.iProtocol.FindSignallingChannel(aStream.iRemoteAddress.BTAddr());
+		// should always have sigch here
+		__ASSERT_DEBUG(sigch, PanicInState(EAvdtpSignallingChannelShouldExist));
+		if (sigch)
+			{
+			sigch->SendAbort(aStream, aStream.RemoteSEID());
+			}
+	
 		// no need to tell signalling session as Opening is not available to RGavdp
 		// Opening is performed when the necessary sockets are created and connected in a stream
 		aStream.NotifyUserPlaneTransportSessionsError(NULL, aResult);

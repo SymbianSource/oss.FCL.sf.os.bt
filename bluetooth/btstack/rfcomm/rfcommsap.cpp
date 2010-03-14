@@ -597,6 +597,8 @@ CRfcommSAP* CRfcommSAP::CloneMe()
 	//	Ensure the parent doesn't forget its clone
 	iClonedChildren.Append(clone);	
 
+	clone->SetCodServiceBits(iCodServiceBits);
+	
 	return clone;
 	}
 

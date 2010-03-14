@@ -780,6 +780,7 @@ void CDedicatedBondingSession::StartBondingL(const RMessage2& aMessage)
 	iProxySap->SetNotify(this);
 	iProxySap->SetRemName(addr);
 	iProxySap->ActiveOpen();
+	DoAccessRequestL();
 	}
 
 void CDedicatedBondingSession::CleanupStartMessage(TAny* aPtr)
@@ -815,6 +816,7 @@ void CDedicatedBondingSession::AccessRequestComplete(TInt aResult)
 			addr.SetBTAddr(iProxySap->RemoteAddress());
 			iProxySap->SetRemName(addr); // triggers finding a link again.
 			iProxySap->ActiveOpen();
+			DoAccessRequestL();
 			break;
 			}
 		// else not deferred so complete now....
@@ -829,6 +831,12 @@ void CDedicatedBondingSession::AccessRequestComplete(TInt aResult)
 			{
 			err = KErrAccessDenied;
 			}
+		break;
+	case EInitialConnectionPending:
+	case EFinalConnectionPending:
+		// Access request shouldn't successfully complete if the connection is still pending
+		__ASSERT_DEBUG(aResult != EBTSecManAccessGranted,  PANIC(KPairingServerFaultCat, EPairingServerUnexpectedAccessCallback));
+		// We should get the MSocketNotify::Error callback, so don't do anything else
 		break;
 	default:
 		LOG1(_L("Unexpected Access Request Complete in state %d"), iState);
@@ -863,11 +871,9 @@ void CDedicatedBondingSession::ConnectCompleteL()
 		{
 	case EInitialConnectionPending:
 		iState = EInitialConnection;
-		DoAccessRequestL();
 		break;
 	case EFinalConnectionPending:
 		iState = EFinalConnection;
-		DoAccessRequestL();
 		break;
 	case EInitialConnection:
 	case EFinalConnection:

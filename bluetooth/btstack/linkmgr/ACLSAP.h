@@ -57,6 +57,7 @@ public:
 		EOpen,	
 		EOpenParked,
 		EClosing,
+		EAcceptingClosing,
 	// *** keep next one last ***
 		EACLLinkMaxState,
 		};
@@ -228,6 +229,18 @@ public:
 	
 	void Error(CACLLink& aContext, TInt aError) const;
 	};
+
+NONSHARABLE_CLASS(TACLLinkStateAcceptingClosing) : public TACLLinkState
+	{
+public:
+	TACLLinkStateAcceptingClosing(CACLLinkStateFactory& aFactory);
+
+	void Shutdown(CACLLink& aContext, CServProviderBase::TCloseType aCloseType) const;
+	void Deletion(CACLLink& aContext) const;
+	
+	void Error(CACLLink& aContext, TInt aError) const;
+	};
+
 
 NONSHARABLE_CLASS(TACLLinkStateClosed) : public TACLLinkState
 	{
