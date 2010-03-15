@@ -822,6 +822,8 @@ TInt TAvctpStateOpen::AddSecondChannel(CAvctpTransport& aTransport, CServProvide
 		config().SetMinMTU(KDefaultMtu);
 		config().SetMaxReceiveUnitSize(KAvctpSecondaryChannelInboundMTU);
 		config().SetMinMRU(KDefaultMtu);
+		config().ConfigureReliableChannel(TL2CapConfig::EDefaultRetransmission);
+		config().SetLegacyModesDisallowed(ETrue);
 
 		err = aTransport.iChannelSAPs[KAvctpSecondaryChannel]->SetOption(KSolBtL2CAP, KL2CAPUpdateChannelConfig, config); 
 		__ASSERT_DEBUG(err == KErrNone, Panic(ESetOptionError));

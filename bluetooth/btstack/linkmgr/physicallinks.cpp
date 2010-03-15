@@ -509,6 +509,10 @@ void CPhysicalLink::NewLinkKey(const TBTDevAddr& /*aAddr*/, const TBTLinkKey& aL
 		iDevice.SetPassKey(iNewPinCode);
 		}
 
+	if (iLinksMan.SecMan().IsDedicatedBondingAttempted(iDevice.Address()))
+		{
+		iLinkKeyObtainedThroughDedicatedBonding = ETrue;
+		}
 
 	SetLinkKey(aLinkKey, linkKeyType);	// keeps a copy in our 'cache', updates paired list in PHYs mananger
 
@@ -572,7 +576,10 @@ void CPhysicalLink::StoreDeviceL( TBool aPreventDeviceAddition )
 		}
 	if(iDevice.IsValidLinkKey() && !iPreventLinkKeyUpdateReg)
 		{
-		if(!(iIOCapsReceived && (iAuthenticationRequirement == EMitmNotReqNoBonding || iAuthenticationRequirement == EMitmReqNoBonding)))
+		// We store the link key if it was obtained through dedicated bonding, even if the remote device indicated "no bonding"
+		// This fixes issues with a lot of remote stacks, and we'll let the UI delete the link key if they want to.
+		if(iLinkKeyObtainedThroughDedicatedBonding ||
+			!(iIOCapsReceived && (iAuthenticationRequirement == EMitmNotReqNoBonding || iAuthenticationRequirement == EMitmReqNoBonding)))
 			{
 			LOG(_L("!!! Storing Link Key in Registry"));
 			device.SetLinkKey(iDevice.LinkKey(), iDevice.LinkKeyType());
@@ -859,6 +866,7 @@ TInt CPhysicalLink::Authenticate(TBool aRequireAuthenticatedLinkKey)
 		TRAP(err, iLinksMan.HCIFacade().AuthenticateL(Handle()));
 		if(err == KErrNone)
 			{
+			iLinkKeyReturnedInThisAuthentication = EFalse;
 			SetAuthenticationPending(EAuthenticationRequestPending);
 			}
 		}
@@ -2941,6 +2949,12 @@ TBool CPhysicalLink::IsPairable() const
 		|| iLinksMan.SecMan().IsDedicatedBondingAttempted(iDevice.Address());
 	}
 
+TBool CPhysicalLink::IsPairingExpected() const
+	{
+	LOG_FUNC
+	return !(IsAuthenticationPending() && iLinkKeyReturnedInThisAuthentication);
+	}
+
 void CPhysicalLink::DeleteLinkKeyL()
 /**
 ensure that the LinkKey is removed from the device in the registry
@@ -3648,6 +3662,40 @@ void CPhysicalLink::PasskeyEntryKeyPressed(THCIPasskeyEntryNotificationType aKey
 	iPasskeyEntry->KeyPressed(aKey);
 	}
 
+void CPhysicalLink::NewUserConfirmerL(const TBTDevAddr aAddr,
+ 										  CBTSecMan& aSecMan,
+ 										  TBool	aInternallyInitiated)
+   	{
+	LOG_FUNC
+ 	__ASSERT_DEBUG(aAddr == BDAddr(), Panic(EBTConnectionBadDeviceAddress));
+  	iUserConfirmer = CBTUserConfirmer::NewL(aAddr, aSecMan, aInternallyInitiated);
+   	}
+
+CBTUserConfirmer* CPhysicalLink::InstanceUserConfirmer() const
+	{
+	LOG_FUNC
+	return iUserConfirmer;
+	}
+
+TBool CPhysicalLink::IsUserConfirmerActive()const
+	{
+	LOG_FUNC
+	return iUserConfirmer->IsActive();
+	}
+
+void CPhysicalLink::DeleteUserConfirmer()
+	{
+	LOG_FUNC
+	delete iUserConfirmer;
+	iUserConfirmer = NULL;
+	}
+
+void CPhysicalLink::CancelUserConfirmer()
+	{
+	LOG_FUNC
+	iUserConfirmer->Cancel();
+	}
+
 
 TBasebandTime CPhysicalLink::GetSniffInterval() const
 	{
@@ -3740,6 +3788,10 @@ void CPhysicalLink::DoLinkKeyResponse(TBool aPositive)
 		{
 		LOG(_L("CPhysicalLink: Providing link key to HC..."))
 		ASSERT_DEBUG(iDevice.IsValidLinkKey());
+		if (IsAuthenticationPending())
+			{
+			iLinkKeyReturnedInThisAuthentication = ETrue;
+			}
 		iAuthenticationCtrl.LinkKeyRequestReply(iDevice.Address(), iDevice.LinkKey());
 		}
 	else

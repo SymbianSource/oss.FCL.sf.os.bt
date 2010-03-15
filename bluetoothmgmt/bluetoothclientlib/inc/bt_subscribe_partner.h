@@ -1,4 +1,4 @@
-// Copyright (c) 2003-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2003-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -66,5 +66,33 @@ connection with a debug link key will be rejected for secure reasons.
 @capability CommDD			Needed for write access to this property
 */
 const TUint KPropertyKeyBluetoothSetSimplePairingDebugMode = (KUidBluetoothPubSubKeyBase + 21);
+
+/** +-   
+KPropertyKeyBluetoothSetPageScanParameters     
+The key to control the parameters of the page scan Bluetooth hardware is currently performing.     
+The P&S value will contain an integer from TPageScanParameterSettings enumeration.     
+The values are mapped to actual parameters in the Bluetooth stack.     
+@see TPageScanParameterSettings     
+@publishedPartner     
+@released     
+@capability LocalServices   Needed for both read and write access to this property     
+@capability NetworkControl  Needed for both read and write access to this property     
+*/     
+const TUint KPropertyKeyBluetoothSetPageScanParameters = (KUidBluetoothPubSubKeyBase + 23);     
+      
+/**     
+KPropertyKeyBluetoothGetPageScanParameters     
+The key is intended to be used by the Bluetooth stack to provide an indication to the client     
+which has requested a page scan parameters change that the parameters have been enabled.     
+The value returned is of the TPageScanParameterSettings type.     
+The enumeration may gain additional members in future.     
+@see TPageScanParameterSettings     
+@publishedPartner     
+@released     
+@capability LocalServices   Needed for both read and write access to this property     
+@capability NetworkControl  Needed for both read and write access to this property     
+*/     
+const TUint KPropertyKeyBluetoothGetPageScanParameters = (KUidBluetoothPubSubKeyBase + 24);     
+  
 
 #endif //BT_SUBSCRIBE_PARTNER_H

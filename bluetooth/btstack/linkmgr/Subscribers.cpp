@@ -1,4 +1,4 @@
-// Copyright (c) 2003-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2003-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -328,4 +328,35 @@ void CDebugModeSubscriber::RunL()
 		}
 	}
 
+//-----------------
 
+CPageScanParametersSubscriber* CPageScanParametersSubscriber::NewL(CLinkMgrProtocol& aLinkMgrProtocol)
+	{
+	CPageScanParametersSubscriber* s = new(ELeave) CPageScanParametersSubscriber(aLinkMgrProtocol);
+	CleanupStack::PushL(s);
+	s->ConstructL(KPropertyKeyBluetoothSetPageScanParameters);
+	CleanupStack::Pop(s);
+	return s;
+	}
+
+CPageScanParametersSubscriber::CPageScanParametersSubscriber(CLinkMgrProtocol& aLinkMgrProtocol)
+: CSubscriber(aLinkMgrProtocol)
+	{
+	}
+
+void CPageScanParametersSubscriber::RunL()
+	{
+	//Get this value first before we subscribe again
+	TInt ret = iStatus.Int();
+	Subscribe();
+
+	if(ret==KErrNone)
+		{
+		TInt pageScanParameters;
+		ret = iProperty.Get(pageScanParameters);
+		if(ret == KErrNone)
+			{
+			iParent.SetPageScanParameters(static_cast<TPageScanParameterSettings>(pageScanParameters));
+			}
+		}
+	}

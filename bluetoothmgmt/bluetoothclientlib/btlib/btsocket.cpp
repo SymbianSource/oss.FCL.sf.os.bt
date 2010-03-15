@@ -2792,11 +2792,8 @@ void CAutoSniffDelayTimer::Start()
 void CAutoSniffDelayTimer::StartActive()
 	{
 	Start();
-	if(iSniffModeRequested)
-		{
-		// When enabling auto sniffing, we make use of Explicit active mode.
-		(void)MbbhBTBaseband().RequestExplicitActiveMode(ETrue);
-		}
+	// When enabling auto sniffing, we make use of Explicit active mode.
+	(void)MbbhBTBaseband().RequestExplicitActiveMode(ETrue);
 	}
 
 RBTBaseband& CAutoSniffDelayTimer::MbbhBTBaseband() 
@@ -2814,7 +2811,7 @@ void CAutoSniffDelayTimer::MbbhHandleActivateBasebandEventNotifierCompleteL(TInt
 		if(iSniffModeRequested)
 			{
 			MbbhBTBaseband().CancelLowPowerModeRequester();
-			StartActive();
+			iSniffModeRequested = EFalse;
 			}
 		}
 	__ASSERT_ALWAYS(iBTAutoSniffBasebandChangeEventNotifier != NULL, Panic(EBBInvalidAddress));

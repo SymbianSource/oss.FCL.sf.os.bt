@@ -1,4 +1,4 @@
-// Copyright (c) 2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2009-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -83,6 +83,9 @@ REM *** supports bluetooth, to save ROM space...
 #ifdef SYMBIAN_EXCLUDE_BLUETOOTH
 REM Feature BLUETOOTH is not in this ROM (bluetooth.iby)
 #else
+
+REM BT Manager Backup Registration
+data=ZPRIVATE\100069cc\backup_registration.xml	Private\100069cc\backup_registration.xml
 
 REM default is to run Esock_BT thread in DealerPlayer role
 data=ZPRIVATE\101F7988\esock_bt.cmi private\101F7988\esock_bt.cmi

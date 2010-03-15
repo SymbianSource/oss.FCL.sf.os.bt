@@ -444,10 +444,21 @@ public:
 	void DeletePasskeyEntry();
 	void CancelPasskeyEntry();
 	void PasskeyEntryKeyPressed(THCIPasskeyEntryNotificationType aKey);
+
+	void NewUserConfirmerL(const TBTDevAddr aAddr,CBTSecMan& aSecMan,TBool aInternallyInitiated);
+
+	CBTUserConfirmer* InstanceUserConfirmer() const;
+	TBool IsUserConfirmerActive()const;
+	void DeleteUserConfirmer();
+	void CancelUserConfirmer();
+
+	
 	TBasebandTime GetSniffInterval() const;
 	
 	TBool IsPairable() const;
 
+	TBool IsPairingExpected() const;
+	
 private:
 	CPhysicalLink(CPhysicalLinksManager& aParent, CRegistrySession& aRegSess, const TBTNamelessDevice& aDevice);
 	void ConstructL();
@@ -486,7 +497,7 @@ private:
 	void PINCodeRequestNegativeReply(const TBTDevAddr& aDevAddr);
 	
 	inline TBool IsAuthenticationPending() const;
-
+	
 	void LinkKeyRequestResponseAttempt(TBool aForceResponse = EFalse);
 	void DoLinkKeyResponse(TBool aPositive);
 
@@ -519,6 +530,7 @@ private:
 	CBTPinRequester*						iPinRequester;	// looks after PIN entry UI/state
 	CBTNumericComparator*					iNumericComparator; // looks after the numeric comparison UI/state
 	CBTPasskeyEntry*						iPasskeyEntry; // looks after the passkey entry UI/state
+	CBTUserConfirmer*					iUserConfirmer; // looks after the user confirmation UI/state
 	
 	CEncryptionEnforcer*					iEncryptionEnforcer;
 	
@@ -579,6 +591,8 @@ private:
 	TBool						iNewPinCodeValid;
 	TBTPinCode					iNewPinCode;
 
+	TBool						iLinkKeyReturnedInThisAuthentication;
+	TBool						iLinkKeyObtainedThroughDedicatedBonding;
 private:
 	/**
 	Enumeration to represent the current state of the physical links storage in the registry,

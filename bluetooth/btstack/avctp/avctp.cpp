@@ -398,6 +398,8 @@ void CAvctpProtocol::DoStartAvctpListeningL()
 	config().SetMinMTU(KDefaultMtu);
 	config().SetMaxReceiveUnitSize(KAvctpSecondaryChannelInboundMTU);
 	config().SetMinMRU(KDefaultMtu);
+	config().ConfigureReliableChannel(TL2CapConfig::EDefaultRetransmission);
+	config().SetLegacyModesDisallowed(ETrue);
 	
 	__DEBUG_ONLY(TInt err =) sap2->SetOption(KSolBtL2CAP, KL2CAPUpdateChannelConfig, config); 
 	__ASSERT_DEBUG(err == KErrNone, Panic(ESetOptionError));

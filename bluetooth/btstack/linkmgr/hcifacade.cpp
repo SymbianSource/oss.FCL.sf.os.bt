@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -372,6 +372,7 @@ void CHCIFacade::HandlePowerStatusChange(TBTPowerState aStatus)
 	switch(aStatus)
 		{
 	case EBTOn:
+		{
 		// Start-up Bluetooth
 		// Avoid from ON to ON
 		__ASSERT_DEBUG (iLastPowerState == EBTOff, Panic(EHCIPowerStateError));
@@ -380,7 +381,10 @@ void CHCIFacade::HandlePowerStatusChange(TBTPowerState aStatus)
 		//recovery the channels
 		iLinkMgrProtocol.LinkMuxer().ChannelsFree(iHCTLState);
 		
-		TRAPD(err, InitL(iLinkMgrProtocol.LocalDevice()));
+		TBTLocalDevice settings(iLinkMgrProtocol.LocalDevice());
+		iLinkMgrProtocol.DesiredLocalDeviceSettings().Modify(settings);
+		
+		TRAPD(err, InitL(settings));
 		// Hopefully this should just work it won't rename the device though 
 		// since that is persisted
 		if (err)
@@ -390,14 +394,17 @@ void CHCIFacade::HandlePowerStatusChange(TBTPowerState aStatus)
 			}
 		else
 			{
+			iLinkMgrProtocol.DesiredLocalDeviceSettings().ResetChangesMask();
 			// Reset the inquiry manager
 			iLinkMgrProtocol.InquiryMgr().SetHWState(CBTInquiryMgr::EIdle);
 			// Clear debug mode
 			iLinkMgrProtocol.SecMan().ClearDebugMode();
 			}
+		}
 		break;
 		
 	case EBTOff:
+		{
 		// Reset the Command Queue
 		// Avoid from OFF to OFF
 		__ASSERT_DEBUG (iLastPowerState == EBTOn, Panic(EHCIPowerStateError));
@@ -433,10 +440,13 @@ void CHCIFacade::HandlePowerStatusChange(TBTPowerState aStatus)
 		// NB This ensures AFH host channel classification command blocking is 
 		// not in place if power comes back on.
 		iAFHTimer->Reset();
+		}
 		break;
 		
 	default:
+		{
 		Panic(EHCIUnknownPowerState);
+		}
 		break;
 		}
 	
