@@ -453,34 +453,22 @@ void CBTSecMan::IOCapabilityRequestFromRemote(const TBTDevAddr& aAddr)
 				oobPresence = EOOBDataPresent;
 				}
 			THCIAuthenticationRequirement authReq = link->AuthenticationRequirement();
-			if(ConnectionsManager().IsAcceptPairedOnlyMode())
+			switch(authReq)
 				{
-				// in paired only mode, only MITM pairings are acceptable.
-				switch(authReq)
-					{
 				case EMitmNotReqNoBonding:
-				case EMitmReqNoBonding:
-					authReq = EMitmReqNoBonding;
-					break;
 				case EMitmNotReqDedicatedBonding:
-				case EMitmReqDedicatedBonding:
-					authReq = EMitmReqDedicatedBonding;
-					break;
 				case EMitmNotReqGeneralBonding:
-				case EMitmReqGeneralBonding:
-					authReq = EMitmReqGeneralBonding;
+					link->SetLocalMITM(EFalse);
 					break;
-	            default:
-	                PANIC(KBTSecPanic, EBTSecUnexpectedIoCapability);
-	                break;
-					}
-				link->SetLocalMITM(ETrue);
+				case EMitmReqNoBonding:
+				case EMitmReqDedicatedBonding:
+				case EMitmReqGeneralBonding:
+					link->SetLocalMITM(ETrue);
+					break;
+				default:
+					PANIC(KBTSecPanic, EBTSecUnexpectedIoCapability);
+					break;    
 				}
-			else
-				{
-				link->SetLocalMITM(EFalse);
-				}
-		
 			TRAP_IGNORE(iCommandController->IOCapabilityRequestReplyL(aAddr, EIOCapsDisplayYesNo, oobPresence, authReq));
 			}
 		else

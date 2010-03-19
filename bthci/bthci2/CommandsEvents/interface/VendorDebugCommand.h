@@ -77,14 +77,14 @@ public:
 	IMPORT_C virtual TInt Extension_(TUint aExtensionId, TAny*& aInterface, TAny* aData);
 	void Match(const THCIEventBase& aEvent, TBool& aMatchesCmd, TBool& aConcludesCmd, TBool& aContinueMatching) const;
 	IMPORT_C void SetMatcher(MVendorDebugCommandMatcher* aMatcher);
-	
-protected:	
-	IMPORT_C CVendorDebugCommand(const TUint16 opcode);
-	IMPORT_C void ConstructL();
 	IMPORT_C void SetCreditsConsumed(TUint aConsumedCredits);
 	IMPORT_C void SetExpectsCommandStatusEvent(TBool aExpectsCmdStatus);
 	IMPORT_C void SetExpectsCommandCompleteEvent(TBool aExpectsCmdComplete);
 	IMPORT_C TInt SetExpectsCompletingEvent(TBool aExpectsCompletingEvent);
+	
+protected:	
+	IMPORT_C CVendorDebugCommand(const TUint16 opcode);
+	IMPORT_C void ConstructL();
 
 private:
 	void Format(CHctlCommandFrame& aCommandFrame) const;

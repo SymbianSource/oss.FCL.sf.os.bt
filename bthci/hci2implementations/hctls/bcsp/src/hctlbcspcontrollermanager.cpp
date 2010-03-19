@@ -190,11 +190,10 @@ TInt CHCTLBcspControllerManager::DoSetPower(TBTPowerState aState)
 	switch(aState)
 		{
 		case EBTOff:
-			{
-			iHCTLBcsp.WriteBcCmd(iColdHaltCommand); //this should not produce a response
+			{			
 			iPowerDownCallback->CallBack();	//allows asynch callback to BTClient.
 			iCurrentTask = EPowerDown;
-			iControllerManagerState = EWaiting;
+			iControllerManagerState = EResetHardware;
 			iHCTLBcsp.Choke();
 			}
 			break;

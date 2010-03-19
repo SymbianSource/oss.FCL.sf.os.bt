@@ -53,6 +53,26 @@ void TModeSpecificFecOptionHandlerBase::BuildNegativeResponse(TRetransmissionAnd
 	// Just send what we've got in Preferred.
 	}
 
+void TModeSpecificFecOptionHandlerBase::BuildRequestBasedOnUnacceptableParamsResponse(
+											TRetransmissionAndFlowControlOption& aPreferred,
+											const TRetransmissionAndFlowControlOption& aPeer,
+											const TL2CapFecNegotiator& aFecNegotiator) const
+	{
+	LOG_FUNC
+	// In general the only negotiable parameter is channel mode - that's what we should
+	// take from the suggested response passed here in aPeer. The rest of the parameters are
+	// informative and we should use our own values, based on the mode - the remote can not
+	// reject informative parameters.
+	// Note on interop:
+	// Unfortunately <= 9.4 Symbian code _WILL_ reject if e.g. we send a MaxTransmit value
+	// which is greater than its own preference. To interoperate with those this method is
+	// overridden in the Legacy handler.
+
+	aPreferred = TRetransmissionAndFlowControlOption(aPeer.LinkMode(), ETrue);
+	SetMaxTransmit(aPreferred, aFecNegotiator.MaxTransmit());
+	ZeroUnspecifiedRequestFields(aPreferred);
+	}
+
 void TModeSpecificFecOptionHandlerBase::SetMaxTransmit(TRetransmissionAndFlowControlOption& aFecOption, TUint8 /*aMaxTransmit*/) const
 	{
 	LOG_FUNC
@@ -249,6 +269,47 @@ void TLegacyFecHandler::SetMaxTransmit(TRetransmissionAndFlowControlOption& aFec
 							  TRetransmissionAndFlowControlOption::KMaxValidLegacyNumberTransmit :
 							  aMaxTransmit);
 	}
+
+void TLegacyFecHandler::BuildRequestBasedOnUnacceptableParamsResponse(
+		TRetransmissionAndFlowControlOption& aPreferred,
+		const TRetransmissionAndFlowControlOption& aPeer,
+		const TL2CapFecNegotiator& aFecNegotiator) const
+    {
+    LOG_FUNC
+	// In general the only negotiable parameter is channel mode - that's what we should
+	// take from the suggested response passed here in aPeer. The rest of the parameters are
+	// informative and we should use our own values, based on the mode - the remote can not
+	// reject informative parameters.
+	//
+	// HOWEVER:
+	//
+	// Unfortunately <= 9.4 Symbian code _WILL_ reject if e.g. we send a MaxTransmit value
+	// which is greater than its own preference. To interoperate with those we take
+	// the whole FEC option suggested by the remote, including the informational parameters.
+	// <= 9.4 Symbian devices implement RTM and FC modes (and not ERTM and Streaming).
+	// Additionally, pretty much noone else in the market does - most people jumped from
+	// Basic straight to ERTM & Streaming. So it can be assumed that:
+	// Legacy (RTM & FC) ~= pre-ERTM Symbian. 
+
+	typedef TRetransmissionAndFlowControlOption TFec;	// just 'coz I'm lazy
+
+	// Use the remote's whole suggestion if all informational parameters look edible ...
+	if (aPeer.TxWindowSize()          >= TFec::KMinValidTxWindowSize &&
+		aPeer.MaxTransmit()           >= TFec::KMinValidNumberTransmit &&
+		aPeer.RetransmissionTimeout() >= TFec::KMinAcceptableRetransmissionTimeout &&
+		aPeer.MonitorTimeout()        >= TFec::KMinAcceptableMonitorTimeout &&
+		aPeer.MaximumPDUSize()        >= TFec::KMinValidMaximumPDUSize)
+		{
+		aPreferred = aPeer;
+		}
+	else // ... otherwise only use channel mode to prevent DoS attacks.
+		{
+		aPreferred = TRetransmissionAndFlowControlOption(aPeer.LinkMode(), ETrue);
+		SetMaxTransmit(aPreferred, aFecNegotiator.MaxTransmit());
+		ZeroUnspecifiedRequestFields(aPreferred);
+		}
+	}
+
 
 // Basic mode
 
@@ -476,9 +537,9 @@ void TL2CapIncomingFecNegotiator::ProcessPeerValue(const TRetransmissionAndFlowC
 	 	if (aIsUnacceptableParameters)
 			{
 	 		iConfigStatus = EOptionConfigOutstanding;
-            // Only take the channel mode from peer's proposal and set informational
-            // (i.e. all other) parameters to our values.
-            BuildRequest(aFecOption.LinkMode(), iPreferred);
+	 		// Build a new request based on suggestion sent by the peer.
+	 		iFecNegotiator.ModeSpecificHandlers().BuildRequestBasedOnUnacceptableParamsResponse(
+	 				iPreferred, iPeer, iFecNegotiator);
 			}
 		else
 			{

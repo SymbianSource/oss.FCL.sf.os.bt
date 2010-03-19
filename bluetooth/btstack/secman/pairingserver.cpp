@@ -775,11 +775,18 @@ void CDedicatedBondingSession::StartBondingL(const RMessage2& aMessage)
 	iProxySap = CBTProxySAP::NewL(iPhysicalLinksManager, NULL);
 
 	CleanupStack::Pop(this); // the start message cleaner
-
+	
+	// Now we've entered the realm of not leaving with an error, since the connection
+	// process has started.  Errors from now on must be via the Error() function call.
 	iState = EInitialConnectionPending;
 	iProxySap->SetNotify(this);
 	iProxySap->SetRemName(addr);
 	iProxySap->ActiveOpen();
+	TRAPD(err, DoAccessRequestL());
+	if(err != KErrNone)
+		{
+		Error(err);
+		}
 	}
 
 void CDedicatedBondingSession::CleanupStartMessage(TAny* aPtr)
@@ -815,6 +822,11 @@ void CDedicatedBondingSession::AccessRequestComplete(TInt aResult)
 			addr.SetBTAddr(iProxySap->RemoteAddress());
 			iProxySap->SetRemName(addr); // triggers finding a link again.
 			iProxySap->ActiveOpen();
+			TRAPD(err, DoAccessRequestL());
+			if(err != KErrNone)
+				{
+				Error(err);
+				}
 			break;
 			}
 		// else not deferred so complete now....
@@ -829,6 +841,12 @@ void CDedicatedBondingSession::AccessRequestComplete(TInt aResult)
 			{
 			err = KErrAccessDenied;
 			}
+		break;
+	case EInitialConnectionPending:
+	case EFinalConnectionPending:
+		// Access request shouldn't successfully complete if the connection is still pending
+		__ASSERT_DEBUG(aResult != EBTSecManAccessGranted,  PANIC(KPairingServerFaultCat, EPairingServerUnexpectedAccessCallback));
+		// We should get the MSocketNotify::Error callback, so don't do anything else
 		break;
 	default:
 		LOG1(_L("Unexpected Access Request Complete in state %d"), iState);
@@ -856,37 +874,30 @@ void CDedicatedBondingSession::CanSend()
 	__ASSERT_DEBUG(EFalse, PANIC(KPairingServerFaultCat, EPairingServerUnexpectedSocketCallback));
 	}
 
-void CDedicatedBondingSession::ConnectCompleteL()
+void CDedicatedBondingSession::ConnectComplete()
 	{
 	LOG_FUNC
 	switch(iState)
 		{
 	case EInitialConnectionPending:
 		iState = EInitialConnection;
-		DoAccessRequestL();
 		break;
 	case EFinalConnectionPending:
 		iState = EFinalConnection;
-		DoAccessRequestL();
 		break;
 	case EInitialConnection:
 	case EFinalConnection:
 		// Apparently multiple connect completes are allowed by CSocket
 		break;
+	case EShutdown:
+		// If an error occurred just after the connection request then we
+		// might receive a connection complete before the async shutdown request
+		// has been executed.
+		break;
 	default:
 		LOG1(_L("Unexpected Connect Complete in state %d"), iState);
 		__ASSERT_DEBUG(EFalse, PANIC(KPairingServerFaultCat, EPairingServerUnexpectedSocketCallback));
 		break;
-		}
-	}
-
-void CDedicatedBondingSession::ConnectComplete()
-	{
-	LOG_FUNC
-	TRAPD(err, ConnectCompleteL());
-	if(err != KErrNone)
-		{
-		Error(err);
 		}
 	}
 

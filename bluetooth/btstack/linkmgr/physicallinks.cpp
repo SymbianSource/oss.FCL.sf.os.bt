@@ -1038,6 +1038,28 @@ void CPhysicalLink::ConnectionComplete(THCIErrorCode aErr, const TBTConnect& aCo
  			NotifyStateChange(event);
  			}
 
+		if (iACLLogicalLinks.Count() == 0)
+			{
+			// We don't already have an ACL logical link associated with this phy, 
+			// so, in order to not miss ACL data from the remote, associate this 
+			// phy with an ACL listener if there is one.
+			TLogicalLinkListener* listener = iLinksMan.FindListener(EACLLink);
+	
+			if (listener)
+				{
+				TBTConnect conn;
+		
+				conn.iBdaddr = iDevice.Address();
+				conn.iCoD = iDevice.DeviceClass().DeviceClass();
+				conn.iLinkType = EACLLink;
+		
+				// Ignore the return from ConnectRequest, if not accepted then we are in no
+				// worse situation than if we didn't try.
+				ASSERT_DEBUG(listener->iObserver);
+				(void)listener->iObserver->ConnectRequest(conn, *this);
+				}
+			}
+		
 		// tell the logical links
 		NotifyLogicalLinkUp(aConn);
 		iLinksMan.ArbitrateAllPhysicalLinks();
@@ -1533,15 +1555,15 @@ void CPhysicalLink::ConnectionRequest(const TBTConnect& aConn)
 			if(pairingState == CBTPairingsCache::EDeferred)
 				{
 				// We're still waiting for the Pairing Caches paired device list to be filled.
- 				// We'll respond when this is complete, so store details away for then.
+				// We'll respond when this is complete, so store details away for then.
 				LOG(_L("CPhysicalLink: Waiting for physical link manager's paired device list from Registry!"))
 				iPendingConnection = ETrue;
-    			iLastPendingConnection.iConnH = aConn.iConnH;
-			    iLastPendingConnection.iBdaddr = aConn.iBdaddr;
-			    iLastPendingConnection.iCoD = aConn.iCoD;
-			    iLastPendingConnection.iLinkType = aConn.iLinkType;
-			    iLastPendingConnection.iEncryptMode = aConn.iEncryptMode;
-			    // Return now as we are waiting and don't want to 'RejectConnection'
+				iLastPendingConnection.iConnH = aConn.iConnH;
+				iLastPendingConnection.iBdaddr = aConn.iBdaddr;
+				iLastPendingConnection.iCoD = aConn.iCoD;
+				iLastPendingConnection.iLinkType = aConn.iLinkType;
+				iLastPendingConnection.iEncryptMode = aConn.iEncryptMode;
+				// Return now as we are waiting and don't want to 'RejectConnection'
 				return;
 				}
 
@@ -1699,7 +1721,7 @@ TInt CPhysicalLink::GetOption(TUint aLevel,TUint aName,TDes8& aOption) const
 					return KErrArgument;
 					}
 				aOption = TPtrC8(reinterpret_cast<const TUint8*>(&iSniffInterval), sizeof(TBasebandTime));
-			    return KErrNone;
+				return KErrNone;
 
 			default:
 				return KErrNotSupported;
@@ -1720,26 +1742,26 @@ TInt CPhysicalLink::Arbitrate(TBool aImmediately, TBool aLocalPriority)
 	if ( aImmediately )
 		{
 		iArbitrationDelay->Cancel();
-        return DoArbitrate(aLocalPriority);		
+		return DoArbitrate(aLocalPriority);		
 		}
 	else if (iArbitrationDelay->IsActive())
 		{
 		return KErrNone;
 		}
-    else
-        {
-        iArbitrationDelay->Start(aLocalPriority);
-        return KErrNone;
-        }
-    }
+	else
+		{
+		iArbitrationDelay->Start(aLocalPriority);
+		return KErrNone;
+		}
+	}
 
 TInt CPhysicalLink::DoArbitrate(TBool aLocalPriority)
-    {
-    if (!IsConnected())
-        {
-        return KErrDisconnected;
-        }
-	    
+	{
+	if (!IsConnected())
+		{
+		return KErrDisconnected;
+		}
+
 	//start arbitrate process with what our local controller supports
 	TUint8 allowedModesMask = EHoldMode | EParkMode | ESniffMode; // local features sorted out later
 	TBool roleSwitchAllowed = EFalse;
@@ -2813,6 +2835,18 @@ void CPhysicalLink::PinRequest(const TBTDevAddr& aAddr, MPINCodeResponseHandler&
 
 	SetAuthenticationPending(EPinRequestPending); // if not already set (because the remote initiated authentication).
 
+	__ASSERT_DEBUG(iSimplePairingMode != EPhySimplePairingEnabled, Panic(EBTSSPModeChangedDuringConnection));
+	if (iSimplePairingMode == EPhySimplePairingUndefined)
+		{
+		iSimplePairingMode = EPhySimplePairingDisabled;
+		}
+	
+	if (!IsConnected())
+		{
+		iPeerInSecurityMode3 = ETrue;
+		}
+
+	
 	if (iPinRequester)
 		{
 		return;
@@ -3432,12 +3466,12 @@ CArbitrationDelayTimer* CArbitrationDelayTimer::NewL(CPhysicalLink* aParent)
 	}
 
 void CArbitrationDelayTimer::Start(TBool aLocalPriority)
-    {
-    LOG_FUNC
-    // Work out what the local priority will be now
-    TBool localPriority = iLocalPriority || aLocalPriority;
-    Cancel(); // cancel current timer (will also reset priority so ...
-    iLocalPriority = localPriority; // set the new priority)
+	{
+	LOG_FUNC
+	// Work out what the local priority will be now
+	TBool localPriority = iLocalPriority || aLocalPriority;
+	Cancel(); // cancel current timer (will also reset priority so ...
+	iLocalPriority = localPriority; // set the new priority)
 	After(KBTArbitrationDelay);
 	}
 
@@ -3450,16 +3484,16 @@ Allow arbitration of low power modes when the timer expires
 	LOG_FUNC
 	if (iParent)
 		{
-        iParent->DoArbitrate(iLocalPriority);
+		iParent->DoArbitrate(iLocalPriority);
 		}
 	}
 
 void CArbitrationDelayTimer::DoCancel()
-    {
-    LOG_FUNC
-    CTimer::DoCancel();
-    iLocalPriority = EFalse;
-    }
+	{
+	LOG_FUNC
+	CTimer::DoCancel();
+	iLocalPriority = EFalse;
+	}
 
 TInt CPhysicalLink::GetNumPendingHandles(TInt& aConnectionHandles, TLinkType aLinkType) const
 	{

@@ -880,9 +880,11 @@ void TL2CAPSAPStateAccepting::CanSend(CL2CAPConnectionSAP& /*aSAP*/) const
 	}
 
 // State Transition Actions.
-void TL2CAPSAPStateAccepting::Exit(CL2CAPConnectionSAP& /*aSAP*/) const
+void TL2CAPSAPStateAccepting::Exit(CL2CAPConnectionSAP& aSAP) const
 	{
 	LOG_FUNC
+	
+	aSAP.RegisterCodService();
 	}
 	
 /*************************************************************************/

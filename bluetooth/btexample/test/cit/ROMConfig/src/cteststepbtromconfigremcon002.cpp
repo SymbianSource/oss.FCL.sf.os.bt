@@ -66,7 +66,7 @@ TVerdict CTestStepBtRomConfigRemCon002::doTestStepL()
 	if ( err!=expectedError )
 		{
 		INFO_PRINTF4(\
-			_L("Failed: Expected KErrNotFound (%d) and got %d when calling CRemConInterfaceSelector::OpenTargetL"),\
+			_L("Failed: Expected %S(%d) and got %d when calling CRemConInterfaceSelector::OpenTargetL"),\
 			expectedErrorDesPtr, expectedError, err);
 		SetTestStepResult(EFail);
 		}
