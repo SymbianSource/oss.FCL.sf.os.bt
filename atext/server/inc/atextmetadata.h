@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2008-2009 Nokia Corporation and/or its subsidiary(-ies).
+* Copyright (c) 2008-2010 Nokia Corporation and/or its subsidiary(-ies).
 * All rights reserved.
 * This component and the accompanying materials are made available
 * under the terms of "Eclipse Public License v1.0"
@@ -28,8 +28,10 @@ class CATExtListen;
 /** Panic categories */
 enum TATExtPanicCategories
     {
-    EPanicCategoryFaultyMaster = 1,
-    EPanicCategoryPluginType   = 2
+    EPanicCategoryAddPIsM = 1,  // Master exists while adding Partial
+    EPanicCategoryAddMIsP = 2,  // Partial exists while adding Master
+    EPanicCategoryAddMIsM = 3,  // Master exists while adding Master
+    EPanicCategoryType    = 4   // Wrong plugin type (not M|P|O)
     };
 
 /**  Support types supported by RSS file (M|P|O) */

@@ -799,6 +799,7 @@ void TBTPortStateServiceIDListRetrieved::DoRunL(CBTPortProxy* aContext)
 		CleanupStack::PopAndDestroy(2);
 
 		TSDPAttributeKey key;
+		Mem::FillZ(&key, sizeof(TSDPAttributeKey));
 		key.iMaxLength = 200;
 		key.iRange = EFalse;
 		key.iStateLength = 0;

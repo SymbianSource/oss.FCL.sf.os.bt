@@ -696,18 +696,20 @@ void CBTAccessRequester::CompleteRequest(TInt aResult)
 	else if(aResult == EBTSecManAccessGranted)
 		{
 		LOG(_L8("\tACCESS GRANTED"));
-		if (RemoteIndicatedNoBondingToDedicatedBonding())
-			{
-			// We allow the device to bond, but tell theUI layer so it can delete the link key if it wants to
-			aResult = KErrRemoteDeviceIndicatedNoBonding;
-			LOG(_L8("\t... but remote indicated no bonding"));
-			}
 		}
 	else
 		{
 		LOG1(_L8("\tERROR (%d)"), aResult);
 		}
 #endif // __FLOG_ACTIVE
+	
+	if (aResult == EBTSecManAccessGranted && RemoteIndicatedNoBondingToDedicatedBonding())
+		{
+		// We allow the device to bond, but tell theUI layer so it can delete the link key if it wants to
+		aResult = KErrRemoteDeviceIndicatedNoBonding;
+		LOG(_L8("\t... but remote indicated no bonding"));
+		}
+	
 	iSecMan.AccessRequestComplete(this, aResult);
 	}
 

@@ -556,7 +556,7 @@ void CBTSecMan::UserConfirmationRequest(const TBTDevAddr& aAddr, TUint32 aNumeri
 	__ASSERT_ALWAYS(link, PANIC(KBTSecPanic, EBTSecPhysicalLinkMissing));
 	__ASSERT_DEBUG(!link->InstanceNumericComparator(), PANIC(KBTSecPanic, EBTSecConnectionNumericComparisonTwice));
 	__ASSERT_DEBUG(!link->InstanceUserConfirmer(), PANIC(KBTSecPanic, EBTSecConnectionUserConfirmationTwice));
-	if(link->InstanceNumericComparator())
+	if(link->InstanceNumericComparator() || link->InstanceUserConfirmer())
 		{
 		return;
 		}
@@ -582,7 +582,10 @@ void CBTSecMan::UserConfirmationRequest(const TBTDevAddr& aAddr, TUint32 aNumeri
 				}
 			}
 		}
-	else if (!link->IsPairingExpected())
+	else if (!link->IsPairingExpected()
+			|| ((link->AuthenticationRequirement() == EMitmNotReqDedicatedBonding 
+					|| link->AuthenticationRequirement() == EMitmReqDedicatedBonding)
+				&& !IsDedicatedBondingAttempted(aAddr)))
 		{
 		TRAPD(err,link->NewUserConfirmerL(aAddr, *this, ETrue));
 		if(err)

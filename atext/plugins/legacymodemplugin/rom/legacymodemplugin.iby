@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2008 Nokia Corporation and/or its subsidiary(-ies).
+* Copyright (c) 2009 Nokia Corporation and/or its subsidiary(-ies).
 * All rights reserved.
 * This component and the accompanying materials are made available
 * under the terms of "Eclipse Public License v1.0"
@@ -11,21 +11,13 @@
 *
 * Contributors:
 *
-* Description:  build file
+* Description:  Image description file for project LegacyModemPlugin
 *
 */
 
+#ifndef __LEGACYMODEMPLUGIN_IBY__
+#define __LEGACYMODEMPLUGIN_IBY__
 
-#include <platform_paths.hrh>
+ECOM_PLUGIN( legacymodemplugin.dll, legacymodemplugin.rsc )
 
-PRJ_PLATFORMS
-
-PRJ_EXPORTS
-../rom/atext.iby        CORE_OS_LAYER_IBY_EXPORT_PATH(atext.iby)
-
-PRJ_MMPFILES
-#include "../client/group/bld.inf"
-#include "../server/group/bld.inf"
-#include "../plugins/group/bld.inf"
-
-PRJ_TESTMMPFILES
+#endif

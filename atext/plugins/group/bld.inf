@@ -21,11 +21,8 @@
 PRJ_PLATFORMS
 
 PRJ_EXPORTS
-../rom/atext.iby        CORE_OS_LAYER_IBY_EXPORT_PATH(atext.iby)
 
 PRJ_MMPFILES
-#include "../client/group/bld.inf"
-#include "../server/group/bld.inf"
-#include "../plugins/group/bld.inf"
+#include "../legacymodemplugin/group/bld.inf"
 
 PRJ_TESTMMPFILES
