@@ -1,4 +1,4 @@
-# Copyright (c) 2009 Nokia Corporation and/or its subsidiary(-ies).
+# Copyright (c) 2009-2010 Nokia Corporation and/or its subsidiary(-ies).
 # All rights reserved.
 # This component and the accompanying materials are made available
 # under the terms of the License "Eclipse Public License v1.0"
@@ -12,7 +12,6 @@
 #
 # Description:
 #
-
 # Bluetooth HCI Commands to be generated
 # Syntax is documented below. ("[]" brackets are used for grouping with regexp wildcards, and wildcard operators will only directly follow a ']')
 #
@@ -83,7 +82,7 @@ ParkMode(1,True,False,Match,ModeChangeEvent,True,False,ConnectionHandle): Connec
 ExitParkMode(1,True,False,Match,ModeChangeEvent,True,False,ConnectionHandle): ConnectionHandle (2)
 QOSSetup(1,True,False,Match,QOSSetupCompleteEvent,True,False): ConnectionHandle (2), Flags (1), ServiceType (1), TokenRate (4), PeakBandwidth (4), Latency (4), DelayVariation (4)
 RoleDiscovery(1,False,True): ConnectionHandle (2)
-SwitchRole(1,True,False,Match,RoleChangeEvent,True,False): BDADDR (6), Role (1)
+SwitchRole(1,True,False,Match,RoleChangeEvent,True,False,BDADDR): BDADDR (6), Role (1)
 ReadLinkPolicySettings(1,False,True): ConnectionHandle (2)
 WriteLinkPolicySettings(1,False,True): ConnectionHandle (2), LinkPolicySettings (2)
 ReadDefaultLinkPolicySettings(1,False,True):

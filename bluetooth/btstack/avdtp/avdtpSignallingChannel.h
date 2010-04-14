@@ -53,7 +53,7 @@ static const TInt KAvdtpReleaseAcceptPriority = CActive::EPriorityHigh;
 #ifdef _OOM_TEST
 static const TInt KAvdtpSignallingChannelIdleTimeout = 800;
 #else
-static const TInt KAvdtpSignallingChannelIdleTimeout = 3000000; // 3s
+static const TInt KAvdtpSignallingChannelIdleTimeout = 1000000; // 1s
 #endif
 
 NONSHARABLE_CLASS(CSignallingChannel) : public CBase, public MSocketNotify, public XLogicalChannelFactoryClient

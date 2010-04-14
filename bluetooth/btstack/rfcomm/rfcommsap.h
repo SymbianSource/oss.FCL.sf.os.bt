@@ -174,6 +174,7 @@ public:
 	TInt UnusedBufferSpace() const;
 
 	TUint16 NegotiatedMTU() const; //< Returns the negotiated MTU
+	TUint16 OptimalMTUForSending() const; //< Returns the optimal MTU for sending
 	TUint16 UsableMTU(TUint8 aCredit) const; //< Returns the actual maximum information field size available (which with CBFC will be one less than the negotiated MTU)
 
 	TBool ListeningTo(const TBTSockAddr& aBTSockAddr) const;
@@ -257,7 +258,8 @@ private:
 	TDblQueLink    iLink;	//	Used by Muxer to keep track of the SAPs it is linked to
 	TDblQueLink    iListeningLink;	//	Used by the protocol to keep track of listening SAPs
 	TDblQueLink	   iBoundLink;		//	Used by the protocol to keep track of bound SAPs
-	TUint16			iMTU;	//	Maximum data size for this SAP
+	TUint16			iNegotiatedMTU;	//	Maximum data size for this SAP
+	TUint16			iOptimalMTUForSending; // Optimal MTU for sending provided by L2CAP
 	TUint16			iUserDefinedMTU;	//	User defined MTU (0=No restriction)
 	//	Members used by listening SAP
 	TInt			iMaxClonesWaitingForStart;

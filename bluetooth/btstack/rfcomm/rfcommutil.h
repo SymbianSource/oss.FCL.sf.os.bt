@@ -87,7 +87,8 @@ enum TRFCOMMPanic
 	ERfcommDequeuingBadBoundSAP = 62,
 	ERfCommFlowStrategyOutOfBounds = 63,
 	ERfCommMuxerStateOutOfBounds = 64, 
-	ERfCommStateOutOfBounds = 65
+	ERfCommStateOutOfBounds = 65,
+	ERfCommStateBufferFull = 66,
 	};
 
 /**
