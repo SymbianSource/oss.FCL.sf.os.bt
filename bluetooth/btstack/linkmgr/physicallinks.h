@@ -444,10 +444,21 @@ public:
 	void DeletePasskeyEntry();
 	void CancelPasskeyEntry();
 	void PasskeyEntryKeyPressed(THCIPasskeyEntryNotificationType aKey);
+
+	void NewUserConfirmerL(const TBTDevAddr aAddr,CBTSecMan& aSecMan,TBool aInternallyInitiated);
+
+	CBTUserConfirmer* InstanceUserConfirmer() const;
+	TBool IsUserConfirmerActive()const;
+	void DeleteUserConfirmer();
+	void CancelUserConfirmer();
+
+	
 	TBasebandTime GetSniffInterval() const;
 	
 	TBool IsPairable() const;
 
+	TBool IsPairingExpected() const;
+	
 private:
 	CPhysicalLink(CPhysicalLinksManager& aParent, CRegistrySession& aRegSess, const TBTNamelessDevice& aDevice);
 	void ConstructL();
@@ -486,6 +497,12 @@ private:
 	void PINCodeRequestNegativeReply(const TBTDevAddr& aDevAddr);
 	
 	inline TBool IsAuthenticationPending() const;
+	
+	void LinkKeyRequestResponseAttempt(TBool aForceResponse = EFalse);
+	void DoLinkKeyResponse(TBool aPositive);
+
+	void RemoteSimplePairingModeDetermined(TPhysicalLinkSimplePairingMode aSimplePairingMode);
+	void SetPeerInSecurityMode3();
 
 private: // from MPINCodeResponseHandler
 	TInt PINCodeRequestReply(const TBTDevAddr& aDevAddr,const TDesC8& aPin) const;
@@ -513,15 +530,18 @@ private:
 	CBTPinRequester*						iPinRequester;	// looks after PIN entry UI/state
 	CBTNumericComparator*					iNumericComparator; // looks after the numeric comparison UI/state
 	CBTPasskeyEntry*						iPasskeyEntry; // looks after the passkey entry UI/state
+	CBTUserConfirmer*					iUserConfirmer; // looks after the user confirmation UI/state
 	
 	CEncryptionEnforcer*					iEncryptionEnforcer;
 	
 	// the PHY's supported logical links...
 	RPointerArray<CACLLink>					iACLLogicalLinks;
 	CBTSynchronousLink*						iSyncLogicalLink; // stack only supports a signal one per PHY
-	
 
-	MPINCodeResponseHandler*	iPinHandler;
+	TBool						iLinkKeyRequestOutstanding;	// for if we have to wait for Registry or SSP support status
+
+	MPINCodeResponseHandler*	iPinHandler;		// for forwarding responses to
+
 	TBTConnect 					iLastPendingConnection;		// for if we have to wait for Registry to decide whether to rject or accept a connection
 	TBool						iPendingConnection;  // is a connection request waiting for a reply
 	TSglQue<CBTProxySAP>		iProxySAPs;			// the proxies bound to us
@@ -571,8 +591,8 @@ private:
 	TBool						iNewPinCodeValid;
 	TBTPinCode					iNewPinCode;
 
-	TBool						iWaitingForLinkKeyFromRegistry;
-
+	TBool						iLinkKeyReturnedInThisAuthentication;
+	TBool						iLinkKeyObtainedThroughDedicatedBonding;
 private:
 	/**
 	Enumeration to represent the current state of the physical links storage in the registry,

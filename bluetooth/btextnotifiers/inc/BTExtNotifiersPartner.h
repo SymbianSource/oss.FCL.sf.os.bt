@@ -184,6 +184,20 @@ The notifier will receive updates of type TBTNotifierUpdateParamsPckg2.
 */
 const TUid KBTPasskeyDisplayNotifierUid={0x10285AD4};
 
+/*
+UID of the "User Confirmation" confirmation request RNotifier plugin.
+
+The notifier will be started with a parameter of type TBTUserConfirmationParamsPckg.
+
+The notifier will receive updates of type TBTNotifierUpdateParamsPckg2.
+
+@see TBTNotifierUpdateParamsPckg2
+
+@publishedPartner
+@released
+*/
+const TUid KBTUserConfirmationNotifierUid={0x2002E224};
+
 /**
 UID of the "PIN Code Entry" RNotifier plugin.
 
@@ -330,6 +344,33 @@ private:
 	TUint32	iPadding1; 
 	};
 
+/** 
+Secure simple pairing "User Confirmation" parameters.
+This class packages the parameters passed to a numeric comparison notifier.
+	
+@publishedPartner
+@released
+*/
+NONSHARABLE_CLASS(TBTUserConfirmationParams)
+	: public TBTNotifierParams2
+	{	
+public:
+	IMPORT_C TBTUserConfirmationParams(const TBTDevAddr& aDevAddr, const TDesC& aDeviceName, TBool aLocallyInitiated);
+	IMPORT_C TBTUserConfirmationParams();
+	
+public:
+	IMPORT_C TBool LocallyInitiated() const;
+	
+private:
+	TBool				iLocallyInitiated;
+	
+	// This data padding has been added to help prevent future binary compatibility breaks	
+	// Neither iPadding1 nor iPadding2 have been zero'd because they are currently not used
+	TUint32	iPadding1;
+	TUint32 iPadding2;
+	};
+
+
 /**
 The base update parameter for the Bluetooth pairing notifiers.
 This class is intended to allow multiple different updates parameters to be
@@ -430,6 +471,12 @@ Typedef'ed pckgbuf to send passkey entry display parameters to the notifier fram
 @released
 */
 typedef TPckgBuf<TBTPasskeyDisplayParams> TBTPasskeyDisplayParamsPckg;
+/**
+Typedef'ed pckgbuf to send passkey entry display parameters to the notifier framework.
+@publishedPartner
+@released
+*/
+typedef TPckgBuf<TBTUserConfirmationParams> TBTUserConfirmationParamsPckg;
 /**
 Typedef'ed pckgbuf to send PIN code entry parameters to the notifier framework.
 @publishedPartner

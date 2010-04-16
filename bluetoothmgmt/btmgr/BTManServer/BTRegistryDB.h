@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -106,6 +106,8 @@ const TUint32	KRegistryDBVersionMinor		= 2;
 // 1.1 - Adjusted the Time/Date fields for 64 bit integers (remote device table).
 // 1.2 - Added additional fields Link-key type and UI cookie (remote device table).
 
+// Note: Any changes to the registry version will also require changes to the CBTRegistryBURData class.
+
 // Useful SQL literals
 _LIT(KSQLIsNotNull, " IS NOT NULL");
 _LIT(KSQLCommaSpace, ", ");
@@ -173,6 +175,7 @@ public:
 	void UpdateNameL(const TBTDevAddr& aAddress, const TDesC8& aName, TBTManServerRequest aRequest);
 // for local device table
 	TBTLocalDevice* GetLocalDeviceLC();
+	TBTLocalDevice* GetLocalDeviceL();
 	void UpdateLocalDeviceL(const TBTLocalDevice& aDevice);
 // CSY table
 	const TBTCommPortSettings* GetCommPortSettingsLC(const TBTCommPortSettings& aPort);
@@ -183,6 +186,8 @@ public:
 	void DeleteCommPortSettingsL(RDbView& aCommPortSettingsView);
 	RDbView* OpenCommPortLC(const TBTCommPortSettings& aSettings);
 	RDbView* OpenCommPortL(const TBTCommPortSettings& aSettings);
+
+	void GetDefaultDeviceFromIniL(TBTLocalDevice& aDevice);
 
 private:
 	RDbTable* OpenTableL(const TDesC& aTable);	// opens and transfers ownership
@@ -209,7 +214,6 @@ private:
 	CBTRegistry();
 	void DeleteCorruptRegistryL();
 	void SetupDefaultRegistryL();
-	void GetDefaultDeviceFromIniL(TBTLocalDevice& aDevice);
 	TBool FindVar(const TDesC8& aPtr, const TDesC8& aVarName, TPtrC8& aResult) const;
 	TBool FindVar(const TDesC8& aPtr, const TDesC8& aVarName, TInt& aResult) const;
 	TInt SetDeviceName(const TDesC& aDeviceName, TBTLocalDevice& aDevice);

@@ -88,7 +88,7 @@ Constructor.
 Initialises the device class to 0.
 **/
 EXPORT_C TBTDeviceClass::TBTDeviceClass() :
-	iDeviceClass(0)
+	iDeviceClass(0), iPadding1(0), iPadding2(0)
 	{
 	}
 
@@ -97,7 +97,7 @@ Constructor
 @param	aDeviceClass The initial device class
 **/
 EXPORT_C TBTDeviceClass::TBTDeviceClass(TUint32 aDeviceClass) :
-	iDeviceClass(aDeviceClass)
+	iDeviceClass(aDeviceClass), iPadding1(0), iPadding2(0)
 	{
 	}
 
@@ -115,7 +115,7 @@ Note that this is a 24-bit field which we store in a 32-bit integer.
 */
 EXPORT_C TBTDeviceClass::TBTDeviceClass(TUint16 aMajorServiceClass, TUint8 aMajorDeviceClass,
 										TUint8 aMinorDeviceClass) :
-	iDeviceClass(0)
+	iDeviceClass(0), iPadding1(0), iPadding2(0)
 	{
 	iDeviceClass = (aMajorServiceClass & EMajorServiceMask);	// [00000000]0000000000000xxxxxxxxxxx
 	iDeviceClass <<= EMajorDeviceLength;	// [00000000]00000000xxxxxxxxxxx00000

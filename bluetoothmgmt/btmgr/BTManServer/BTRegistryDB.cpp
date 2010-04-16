@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -1173,6 +1173,16 @@ TBTLocalDevice* CBTRegistry::GetLocalDeviceLC()
 	return device;
 	}
 
+TBTLocalDevice* CBTRegistry::GetLocalDeviceL()
+	{
+	LOG_FUNC
+	TBTLocalDevice* device = GetLocalDeviceLC();
+	CleanupStack::Pop(device);
+	return device;
+	}
+
+
+
 const TBTCommPortSettings* CBTRegistry::GetCommPortSettingsLC(const TBTCommPortSettings& aSettings)
 /**
 	Get the virtual serial port settings for the port referred to in aSettings
@@ -1354,7 +1364,12 @@ void CBTRegistry::SetupDefaultRegistryL()
 	defaultDevice.SetDeviceName(KDefaultLocalName);
 	defaultDevice.SetScanEnable(EPageScanOnly);
 	defaultDevice.SetLimitedDiscoverable(EFalse);
-	defaultDevice.SetDeviceClass(0);
+	
+	// set the default device class to be phone|smartphone
+	// MajorServiceClass set to zero as there are no default service class bits
+	TBTDeviceClass defaultCod (0, EMajorDevicePhone, EMinorDevicePhoneSmartPhone);
+	defaultDevice.SetDeviceClass(defaultCod.DeviceClass());
+	
 	// The registry is being kicked off with a default channel assessment 
 	// mode setting of 'enabled'. This is the default if h/w supports 
 	// channel assessment. If h/w does not support channel assessment,

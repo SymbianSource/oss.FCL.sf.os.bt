@@ -76,3 +76,7 @@ EXPORTS
 	?StrongPinCodeRequired@TBTPinCodeEntryNotifierParams@@QBEHXZ @ 75 NONAME ; int TBTPinCodeEntryNotifierParams::StrongPinCodeRequired(void) const
 	?Type@TBTNotifierUpdateParams2@@QBE?AW4TUpdateParamType@1@XZ @ 76 NONAME ; enum TBTNotifierUpdateParams2::TUpdateParamType TBTNotifierUpdateParams2::Type(void) const
 	?RecommendedPinCodeMinLength@TBTPinCodeEntryNotifierParams@@QBEIXZ @ 77 NONAME ; unsigned int TBTPinCodeEntryNotifierParams::RecommendedPinCodeMinLength(void) const
+	??0TBTUserConfirmationParams@@QAE@XZ @ 78 NONAME ; TBTUserConfirmationParams::TBTUserConfirmationParams(void)
+	?LocallyInitiated@TBTUserConfirmationParams@@QBEHXZ @ 79 NONAME ; int TBTUserConfirmationParams::LocallyInitiated(void) const
+	??0TBTUserConfirmationParams@@QAE@ABVTBTDevAddr@@ABVTDesC16@@H@Z @ 80 NONAME ; TBTUserConfirmationParams::TBTUserConfirmationParams(class TBTDevAddr const &, class TDesC16 const &, int)
+

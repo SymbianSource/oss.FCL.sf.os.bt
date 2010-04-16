@@ -95,3 +95,9 @@ EXPORTS
 	_ZNK29TBTPinCodeEntryNotifierParams16PinCodeMinLengthEv @ 94 NONAME
 	_ZNK29TBTPinCodeEntryNotifierParams21StrongPinCodeRequiredEv @ 95 NONAME
 	_ZNK29TBTPinCodeEntryNotifierParams27RecommendedPinCodeMinLengthEv @ 96 NONAME
+	_ZN25TBTUserConfirmationParamsC1ERK10TBTDevAddrRK7TDesC16i @ 97 NONAME
+	_ZN25TBTUserConfirmationParamsC1Ev @ 98 NONAME
+	_ZN25TBTUserConfirmationParamsC2ERK10TBTDevAddrRK7TDesC16i @ 99 NONAME
+	_ZN25TBTUserConfirmationParamsC2Ev @ 100 NONAME
+	_ZNK25TBTUserConfirmationParams16LocallyInitiatedEv @ 101 NONAME
+

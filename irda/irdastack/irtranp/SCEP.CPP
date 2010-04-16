@@ -109,149 +109,11 @@ TInt SCEP::Pump()
 	return 0;
 	}
 
-void SCEP::ReceiveComplete(TDesC8& aBuffer)
+void SCEP::ReceiveComplete(TDesC8& /*aBuffer*/)
+/** No Longer used.
+
+irda client libraries left in to avoid breaks */
 	{
-	SCEPPRINT_2(_L("SCEP::ReceiveComplete(%d)\n"),aBuffer.Length());
-
-	iSCEPFrame.Append(aBuffer); // Add new data to cached packet
-
-	TBool loopagain;
-	do
-		{
-		loopagain = EFalse;
-		
-		if ((iSCEPFrame[0]==0x00)&&(iSCEPFrame.Length()>=3))
-			{
-			TInt tempLength = 0;
-			TInt additionalLength = 0;
-			TInt lengthPos = 3;
-
-			if ((iSCEPFrame[1]==KTranpMsgTypeCER) && (iSCEPFrame[2]==KTranpInfTypeVer))
-				{
-				lengthPos = 5;
-				additionalLength = 4; // ... and that same packet has 4 trailing bytes
-				}
-				
-			if (iSCEPFrame.Length()>lengthPos+2)// Otherwise we might miss out on the last packet
-				{
-				if(iSCEPFrame[0] == 0x00) // Let's guess it's an SCEP header - HARDCODED AND UGLY!!!
-					{
-					tempLength = iSCEPFrame[lengthPos];
-					if(tempLength == 0xff)
-						{
-						tempLength = IrTranpUtil::DExtract(iSCEPFrame, lengthPos+1);
-						lengthPos = 5;
-						}
-					SCEPPRINT_2(_L("tempLength = %d"), tempLength);
-					}
-
-				tempLength += ((lengthPos+1) + additionalLength);
-				
-				SCEPPRINT_3(_L("iSCEPFrame.length(%d) >= templength(%d)"),iSCEPFrame.Length(),tempLength);
-
-					switch (iSCEPFrame[1])
-					{
-				case KTranpMsgTypeCER: // MsgType = Connection establishment request
-				case KTranpMsgTypeCEC: // MsgType = Connection establishment confirmation
-				case KTranpMsgTypeData: // Data (Command)
-				case KTranpMsgTypeDisc: // Disconnection
-					{
-					switch (iSCEPFrame[2])
-						{
-					case KTranpInfTypeVer: // Version of MsgType
-					case KTranpInfTypeNeg: // Negotiation Information
-					case KTranpInfTypeUser: // UserData
-					case KTranpInfTypeExt: // Extend in the future
-					case KTranpInfTypeRsn: // Reason
-						break;
-					default:
-						// bogus frame
-						SCEPPRINT(_L("SCEP::Bogus Inf Type in frame\n"));
-						iSCEPFrame.SetLength(0);
-						}
-					}
-					break;
-				default:
-					// bogus frame
-					SCEPPRINT(_L("SCEP::Bogus Msg Type in frame\n"));
-					iSCEPFrame.SetLength(0);
-					}
-
-				if(iSCEPFrame.Length() >= tempLength) // yes, complete packet
-					{
-					TInt oldLength = iSCEPFrame.Length();
-					iSCEPFrame.SetLength(tempLength); // We only want exactly one packet
-					ParseCommand(iSCEPFrame);
-					
-					iSCEPFrame.SetLength(oldLength);
-					iSCEPFrame.Delete(0, tempLength); // The surplus data belongs to the next packet
-					SCEPPRINT(_L("\r\n***\r\n"));
-					//IrTranpUtil::HexOut(iSCEPFrame);
-					SCEPPRINT(_L("***\r\n"));
-					loopagain = (oldLength > tempLength) ? ETrue : EFalse;
-					}		
-				}	
-			}
-		else
-			{
-			SCEPPRINT(_L("SCEP:: Bogus Frame header\n"));
-			iSCEPFrame.SetLength(0);
-			}
-		} while (loopagain);
-
-
-	// let the commandprocessor send whatever's in queue
-	
-	m_oCommandP->DoCommand();
-
-	if ( (!(iComReadWrite->IsActive())) && !(iState == EError) ) //Make sure that thre is always an outstanding request
-		iComReadWrite->Receive(); 
-
-	switch(iState)
-		{
-	case EConnected:
-		iNotifier->Connected();
-		iState = EProgress;
-		SCEPPRINT(_L("SCEP: EConnected -> EProgress\r\n"));
-		break;
-	case EDisconnected:
-		iNotifier->Disconnected();
-		iComReadWrite->Close();
-		iState = EWaiting;
-		SCEPPRINT(_L("SCEP: EDisconnected -> EWaiting\r\n"));
-		break;
-	case EProgress:
-		{
-		SCEPPRINT(_L("SCEP: EProgress\r\n"));
-
-		TInt32 progress = 0;
-		if(m_packet!=NULL)
-			{
-			if(m_packet->Length() != 0)
-				{
-				Math::Int(progress, m_packet->Length()*100 / m_iPicSize);
-				}
-			iNotifier->ProgressIndication(progress);
-			}
-		}
-		break;
-	case EWaiting:
-		SCEPPRINT(_L("SCEP: EWaiting\r\n"));
-		break;
-	case EError:
-		SCEPPRINT(_L("SCEP: EError\r\n"));
-		break;
-	case ECommunicationInt:
-		SCEPPRINT(_L("SCEP: ECommunicationInt\r\n"));
-		iNotifier->Disconnected();
-		iComReadWrite->Close();
-		iState = EWaiting;
-		break;
-	default:
-		SCEPPRINT(_L("SCEP: Unknown state\r\n"));
-		break;
-		}
-	SCEPPRINT(_L("SCEP: Exit ReceiveComplete\r\n"));
 	}
 
 void SCEP::SendComplete()
@@ -319,19 +181,11 @@ void SCEP::SCONconL()
 *
 */
 
-void SCEP::SCEPSendCommand(TDes8& a_userData, TUint8 a_pduType)
+void SCEP::SCEPSendCommand(TDes8& /*a_userData*/, TUint8 /*a_pduType*/)
+/** No Longer used.
+
+irda client libraries left in to avoid breaks */
 	{
-	SRPSCommand* command = new (ELeave) SRPSCommand(iComReadWrite);
-	command->SetPMID(m_PMID.Des());
-	command->SetSMID(m_SMID.Des());
-	command->SetDPID(m_DPID);
-	command->SetSPID(m_SPID);
-	command->SetCmdId(m_CmdId);
-	command->SetPDUType(a_pduType);
-	command->SetUserData(a_userData);
-	command->Create();
-//	IrTranpUtil::HexOut(command->GetData());
-	m_oCommandP->Add(command);
 	}
 
 /*
@@ -394,156 +248,12 @@ void SCEP::SCEPConRequest(TDes8& a_Header, TInt offset)
 * Parameter:			offset - where in the packet to start parsing
 */
 
-void SCEP::SCEPDataCommand(TDes8& a_Header, TInt offset)
+void SCEP::SCEPDataCommand(TDes8& /*a_Header*/, TInt /*offset*/)
+/** No Longer used.
+
+irda client libraries left in to avoid breaks */
 	{
-	SCEPPRINT(_L("Inside SCEPDataCommand\n"));
-	
-	if(a_Header[offset] == KTranpInfTypeUser)
-		{
-		// Always InfTypeUser when in SCEPDataCommand
-		TInt packetLength = a_Header[offset+1];
-		if(packetLength == 0xff)
-			{
-			// since length1 was 0xff, look at length2
-			packetLength = ((a_Header[offset+2] << 8) + (a_Header[offset+3])); // 16bit
-			offset+=4; // include inftype and length2
-			}
-		else
-			{
-			offset+=2; // include inftype and length1
-			}
-		
-		// TUint8 InfVer = a_Header[offset];
-		TUint8 DFLG = a_Header[offset+1];
-		// TUint16 length3 = IrTranpUtil::DExtract(a_Header, offset+2);
-		
-		if(DFLG == KTranpDFLGrcon)
-			{
-			// Reject to request connection
-			SCEPPRINT(_L("Connection rejected\n"));
-			}
-		else if(DFLG == KTranpDFLGnseg)
-			{
-			// PDU not segmented (single PDU)
-			DoCommand(a_Header, offset+4);
-			//					break;
-			}
-		else if(DFLG == KTranpDFLGfPDU)
-			{
-			// First segmented PDU
-			// We do all reassembling in SCEP, and then send the complete (big) packet to bFTP
-			// restno * PDU must be able to hold the complete packet, right?
-			
-			// Ownership of this data [m_packet] belongs to the TTranpPicture object
-			// so must ask the correct object to delete its heap.
-			// If we were already building a packet, get rid of it
-			iTranpProtocol->DeleteHeapData();
-			
-			TUint32 seqno = IrTranpUtil::LExtract(a_Header, offset+4);
-			TUint32 restno = IrTranpUtil::LExtract(a_Header, offset+8);
-			
-			TUint32 PDUSize;
-			switch(m_uiMaxPDU)
-				{
-				case '1':
-					{
-					PDUSize = 512;
-					break;
-					}
-				case '2':
-					{
-					PDUSize = 1024;
-					break;
-					}
-				case '3':
-					{
-					PDUSize = 2048;
-					break;
-					}
-				case '4':
-					{
-					PDUSize = 4096;
-					break;
-					}
-				default:
-					{
-					PDUSize = 512;
-					break;
-					}
-				}
-			
-			// This should not leave and report an error back...
-			//__UHEAP_FAILNEXT(1);
-			TRAPD( err , m_packet = HBufC8::NewL(PDUSize*restno)); // should be enough
-			if (err != KErrNone)
-				{
-				iNotifier->Error(err);
-				iState = EError;
-				return;
-				}
-			else
-				iTranpProtocol->SetHeapData(m_packet);
-			
-			m_iPicSize = PDUSize*restno;
-			
-			SCEPPRINT(_L("ResizeL went well\n"));
-			
-			m_seq = seqno;
-			AddSegment(a_Header, offset+12);
-			}
-		else if(DFLG == KTranpDFLGiPDU)
-			{
-			// Intermediate segmented PDUs
-			
-			TUint32 seqno = IrTranpUtil::LExtract(a_Header, offset+4);
-			if(seqno == m_seq+1)
-				{
-				AddSegment(a_Header, offset+12);
-				m_seq++;
-				}
-			else
-				{
-				SCEPPRINT(_L("Error in intermediate PDU\n"));
-				}
-			}
-		else if(DFLG == KTranpDFLGlPDU)
-			{
-			// Last segmented PDU
-			
-			m_seq++;
-			TUint32 restno = IrTranpUtil::LExtract(a_Header, offset+8);
-			if(restno == 1)
-				{
-				AddSegment(a_Header, offset+12);
-				//TPtr8 packetPtr = m_packet->Des();
-				DoCommand(*m_packet, 0); // Now let's play
-                iNotifier->ProgressIndication(100); // Makes sure 100% is reached
-		        iNotifier->GetComplete();
-                TPtr8 temp2 = m_packet->Des();
-	            temp2.Zero();
-				}
-			else
-				{
-				SCEPPRINT(_L("Error in last PDU\n"));
-				}
-			}
-		else if(DFLG == KTranpDFLGcint)
-			{
-			SCEPPRINT(_L("Communication interrupted\n"));
-			iState = ECommunicationInt;
-			}
-		else
-			{
-			// Ooops.
-			}
-		}
-	else 
-		{
-		// oops
-		}
-			
-	SCEPPRINT(_L("Exiting SCEPDataCommand\n"));
-}
+	}
 
 /*
 * Method description:	Adds segmented packets into a complete packet
@@ -664,46 +374,11 @@ void SCEP::SCEPConConfirm(TDes8& a_Header, TInt offset)
 * Parameter:			a_offset - where in the packet the command is
 */
 
-void SCEP::DoCommand(const TDesC8& a_Header, TInt a_offset)
-	{
-	SCEPPRINT(_L("SCEP: DoCommand\n"));
-	
-	if(a_Header[a_offset] != 0x58) // Always 0x58 at the start of a command
-		{
-		SCEPPRINT(_L("SCEP: Command did not start with 0x58\n"));
-		return;
-		}
-	
-	TUint8 switchVar = (TUint8)(a_Header[a_offset+1] & 0xc0); // we only want the two highest bits for PDU type
-	if(switchVar == KTranpPduTypeReq)
-		{
-		// Don't care about the MachineIDs for now
-		SCEPPRINT(_L("SCEP: PduTypeReq\n"));
+void SCEP::DoCommand(const TDesC8& /*a_Header*/, TInt /*a_offset*/)
+/** No Longer used.
 
-		m_SPID = IrTranpUtil::DExtract(a_Header, 22 + a_offset);
-		m_DPID = IrTranpUtil::DExtract(a_Header, 24 + a_offset);
-		m_CmdId = IrTranpUtil::DExtract(a_Header,26 + a_offset);
-		// Pass SCEP packet Payload to BFTP layer
-		m_oBFTP->ReqPDU(a_Header, a_offset + 28); // hardcoded, but always 28
-		}
-	else if(switchVar == KTranpPduTypeRplAck)
-		{
-		SCEPPRINT(_L("SCEP: PduTypeRplAck\n"));
-		}
-	else if(switchVar == KTranpPduTypeRplNack)
-		{
-		SCEPPRINT(_L("SCEP: PduTypeRplNack\n"));
-		}
-	else if(switchVar == KTranpPduTypeAbt)
-		{
-		SCEPPRINT(_L("SCEP: PduTypeAbt\n"));
-		}
-	else
-		{
-		SCEPPRINT(_L("SCEP: PduType Broken\n"));
-		}
-	
-	SCEPPRINT(_L("SCEP: Exiting DoCommand\n"));
+irda client libraries left in to avoid breaks */
+	{
 	}
 
 /*
@@ -839,53 +514,11 @@ void SCEP::NegInf(TDes8& a_Header, TInt a_offset)
 // Parameter:			a_TempBuffer - the packet itself
 //
 
-void SCEP::ParseCommand(TDes8& a_TempBuffer)
+void SCEP::ParseCommand(TDes8& /*a_TempBuffer*/)
+/** No Longer used.
+
+irda client libraries left in to avoid breaks */
 	{
-	SCEPPRINT(_L("SCEP: ParseCommand\n"));
-	// parse the incoming buffer and see what command we're talking about. Return an instance of such a command.
-	
-	// Look at the first bytes, see what command it might be, call the correct private method and let it take care of the rest?
-	
-	if(a_TempBuffer[1] == KTranpMsgTypeCER)
-		// MsgType = Connection establishment request
-		{
-		SCEPPRINT(_L("SCEP: Got a connection request"));
-		SCEPConRequest(a_TempBuffer, 2);
-		
-		// Create and add a SCEPConConfirm!
-		SCONconL();
-		}
-	else if(a_TempBuffer[1] == KTranpMsgTypeCEC)
-		// MsgType = Connection establishment confirmation
-		{
-		SCEPPRINT(_L("SCEP: Got a connect ack"));
-		SCEPConConfirm(a_TempBuffer, 2);
-		}
-	else if(a_TempBuffer[1] == KTranpMsgTypeData)
-		// Data (Command)
-		{
-		SCEPPRINT(_L("SCEP: Got a data packet\n"));
-		SCEPDataCommand(a_TempBuffer, 2);
-		}
-	else if(a_TempBuffer[1] == KTranpMsgTypeDisc)
-		// Disconnection
-		{
-		SCEPPRINT(_L("SCEP: Got a disconnect packet\n"));
-		SCEPDisconnect(a_TempBuffer, 2);
-		if (m_packet != NULL)
-			m_iPicSize = m_packet->Length(); // Otherwise we'll never get to 100%
-		iSCEPFrame.Zero();
-		}
-	else
-		{
-		SCEPPRINT(_L("SCEP: Wacko! Default!\n"));
-		// Reserved
-		}
-	
-	
-	SCEPPRINT(_L("SCEP: Exiting ParseCommand\n"));
-	
-	return;
 	}
 
 //

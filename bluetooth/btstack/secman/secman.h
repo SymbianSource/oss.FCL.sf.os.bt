@@ -266,6 +266,7 @@ public:
 	void RemoteOOBDataRequest(const TBTDevAddr& aAddr);
 	void RemoteOOBDataRequestComplete(const TBTDevAddr& aAddr);
 	void UserConfirmationRequest(const TBTDevAddr& aAddr, TUint32 aNumericValue);
+	void NumericComparisonComplete(const TBTDevAddr& aAddr, TBool aResult, TInt aError);
 	void UserConfirmationComplete(const TBTDevAddr& aAddr, TBool aResult, TInt aError);
 	void PasskeyNotification(const TBTDevAddr& aAddr, TUint32 aPasskey);
 	void PasskeyNotificationComplete(const TBTDevAddr& aAddr, TInt aError);
@@ -360,7 +361,7 @@ public: // State machine actions
 	TBool AuthenticationRequired() const;
 	TBool EncryptionRequired() const;
 	TBool AuthenticationInProgress() const;
-	TBool UnableToBond() const;
+	TBool RemoteIndicatedNoBondingToDedicatedBonding() const;
 	TBool BasebandConnected() const;
 	
 	void CompleteRequest(TInt aReason);
@@ -445,7 +446,7 @@ private:
 	
 	TAccessType						iAccessType;
 	
-	TBool							iDedicatedBondingNotAvailable;  //< Remote IOCapabilitiesResponse says no dedicated bonding
+	TBool							iRemoteIndicatedNoBonding;  //< Remote IOCapabilitiesResponse says no dedicated bonding
 	THCIIoCapability				iRemoteIOCapability;
 	THCIOobDataPresence				iRemoteOOBDataPresence;
 	
@@ -668,6 +669,44 @@ private:
 	TBuf8<1>							iResultPckg;
 	};
 
+/**
+Prompts the user to confirm whether or not they want to pair
+Uses the RNotifier framework to produce a dialog containing information
+about the remote device
+**/
+NONSHARABLE_CLASS(CBTUserConfirmer) 
+	: public CSecNotifierRequester
+	{
+public:
+	static CBTUserConfirmer* NewL(const TBTDevAddr aAddr,
+									  CBTSecMan& aSecMan, 
+									  TBool aInternallyInitiated);
+	static CBTUserConfirmer* NewLC(const TBTDevAddr aAddr,
+									   CBTSecMan& aSecMan, 
+									   TBool aInternallyInitiated);
+	~CBTUserConfirmer();
+
+private: // from CActive
+	void DoCancel();
+	void RunL();
+	TInt RunError(TInt aError);
+	
+private: //from CSecNotifierRequester
+	virtual void DoRequest();
+	virtual void DoUpdateNotifier();
+
+private:
+	CBTUserConfirmer(CBTSecMan& aSecMan, 
+						 TBool aInternallyInitiated);
+	
+private:
+	CSecNotifierUpdateAO<TBTDeviceNameUpdateParamsPckg>*	iNameUpdater;
+	CBTSecMan&												iSecMan;
+	TBool 													iInternallyInitiated;
+	TBTUserConfirmationParamsPckg							iUserConfirmationParamsPckg;
+	TPckgBuf<TBool>											iResultPckg;
+	};
+
 
 _LIT(KBTSecPanic, "BT Security");
 enum TBTSecPanic
@@ -708,6 +747,7 @@ enum TBTSecPanic
 	EBTSecAccessRequesterShouldHaveNotBeenFound,
 	EBTSecAccessRequesterShouldHaveBeenFound,
 	EBTSecNotifierRequesterUsingTimerWithoutHandling,
+	EBTSecConnectionUserConfirmationTwice,
 	};
 
 

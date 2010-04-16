@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -52,6 +52,7 @@ class CHCIDirectAccessSAPsManager;
 class CEirManServer;
 class CEirPublisherTxPowerLevel;
 class CEirPublisherLocalName;
+class CBrEdrControllerConfiguration;
 
 NONSHARABLE_CLASS(CRegistrySession)
 	: public CBase
@@ -165,6 +166,7 @@ public:
 
 	// later - change local device management/notification to be nicer...
 	inline const TBTLocalDevice& LocalDevice() const;
+	inline TBTTrackedLocalDevice& DesiredLocalDeviceSettings();
 	void UpdateLocalDeviceName(const TDesC8& aName);
 	void UpdateLocalDeviceName(TBool aSucceeded);
 	void UpdateLocalDevicePower(TBTPowerState aState);
@@ -187,6 +189,7 @@ public:
 	void SetUIConnecting(TBool aConnecting);
 	void SetUINumPhysicalLinks(TUint aNum);
 	void SetUINumSynchronousLinks(TUint aNum);
+	void SetPageScanParameters(TPageScanParameterSettings aPageScanParameters);
 
 	inline CHCIFacade& HCIFacade() const;
 	inline CBTInquiryMgr& InquiryMgr() const;
@@ -245,6 +248,7 @@ friend class CBTCodServiceMan;
 	RBTLocalDevice			iLocalDevice; //subsession
 	TBTTrackedLocalDevice	iLocalDeviceSettings;
 	TBTLocalDevice			iPendingLocalDeviceSettings;
+	TBTTrackedLocalDevice			iDesiredLocalDeviceSettings;	
 	
 	RProperty				iProperty;
 
@@ -252,6 +256,8 @@ friend class CBTCodServiceMan;
 	CHCIFacade*				iHCIFacade;
 	CLinkMuxer*				iLinkMuxer;
 	CEirManServer*			iEirManServer;
+
+	CBrEdrControllerConfiguration*	iBrEdrControllerConfiguration;
 	
 	CACLLinkStateFactory*	iACLStateFactory;
 	CSyncLinkStateFactory*	iSCOStateFactory;
@@ -310,6 +316,12 @@ inline const TBTLocalDevice& CLinkMgrProtocol::LocalDevice() const
 	{
 	return iLocalDeviceSettings;
 	}
+
+inline TBTTrackedLocalDevice& CLinkMgrProtocol::DesiredLocalDeviceSettings()
+	{
+	return iDesiredLocalDeviceSettings;
+	}
+
 
 inline CBTInquiryMgr& CLinkMgrProtocol::InquiryMgr() const
 	{

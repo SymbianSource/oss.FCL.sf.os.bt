@@ -664,6 +664,42 @@ EXPORT_C TBool TBTPasskeyDisplayParams::LocallyInitiated() const
 	return iLocallyInitiated;
 	}
 
+//
+// TBTUserConfirmationParams
+//
+
+/**
+@internalTechnology
+*/
+EXPORT_C TBTUserConfirmationParams::TBTUserConfirmationParams(const TBTDevAddr& aDevAddr, const TDesC& aDeviceName, TBool aLocallyInitiated)
+	: TBTNotifierParams2(aDevAddr, aDeviceName)
+	, iLocallyInitiated(aLocallyInitiated)
+	{
+	LOG_FUNC
+	}
+
+/**
+Default constructor.  Required to allow the class to be packaged with the TPckg family of classes.
+@internalTechnology
+*/
+EXPORT_C TBTUserConfirmationParams::TBTUserConfirmationParams()
+	: TBTNotifierParams2()
+	{
+	LOG_FUNC
+	}
+
+/**
+Accessor for indicating whether the user confirmation process was initiated by a local request,
+or whether it was trigger by the remote device.
+@return EFalse if remote side initiated, otherwise it is locally initiated.
+*/
+EXPORT_C TBool TBTUserConfirmationParams::LocallyInitiated() const
+	{
+	LOG_FUNC
+	return iLocallyInitiated;
+	}
+
+
 
 //
 // TBTPinCodeEntryNotifierParams

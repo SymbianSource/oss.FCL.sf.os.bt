@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2008-2009 Nokia Corporation and/or its subsidiary(-ies).
+* Copyright (c) 2008-2010 Nokia Corporation and/or its subsidiary(-ies).
 * All rights reserved.
 * This component and the accompanying materials are made available
 * under the terms of "Eclipse Public License v1.0"
@@ -42,7 +42,7 @@
  */
 
 #include <ecom/ecom.h>
-#include <ecom/implementationInformation.h>
+#include <ecom/implementationinformation.h>
 #include <atextpluginbase.h>
 #include "atextclientsrv.h"
 #include "atextmetadata.h"
@@ -1369,7 +1369,7 @@ TInt CATExtMetadata::ExtractNextCommand( const TDesC8& aCommands,
             break;
         default:
             _LIT( KPluginType, "PluginType" );
-            User::Panic( KPluginType, EPanicCategoryPluginType );
+            User::Panic( KPluginType, EPanicCategoryType );
         }
     i++;
     if ( i >= count )
@@ -1558,10 +1558,15 @@ TInt CATExtMetadata::AddNewMasterMetadataEntryLinkL(
     if ( aEntries->Count() > 0 )
         {
         TATExtOneCmdSupport& oneCmdSupport = (*aEntries)[0];
+        if ( oneCmdSupport.iSupportType == ESupportTypePartial )
+            {
+            _LIT( KAddMIsP, "AddMIsP" );
+            User::Panic( KAddMIsP, EPanicCategoryAddMIsP );
+            }
         if ( oneCmdSupport.iSupportType == ESupportTypeMaster )
             {
-            _LIT( KFaultyMaster, "FaultyMaster" );
-            User::Panic( KFaultyMaster, EPanicCategoryFaultyMaster );
+            _LIT( KAddMIsM, "AddMIsM" );
+            User::Panic( KAddMIsM, EPanicCategoryAddMIsM );
             }
         }
     aEntries->InsertL( 0, aOneCmdSupport );
@@ -1588,6 +1593,15 @@ TInt CATExtMetadata::AddNewPartialMetadataEntryLinkL(
     TATExtOneCmdSupport& aOneCmdSupport )
     {
     TRACE_FUNC_ENTRY
+    if ( aEntries->Count() > 0 )
+        {
+        TATExtOneCmdSupport& oneCmdSupport = (*aEntries)[0];
+        if ( oneCmdSupport.iSupportType == ESupportTypeMaster )
+            {
+            _LIT( KAddPIsM, "AddPIsM" );
+            User::Panic( KAddPIsM, EPanicCategoryAddPIsM );
+            }
+        }
     TInt i = aSearchHelper.iPartialIndex;
     if ( i < 0 )
         {

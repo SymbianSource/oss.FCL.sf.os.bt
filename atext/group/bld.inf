@@ -26,5 +26,6 @@ PRJ_EXPORTS
 PRJ_MMPFILES
 #include "../client/group/bld.inf"
 #include "../server/group/bld.inf"
+#include "../plugins/group/bld.inf"
 
 PRJ_TESTMMPFILES

@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -109,6 +109,9 @@ void CBTManServer::ConstructL()
 
 	iContainerIndex = CObjectConIx::NewL();
 	// don't stop the server if we can't provide this service...				   
+	
+	//Start Backup/Restore Manager and obtain notification of backup/restore operations.
+	iBURManager=CBTManServerBURMgr::NewL(*this, this);
 	}
 
 
@@ -140,6 +143,7 @@ CBTManServer::~CBTManServer()
 	// Close the RProperty handle in case it is ever attached.
 	iProperty.Close();
 
+	delete iBURManager;
 	delete iRegistry;
 	delete iContainerIndex;
 	}
@@ -154,6 +158,32 @@ CSession2* CBTManServer::NewSessionL(const TVersion &aVersion, const RMessage2& 
 		}
 	// make new session
 	return new(ELeave) CBTManSession(*iRegistry, aMessage);
+	}
+
+void CBTManServer::BUROperationStarted()
+/**
+A backup or restore operation has started.
+Cancel the shutdown timer if it was running
+**/
+	{
+	LOG_FUNC
+	__ASSERT_DEBUG(!iBUROperationStarted, PanicServer(EBTManBadState));
+
+	iBUROperationStarted = ETrue;
+	iShutdown.Cancel();
+	}
+
+void CBTManServer::BUROperationStopped()
+/**
+A backup or restore operation has finished.
+Start the shutdown timer if there are no sessions running.
+**/
+	{
+	LOG_FUNC
+	__ASSERT_DEBUG(iBUROperationStarted, PanicServer(EBTManBadState));
+
+	iBUROperationStarted = EFalse;
+	TryToStartShutdownTimer();
 	}
 
 void CBTManServer::AddSession()
@@ -180,7 +210,18 @@ Start the shutdown timer if it is the last session.
 	LOG_FUNC
 	__ASSERT_DEBUG(iSessionCount > 0, PanicServer(EBTManBadState));
 	
-	if (--iSessionCount==0)
+	--iSessionCount;
+	TryToStartShutdownTimer();
+	}
+
+void CBTManServer::TryToStartShutdownTimer()
+/**
+Starts the shutdown timer if the server is able to shutdown
+**/
+	{
+	LOG_FUNC
+	
+	if (iSessionCount == 0 && !iBUROperationStarted)
 		{
 		iShutdown.Start();
 		}
@@ -204,13 +245,28 @@ void CBTManServer::NotifyViewChange(CBTManSubSession& aSubSessionViewOwner, cons
 	// Go through all sessions - they'll dispatch so all the subessions apart from the one calling here
 	iSessionIter.SetToFirst();
 
-	while (iSessionIter != NULL)
+	while (iSessionIter)
 		{
 		CBTManSession* s = static_cast<CBTManSession*>(iSessionIter++);
 		s->SubSessionHasOverlappingView(aSubSessionViewOwner, aViewDescriptor);
 		}
 	}
 
+void CBTManServer::NotifyViewChange(const TDesC& aViewDescriptor)
+	{
+	LOG_FUNC
+	// For views not owned by subsessions (e.g. views owned by Backup/Restore classes)
+
+	// Go through all sessions - they'll dispatch so all the subessions apart from the one calling here
+	iSessionIter.SetToFirst();
+
+	while (iSessionIter)
+		{
+		CBTManSession* s = static_cast<CBTManSession*>(iSessionIter++);
+		s->SubSessionHasOverlappingView(aViewDescriptor);
+		}
+	}
+	
 void PanicClient(const RMessage2& aMessage,TInt aPanic, CBTManSession* aSession)
 /**
 RMessage2::Panic() also completes the message. This is:
@@ -1091,6 +1147,25 @@ TBool CBTManSession::SubSessionHasOverlappingView(CBTManSubSession& aSubSessionV
 				// With bool return, we can test if indeed it did.
 				overlapFound = ETrue;
 				}
+			}
+		}
+
+	return overlapFound;
+	}
+
+TBool CBTManSession::SubSessionHasOverlappingView(const TDesC& aViewDescriptor)
+	{
+	LOG_FUNC
+	// Iterate over all subsessions (view owner is not a subsession)
+	TBool overlapFound = EFalse;
+	for (TInt i = 0; i < iContainer->Count(); i++)
+		{
+		CBTManSubSession* ss = static_cast<CBTManSubSession*>((*iContainer)[i]);
+		if (ss->IsOverlappingView(aViewDescriptor))
+			{
+			// Overlaps - subsession will have completed the Notify message
+			// With bool return, we can test if indeed it did.
+			overlapFound = ETrue;
 			}
 		}
 

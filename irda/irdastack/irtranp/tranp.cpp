@@ -312,38 +312,27 @@ void CTranpSession::ConstructL(MTranpNotification& aNotifier)
 	}
     
 EXPORT_C void CTranpSession::Connect()
-/** Establishes a connection with a peer device. This function is called before 
-sending a picture.
+/** No Longer used.
 
-The callback function Connect() is called when the connection has been successfully 
-established.
+irda client libraries left in to avoid breaks */
 
-@see MTranpNotification::Connected() */
 	{
-	User::Leave(KErrNotSupported); //Qualified
 	}
 
 EXPORT_C  void CTranpSession::Disconnect()
-/** Breaks the connection with a peer device. This function is called after sending 
-a picture.
+/** No Longer used.
 
-The callback function Disconnected() is called when the connection has been 
-broken.
+irda client libraries left in to avoid breaks */
 
-@see MTranpNotification::Connected() */
 	{
-	User::Leave(KErrNotSupported); //Qualified
 	}
     
 EXPORT_C  void CTranpSession::Query(TTranP /*aWhat*/)
-/** Requests information on the processing ability of the peer device. Typically, 
-this is called before sending a picture to that peer device. The information 
-is returned through the callback function QueryComplete().
+/** No Longer used.
 
-@param aWhat The specific type of information required from the peer device. 
-@see MTranpNotification::QueryComplete() */
+irda client libraries left in to avoid breaks */
+
 	{
-	User::Leave(KErrNotSupported); //Qualified
 	}
 
 EXPORT_C  void CTranpSession::Abort()
@@ -383,43 +372,25 @@ then this results in a call to the Error() callback function.
 	}
     
 EXPORT_C  void CTranpSession::Put(const TTranpPicture& /*aPicture*/)
-/** Sends a picture to a peer device.
+/** No Longer used.
 
-The following sequence of events is expected:
-
-This device sends picture data to the peer device, resulting in successive 
-calls to the ProgressIndication() callback function indicating how much of 
-the picture data has been received.
-
-Transmission of picture data is complete, resulting in a call to the GetComplete() 
-callback function.
-
-If the connection with the peer device is dropped at any stage in the transmission, 
-then this results in a call to the Error() callback function.
-
-@param aPicture The picture object 
-@see MTranpNotification::ProgressIndication()
-@see MTranpNotification::GetComplete()
-@see MTranpNotification::Error() */
+irda client libraries left in to avoid breaks */
 	{
-	User::Leave(KErrNotSupported); //Qualified
 	}
 	
 EXPORT_C  void CTranpSession::Config(const TTranpConfig& /*aConfig*/)
-/** Sets the configuration parameters.
+/** No Longer used.
 
-@param aConfig The configuration parameters */
+irda client libraries left in to avoid breaks */
 	{
-	User::Leave(KErrNotSupported); //Qualified
 	}
 
 EXPORT_C  TTranpConfig CTranpSession::Config() const
 
-/** Returns the configuration parameters.
+/** No Longer used.
 
-@return The configuration parameters. */
+irda client libraries left in to avoid breaks */
 	{
-	User::Leave(KErrNotSupported); //Qualified
 	return iConfig;
 	}
 

@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -37,6 +37,7 @@
 #include "eirmanager.h"
 #include "eirpublisherlocalname.h"
 #include "eirpublishertxpowerlevel.h"
+#include "bredrcontrollerconfiguration.h"
 
 
 #include "ProxySAP.h"
@@ -110,6 +111,7 @@ CLinkMgrProtocol::~CLinkMgrProtocol()
 	iProperty.Delete(KPropertyUidBluetoothCategory,	KPropertyKeyBluetoothSetAFHChannelAssessmentMode);
 	iProperty.Delete(KPropertyUidBluetoothCategory,	KPropertyKeyBluetoothSetDeviceName);
 	iProperty.Delete(KPropertyUidBluetoothCategory,	KPropertyKeyBluetoothSetAcceptPairedOnlyMode);
+	iProperty.Delete(KPropertyUidBluetoothCategory,	KPropertyKeyBluetoothSetPageScanParameters);
 
 	// Delete standard P&S values (possibly trying to delete already deleted shared set+get values)
 	iProperty.Delete(KPropertyUidBluetoothCategory, KPropertyKeyBluetoothGetLocalDeviceAddress);
@@ -122,6 +124,8 @@ CLinkMgrProtocol::~CLinkMgrProtocol()
 	iProperty.Delete(KPropertyUidBluetoothCategory,	KPropertyKeyBluetoothGetAcceptPairedOnlyMode);
 	iProperty.Delete(KPropertyUidBluetoothCategory,	KPropertyKeyBluetoothHostResolverActive);
 	iProperty.Delete(KPropertyUidBluetoothCategory,	KPropertyKeyBluetoothSetSimplePairingDebugMode);
+	iProperty.Delete(KPropertyUidBluetoothCategory,	KPropertyKeyBluetoothGetPageScanParameters);
+
 
 	delete iPhysicalLinksMgr;
 	delete iInquiryMgr;
@@ -189,7 +193,6 @@ void CLinkMgrProtocol::InitL(TDesC& /*aTag*/)
 		// much...
 		//
 		iLocalDeviceSettings.SetDeviceClass(iLocalDeviceSettings.DeviceClass() & KDeviceClassBitMask);
-		
 		
 		//NB - no (ELeave) here - in OOM we'd rather continue and not update the registry
 		//than Leave.  All calls to methods are guarded by "if (iRegistryUpdater)"
@@ -283,6 +286,11 @@ void CLinkMgrProtocol::InitL(TDesC& /*aTag*/)
 		CleanupStack::Pop(subscriber);
 		}
 
+	subscriber = CPageScanParametersSubscriber::NewL(*this);
+	CleanupStack::PushL(subscriber);
+	User::LeaveIfError(iSubscribers.Append(subscriber));
+	CleanupStack::Pop(subscriber);
+
 	// set CoD - leave if goes wrong, user's device will be "unknown" otherwise
 	// NB - In future we should tie this to the SDP Server...(or someother higher API...)
 	
@@ -306,6 +314,9 @@ void CLinkMgrProtocol::InitL(TDesC& /*aTag*/)
 	//is, as a consequence, 'Set' appropriately (when the associated controller 
 	//event arrives).
 	DoSetLimitedDiscoverableL(iLocalDeviceSettings.LimitedDiscoverable());
+
+	LOG(_L("LinkMgr : Initialising BR/EDR Controller Configuration"));
+	iBrEdrControllerConfiguration = CBrEdrControllerConfiguration::NewL(iHCIFacade->CommandQController(), *this);
 	
 	LOG(_L("LinkMgr : Initialising complete"));
 	}
@@ -382,6 +393,17 @@ void CLinkMgrProtocol::DefinePublications(THCIScanEnable aHCIScanEnable)
 							KCOMMDD
 							));
 
+	(void)(iProperty.Define(KPropertyUidBluetoothCategory,
+							KPropertyKeyBluetoothSetPageScanParameters,
+							RProperty::EInt,
+							KLOCAL_SERVICES_AND_NETWORK_CONTROL,
+							KLOCAL_SERVICES_AND_NETWORK_CONTROL
+							));
+
+	(void) RProperty::Set(KPropertyUidBluetoothCategory,
+						  KPropertyKeyBluetoothSetPageScanParameters,
+						  EStandardPageScanParameters);
+
 
 	// Original Get P&S value definitions.
 
@@ -454,6 +476,17 @@ void CLinkMgrProtocol::DefinePublications(THCIScanEnable aHCIScanEnable)
 							KLOCAL_SERVICES,
 						   	KLOCAL_SERVICES_AND_NETWORK_CONTROL
 							));
+
+	(void)(iProperty.Define(KPropertyUidBluetoothCategory,
+							KPropertyKeyBluetoothGetPageScanParameters,
+							RProperty::EInt,
+							KLOCAL_SERVICES_AND_NETWORK_CONTROL,
+							KLOCAL_SERVICES_AND_NETWORK_CONTROL
+							));
+							
+	(void) RProperty::Set(KPropertyUidBluetoothCategory,
+						  KPropertyKeyBluetoothGetPageScanParameters,
+						  EStandardPageScanParameters);
 	}
 
 void CLinkMgrProtocol::DeletePublications()
@@ -948,8 +981,19 @@ void CLinkMgrProtocol::WriteClassOfDeviceL(TUint32 aCoD)
 	// Only write the CoD bits if they have changed from the existing setting
 	if (iPendingLocalDeviceSettings.DeviceClass() != aCoD)
 		{
-		iPendingLocalDeviceSettings.SetDeviceClass(aCoD);
-		iHCIFacade->WriteDeviceClassL(aCoD);
+		TRAPD(err, iHCIFacade->WriteDeviceClassL(aCoD));
+		if (err == KErrNone)
+			{
+			iPendingLocalDeviceSettings.SetDeviceClass(aCoD);
+			}
+		else
+			{
+			/* If the function errors, it is probably becuase the power is off, so we'll save the setting for power on
+			   If the error is for a different reason, setting this doesn't do any harm anyway - it will get picked
+			   up the next time the power is turned on */
+			iDesiredLocalDeviceSettings.SetDeviceClass(aCoD);
+			User::Leave(err);
+			}
 		}
 	}
 
@@ -963,6 +1007,13 @@ TInt CLinkMgrProtocol::SetLocalDeviceName(const TDesC8& aName)
 		{
 		iPendingLocalDeviceSettings.SetDeviceName(aName);
 		}
+	else
+		{
+		/* If the function leaves, it is probably becuase the power is off, so we'll save the setting for power on
+		   If the leave is for a different reason, setting this doesn't do any harm anyway - it will get picked
+		   up the next time the power is turned on */
+		iDesiredLocalDeviceSettings.SetDeviceName(aName);
+		}
 	return err;
 	}
 
@@ -975,8 +1026,19 @@ void CLinkMgrProtocol::SetAFHHostChannelClassificationL(const TBTAFHHostChannelC
 void CLinkMgrProtocol::SetAFHChannelAssessmentModeL(TBool aMode)
 	{
 	LOG_FUNC
-	iPendingLocalDeviceSettings.SetAFHChannelAssessmentMode(aMode);
-	iHCIFacade->WriteAFHChannelAssessmentModeL(aMode);
+	TRAPD(err, iHCIFacade->WriteAFHChannelAssessmentModeL(aMode));
+	if (err == KErrNone)
+		{
+		iPendingLocalDeviceSettings.SetAFHChannelAssessmentMode(aMode);
+		}
+	else
+		{
+		/* If the function leaves, it is probably becuase the power is off, so we'll save the setting for power on
+		   If the leave is for a different reason, setting this doesn't do any harm anyway - it will get picked
+		   up the next time the power is turned on */
+		iDesiredLocalDeviceSettings.SetAFHChannelAssessmentMode(aMode);
+		User::Leave(err);
+		}
 	}
 
 void CLinkMgrProtocol::SetLimitedDiscoverableIfChangedL(TBool aOn)
@@ -1004,9 +1066,20 @@ void CLinkMgrProtocol::DoSetLimitedDiscoverableL(TBool aOn)
 	if (aOn)
 		{
 		// turn on LIAC
-		iPendingLocalDeviceSettings.SetLimitedDiscoverable(ETrue);
-		WriteClassOfDeviceL(iPendingLocalDeviceSettings.DeviceClass() | (EMajorServiceLimitedDiscoverableMode << 
-				(KLengthOfDeviceClass+KStartingOffsetOfDeviceClass))); 
+		TRAPD(err, WriteClassOfDeviceL(iPendingLocalDeviceSettings.DeviceClass() | (EMajorServiceLimitedDiscoverableMode << 
+				(KLengthOfDeviceClass+KStartingOffsetOfDeviceClass))));
+		if (err == KErrNone)
+			{
+			iPendingLocalDeviceSettings.SetLimitedDiscoverable(ETrue);
+			}
+		else
+			{
+			/* If the function leaves, it is probably becuase the power is off, so we'll save the setting for power on
+			   If the leave is for a different reason, setting this doesn't do any harm anyway - it will get picked
+			   up the next time the power is turned on */
+			iDesiredLocalDeviceSettings.SetLimitedDiscoverable(ETrue);
+			User::Leave(err);
+			}
 		numIACs = 2;
 		iacs[0] = KLIAC;
 		iacs[1] = KGIAC;
@@ -1014,9 +1087,20 @@ void CLinkMgrProtocol::DoSetLimitedDiscoverableL(TBool aOn)
 	else
 		{
 		// turn off LIAC - could do the 1 minute GAP timer?
-		iPendingLocalDeviceSettings.SetLimitedDiscoverable(EFalse);
-		WriteClassOfDeviceL(iPendingLocalDeviceSettings.DeviceClass() & ~(EMajorServiceLimitedDiscoverableMode << 
-				(KLengthOfDeviceClass+KStartingOffsetOfDeviceClass))); 
+		TRAPD(err, WriteClassOfDeviceL(iPendingLocalDeviceSettings.DeviceClass() & ~(EMajorServiceLimitedDiscoverableMode << 
+				(KLengthOfDeviceClass+KStartingOffsetOfDeviceClass))));
+		if (err == KErrNone)
+			{
+			iPendingLocalDeviceSettings.SetLimitedDiscoverable(EFalse);
+			}
+		else
+			{
+			/* If the function leaves, it is probably becuase the power is off, so we'll save the setting for power on
+			   If the leave is for a different reason, setting this doesn't do any harm anyway - it will get picked
+			   up the next time the power is turned on */
+			iDesiredLocalDeviceSettings.SetLimitedDiscoverable(EFalse);
+			User::Leave(err);
+			}
 		numIACs = 1;
 		iacs[0] = KGIAC;
 		}
@@ -1223,6 +1307,10 @@ void CLinkMgrProtocol::SetLocalBTAddress(const TBTDevAddr& aAddr)
 	LOG_FUNC
 	iLocalDeviceAddress = aAddr;
 
+	// Also update registry with local device address
+	iLocalDeviceSettings.SetAddress(iLocalDeviceAddress);
+	UpdateSettings();
+
 	// publish this number - might be useful
 	const TDesC8& des = aAddr.Des();
 	(void)iProperty.Set(KPropertyUidBluetoothCategory,
@@ -1320,6 +1408,11 @@ void CLinkMgrProtocol::ClearPendingLocalDeviceSettingsCod()
 	iPendingLocalDeviceSettings.SetDeviceClass(KDeviceClassReset);
 	}
 
+void CLinkMgrProtocol::SetPageScanParameters(TPageScanParameterSettings aPageScanParameters)
+	{
+	LOG_FUNC
+	iBrEdrControllerConfiguration->SetPageScanParameters(aPageScanParameters);
+	}
 
 
 //
@@ -1381,7 +1474,6 @@ RBTRegServ& CRegistrySession::RegServ()
 	LOG_FUNC
 	return iRegServ;
 	}
-
 
 
 //class CRegistryUpdater
@@ -1449,57 +1541,81 @@ void CRegistryUpdater::DoCancel()
 void TBTTrackedLocalDevice::SetAddress(const TBTDevAddr& aAddr)
 	{
 	LOG_FUNC
-	TBTLocalDevice::SetAddress(aAddr);
-	StoreChange(EAddress);
+	if (aAddr != Address())
+		{
+		TBTLocalDevice::SetAddress(aAddr);
+		StoreChange(EAddress);
+		}
 	}
 	
 void TBTTrackedLocalDevice::SetDeviceClass(TUint32 aCod)
 	{
 	LOG_FUNC
-	TBTLocalDevice::SetDeviceClass(aCod);
-	StoreChange(ECoD);
+	if (aCod != DeviceClass())
+		{
+		TBTLocalDevice::SetDeviceClass(aCod);
+		StoreChange(ECoD);
+		}
 	}
 
 void TBTTrackedLocalDevice::SetDeviceName(const TDesC8& aName)
 	{
 	LOG_FUNC
-	TBTLocalDevice::SetDeviceName(aName);
-	StoreChange(EDeviceName);
+	if (aName != DeviceName())
+		{
+		TBTLocalDevice::SetDeviceName(aName);
+		StoreChange(EDeviceName);
+		}
 	}
 
 void TBTTrackedLocalDevice::SetScanEnable(THCIScanEnable aEnable)
 	{
 	LOG_FUNC
-	TBTLocalDevice::SetScanEnable(aEnable);
-	StoreChange(EScanEnable);
+	if (aEnable != ScanEnable())
+		{
+		TBTLocalDevice::SetScanEnable(aEnable);
+		StoreChange(EScanEnable);
+		}
 	}
 
 void TBTTrackedLocalDevice::SetLimitedDiscoverable(TBool aOn)
 	{
 	LOG_FUNC
-	TBTLocalDevice::SetLimitedDiscoverable(aOn);
-	StoreChange(ELimitedDiscoverable);
+	if (aOn != LimitedDiscoverable())
+		{
+		TBTLocalDevice::SetLimitedDiscoverable(aOn);
+		StoreChange(ELimitedDiscoverable);
+		}
 	}
 
 void TBTTrackedLocalDevice::SetPowerSetting(TUint8 aPowerSetting)
 	{
 	LOG_FUNC
-	TBTLocalDevice::SetPowerSetting(aPowerSetting);
-	StoreChange(EPowerSetting);
+	if (aPowerSetting != PowerSetting())
+		{
+		TBTLocalDevice::SetPowerSetting(aPowerSetting);
+		StoreChange(EPowerSetting);
+		}
 	}
 
 void TBTTrackedLocalDevice::SetAFHChannelAssessmentMode(TBool aOn)
 	{
 	LOG_FUNC
-	TBTLocalDevice::SetAFHChannelAssessmentMode(aOn);
-	StoreChange(EAFHChannelAssessmentMode);
+	if (aOn != AFHChannelAssessmentMode())
+		{
+		TBTLocalDevice::SetAFHChannelAssessmentMode(aOn);
+		StoreChange(EAFHChannelAssessmentMode);
+		}
 	}
 
 void TBTTrackedLocalDevice::SetAcceptPairedOnlyMode(TBool aOn)
 	{
 	LOG_FUNC
-	TBTLocalDevice::SetAcceptPairedOnlyMode(aOn);
-	StoreChange(EAcceptPairedOnlyMode);
+	if (aOn != AcceptPairedOnlyMode())
+		{
+		TBTLocalDevice::SetAcceptPairedOnlyMode(aOn);
+		StoreChange(EAcceptPairedOnlyMode);
+		}
 	}
 
 void TBTTrackedLocalDevice::StoreChange(TUint8 aChange)

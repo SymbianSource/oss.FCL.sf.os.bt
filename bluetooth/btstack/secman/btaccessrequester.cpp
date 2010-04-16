@@ -79,7 +79,7 @@ CBTAccessRequester::CBTAccessRequester(CPhysicalLink& aConnection,
 	, iPrefetchQueueLink(this)
 	, iAuthenticationInProgress(EFalse)
 	, iAccessType(aAccessType)
-	, iDedicatedBondingNotAvailable(EFalse)
+	, iRemoteIndicatedNoBonding(EFalse)
 	, iCurrentState(EBTUninitialised)
 	{
 	LOG_FUNC
@@ -508,7 +508,7 @@ void CBTAccessRequester::IOCapsResponse(TBTSecEvent& aEvent)
 	THCIAuthenticationRequirement authReq = event->AuthenticationRequirements();
 	if (iAccessType == EDedicatedBonding && (authReq == EMitmReqNoBonding || authReq == EMitmNotReqNoBonding))
 		{
-		iDedicatedBondingNotAvailable = ETrue;
+		iRemoteIndicatedNoBonding = ETrue;
 		}
 	}
 
@@ -592,15 +592,6 @@ void CBTAccessRequester::UserConfirmation(TBTSecEvent& aEvent)
 	TBTSecEventUserConfirmationRequest* event = TBTSecEventUserConfirmationRequest::Cast(&aEvent);
 	__ASSERT_ALWAYS(event, User::Panic(KBTSecPanic, EBTSecBadStateMachineEvent));
 		
-	// Ignore the user confirmation request, we're unable to bond
-	// (dedicated bonding not available at both ends of the link)
-	// A negative reply is also sent in secman.cpp
-	if (UnableToBond())
-		{
-		CompleteRequest(KErrRemoteDeviceIndicatedNoBonding);
-		return;
-		}
-
 	// start guard timer...
 	iTimer->Start();
 	}
@@ -711,6 +702,14 @@ void CBTAccessRequester::CompleteRequest(TInt aResult)
 		LOG1(_L8("\tERROR (%d)"), aResult);
 		}
 #endif // __FLOG_ACTIVE
+	
+	if (aResult == EBTSecManAccessGranted && RemoteIndicatedNoBondingToDedicatedBonding())
+		{
+		// We allow the device to bond, but tell theUI layer so it can delete the link key if it wants to
+		aResult = KErrRemoteDeviceIndicatedNoBonding;
+		LOG(_L8("\t... but remote indicated no bonding"));
+		}
+	
 	iSecMan.AccessRequestComplete(this, aResult);
 	}
 
@@ -1004,10 +1003,10 @@ TBool CBTAccessRequester::EncryptionRequired() const
 	return encryptionRequired;
 	}
 
-TBool CBTAccessRequester::UnableToBond() const
+TBool CBTAccessRequester::RemoteIndicatedNoBondingToDedicatedBonding() const
 	{
 	LOG_FUNC
-	return (iAccessType == EDedicatedBonding && iDedicatedBondingNotAvailable);
+	return (iAccessType == EDedicatedBonding && iRemoteIndicatedNoBonding);
 	}
 
 TAccessType CBTAccessRequester::AccessType() const

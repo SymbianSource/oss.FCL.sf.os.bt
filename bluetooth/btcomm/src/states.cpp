@@ -693,6 +693,7 @@ void TBTPortStateSDPServiceQuery::DoRunL(CBTPortProxy* aContext)
 		RNetDatabase& netdb=aContext->iNetDatabase;
 
 		TSDPAttributeKey key;
+		Mem::FillZ(&key, sizeof(TSDPAttributeKey));
 		key.iQueryType = KSDPAttributeQuery;
 		// suck out the first service record handle.
 		iFactory->iExtractedHandleCount = 1;
@@ -798,6 +799,7 @@ void TBTPortStateServiceIDListRetrieved::DoRunL(CBTPortProxy* aContext)
 		CleanupStack::PopAndDestroy(2);
 
 		TSDPAttributeKey key;
+		Mem::FillZ(&key, sizeof(TSDPAttributeKey));
 		key.iMaxLength = 200;
 		key.iRange = EFalse;
 		key.iStateLength = 0;

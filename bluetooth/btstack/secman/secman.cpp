@@ -555,7 +555,8 @@ void CBTSecMan::UserConfirmationRequest(const TBTDevAddr& aAddr, TUint32 aNumeri
 	CPhysicalLink* link = iPhysicalLinksManager->FindPhysicalLink(aAddr);
 	__ASSERT_ALWAYS(link, PANIC(KBTSecPanic, EBTSecPhysicalLinkMissing));
 	__ASSERT_DEBUG(!link->InstanceNumericComparator(), PANIC(KBTSecPanic, EBTSecConnectionNumericComparisonTwice));
-	if(link->InstanceNumericComparator())
+	__ASSERT_DEBUG(!link->InstanceUserConfirmer(), PANIC(KBTSecPanic, EBTSecConnectionUserConfirmationTwice));
+	if(link->InstanceNumericComparator() || link->InstanceUserConfirmer())
 		{
 		return;
 		}
@@ -568,6 +569,25 @@ void CBTSecMan::UserConfirmationRequest(const TBTDevAddr& aAddr, TUint32 aNumeri
 
 		GetPassKeyLengthAndOriginator(aAddr, minPasskeyLength, locallyInitiated, strongKeyRequired);
 		TRAPD(err,link->NewNumericComparatorL(aAddr, *this, aNumericValue, locallyInitiated));
+		if(err)
+			{
+			if(requester)
+				{
+				requester->CompleteRequest(EBTSecManAccessDenied);
+				}
+			else
+				{
+				TRAP_IGNORE(iCommandController->UserConfirmationRequestNegativeReplyL(aAddr));
+				return;// No passkey or comparison dialogs; disconnect instead
+				}
+			}
+		}
+	else if (!link->IsPairingExpected()
+			|| ((link->AuthenticationRequirement() == EMitmNotReqDedicatedBonding 
+					|| link->AuthenticationRequirement() == EMitmReqDedicatedBonding)
+				&& !IsDedicatedBondingAttempted(aAddr)))
+		{
+		TRAPD(err,link->NewUserConfirmerL(aAddr, *this, ETrue));
 		if(err)
 			{
 			if(requester)
@@ -596,7 +616,7 @@ void CBTSecMan::UserConfirmationRequest(const TBTDevAddr& aAddr, TUint32 aNumeri
 		}
 	}
 
-void CBTSecMan::UserConfirmationComplete(const TBTDevAddr& aAddr, TBool aResult, TInt aError)
+void CBTSecMan::NumericComparisonComplete(const TBTDevAddr& aAddr, TBool aResult, TInt aError)
 	{
 	LOG_FUNC
 	CBTAccessRequester* requester = FindActiveAccessRequester(aAddr);
@@ -640,6 +660,63 @@ void CBTSecMan::UserConfirmationComplete(const TBTDevAddr& aAddr, TBool aResult,
 			}
 		}
 	link->DeleteNumericComparator();
+	}
+
+void CBTSecMan::UserConfirmationComplete(const TBTDevAddr& aAddr, TBool aResult, TInt aError)
+	{
+	LOG_FUNC
+	CBTAccessRequester* requester = FindActiveAccessRequester(aAddr);
+	if (requester)
+		{
+		LOG(_L8("\tCBTAccessRequester FOUND!\n"));
+		if (aError == KErrNone)
+			{
+			TBTSecEventUserConfirmationComplete event(aResult);
+			requester->SendEvent(event);
+			}
+		else if (aError == KErrNotFound) // KErrNotFound -> Notifier isn't present, so allow anyway
+			{
+			TBTSecEventUserConfirmationComplete event(ETrue);
+			requester->SendEvent(event);
+			}
+		else
+			{
+			TBTSecEventUserConfirmationComplete event(EFalse);  // Failed, so send EFalse
+			requester->SendEvent(event);
+			}
+		}
+
+	CPhysicalLink* link = iPhysicalLinksManager->FindPhysicalLink(aAddr);
+	__ASSERT_ALWAYS(link, PANIC(KBTSecPanic, EBTSecPhysicalLinkMissing));
+
+	if (aError==KErrNotFound) // KErrNotFound -> Notifier isn't present, so allow anyway
+		{
+		link->PinRequestSent();
+		// note: -- check errors here
+		TRAP_IGNORE(iCommandController->UserConfirmationRequestReplyL(aAddr));
+		}
+	else if (aError!=KErrNone)
+		{
+		// there was an error somewhere a long the way so respond negatively
+		// note: -- check errors here
+		TRAP_IGNORE(iCommandController->UserConfirmationRequestNegativeReplyL(aAddr));
+		}
+	else
+		{
+		// got a result
+		if(aResult)
+			{
+			link->PinRequestSent();
+			// note: -- check errors here
+			TRAP_IGNORE(iCommandController->UserConfirmationRequestReplyL(aAddr));
+			}
+		else
+			{
+			// note: -- check errors here
+			TRAP_IGNORE(iCommandController->UserConfirmationRequestNegativeReplyL(aAddr));
+			}
+		}
+	link->DeleteUserConfirmer();
 	}
 
 void CBTSecMan::PasskeyNotification(const TBTDevAddr& aAddr, TUint32 aPasskey)
@@ -806,9 +883,13 @@ void CBTSecMan::SimplePairingComplete(const TBTDevAddr& aAddr, THCIErrorCode aEr
 	if (link->InstanceNumericComparator() && link->IsNumericComparatorActive())
 		{
 		link->CancelNumericComparator();
+		NumericComparisonComplete(aAddr, EFalse, err);
+		}
+	if (link->InstanceUserConfirmer() && link->IsUserConfirmerActive())
+		{
+		link->CancelUserConfirmer();
 		UserConfirmationComplete(aAddr, EFalse, err);
 		}
-
 	iPhysicalLinksManager->SimplePairingComplete(aAddr, aError);
 
  	// Add result to list (always with HCI error code).
@@ -1753,7 +1834,7 @@ void CBTNumericComparator::RunL()
 
 	__ASSERT_DEBUG(iNumericComparisonParamsPckg().DeviceAddress() == iDevAddr, PANIC(KBTSecPanic, EBTSecBadDeviceAddress));
 
-	iSecMan.UserConfirmationComplete(iDevAddr, iResultPckg(), iStatus.Int());
+	iSecMan.NumericComparisonComplete(iDevAddr, iResultPckg(), iStatus.Int());
 	}
 
 TInt CBTNumericComparator::RunError(TInt aError)
@@ -1916,4 +1997,134 @@ TInt CBTPasskeyEntry::RunError(TInt aError)
 	LOG1(_L8("\tCBTPasskeyEntry::RunError(%d)\n"), aError);
 	return aError;
 	}
+
+//------------------------------------------------------------------------//
+//class CBTNumericComparator
+//------------------------------------------------------------------------//
+CBTUserConfirmer* CBTUserConfirmer::NewL(const TBTDevAddr aAddr,
+												 CBTSecMan& aSecMan,
+												 TBool aInternallyInitiated)
+	{
+	LOG_STATIC_FUNC
+	CBTUserConfirmer* s = CBTUserConfirmer::NewLC(aAddr, aSecMan, aInternallyInitiated);
+	CleanupStack::Pop(s);
+	return s;
+	}
+
+CBTUserConfirmer* CBTUserConfirmer::NewLC(const TBTDevAddr aAddr,
+												  CBTSecMan& aSecMan,
+												  TBool aInternallyInitiated)
+	{
+	LOG_STATIC_FUNC
+	CBTUserConfirmer* s = new(ELeave) CBTUserConfirmer(aSecMan, aInternallyInitiated);
+	CleanupStack::PushL(s);
+	s->ConstructL(aAddr);
+	return s;
+	}
+
+CBTUserConfirmer::CBTUserConfirmer(CBTSecMan& aSecMan, TBool aInternallyInitiated)
+	: CSecNotifierRequester(aSecMan)
+	, iSecMan(aSecMan)
+	, iInternallyInitiated(aInternallyInitiated)
+	{
+	LOG_FUNC
+	CActiveScheduler::Add(this);
+	}
+
+CBTUserConfirmer::~CBTUserConfirmer()
+	{
+	LOG_FUNC
+	Cancel();
+	delete iNameUpdater;
+	}
+
+
+void CBTUserConfirmer::DoUpdateNotifier()
+	{
+	LOG_FUNC
+	if(IsActive())
+		{
+		if(!iNameUpdater)
+			{
+			//Create a new CSecNotifierUpdateAO object
+			TRAP_IGNORE(iNameUpdater = CSecNotifierUpdateAO<TBTDeviceNameUpdateParamsPckg>::NewL(iNotifier, KBTUserConfirmationNotifierUid));
+			}
+		if(iNameUpdater)
+			{
+			TBTDeviceName deviceName(KNullDesC);
+			TInt err = KErrNotFound;
+			if(iDeviceName)
+				{
+				TRAP(err, deviceName = BTDeviceNameConverter::ToUnicodeL(*iDeviceName)); // Best effort attempt.
+				}
+
+			TBTDeviceNameUpdateParamsPckg pckg = TBTDeviceNameUpdateParams(deviceName, err);
+			iNameUpdater->DoUpdate(pckg);
+			}
+		}
+	}
+
+void CBTUserConfirmer::DoRequest()
+/**
+Start the RNotifier plugin that deals with authorisation.
+**/
+	{
+	LOG_FUNC
+	TInt err(KErrNone);
+
+	TBTDeviceName deviceName;
+
+	if (iDeviceName)
+		{
+		TRAP(err, deviceName = BTDeviceNameConverter::ToUnicodeL(*iDeviceName));
+		if (err!=KErrNone)
+			{
+			deviceName = KNullDesC;
+			}
+		}
+	else
+		{
+		deviceName = KNullDesC;
+		}
+	iUserConfirmationParamsPckg = TBTUserConfirmationParams(iDevAddr, deviceName, iInternallyInitiated);
+
+	iNotifier.StartNotifierAndGetResponse(iStatus, KBTUserConfirmationNotifierUid, iUserConfirmationParamsPckg, iResultPckg);
+	SetActive();
+	}
+
+
+void CBTUserConfirmer::DoCancel()
+	{
+	LOG_FUNC
+	iNotifier.CancelNotifier(KBTUserConfirmationNotifierUid);
+	if(iNameUpdater)
+		{
+		iNameUpdater->Cancel();
+		}
+	}
+
+void CBTUserConfirmer::RunL()
+	{
+	LOG_FUNC
+	// got an answer so unload the notifier
+	iNotifier.CancelNotifier(KBTUserConfirmationNotifierUid);
+
+	//remove ourself from the notifier que, allowing the next notifier to be activated
+	RemoveMyselfFromQue();
+	iIsAddedToNotifierQue = EFalse;
+
+	__ASSERT_DEBUG(iUserConfirmationParamsPckg().DeviceAddress() == iDevAddr, PANIC(KBTSecPanic, EBTSecBadDeviceAddress));
+
+	iSecMan.UserConfirmationComplete(iDevAddr, iResultPckg(), iStatus.Int());
+	}
+
+TInt CBTUserConfirmer::RunError(TInt aError)
+	{
+	LOG_FUNC
+	//will never get called as our RunL doesn't leave.
+	LOG1(_L8("\tCBTUserConfirmation::RunError(%d)\n"), aError);
+	return aError;
+	}
+
+
 
