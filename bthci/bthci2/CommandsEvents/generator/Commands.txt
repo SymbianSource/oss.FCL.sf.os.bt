@@ -12,6 +12,7 @@
 #
 # Description:
 #
+
 # Bluetooth HCI Commands to be generated
 # Syntax is documented below. ("[]" brackets are used for grouping with regexp wildcards, and wildcard operators will only directly follow a ']')
 #
@@ -41,7 +42,7 @@ InquiryCancel(1,False,True,Match,CommandCompleteEvent,True,True,CommandOpcode_KI
 PeriodicInquiryMode(1,False,True): MaxPeriodLength (2), MinPeriodLength (2), LAP (3), InquiryLength (1), NumResponses (1)
 ExitPeriodicInquiryMode(1,False,True):
 CreateACLConnection(1,True,False,Match,ConnectionCompleteEvent,True,False,BDADDR): BDADDR (6), PacketType (2), PageScanRepetitionMode (1), Reserved (1), ClockOffset (2), AllowRoleSwitch (1)
-Disconnect(1,True,False,Match,DisconnectionCompleteEvent,True,False): ConnectionHandle (2), Reason (1)
+Disconnect(1,True,False,Match,DisconnectionCompleteEvent,True,False,ConnectionHandle): ConnectionHandle (2), Reason (1)
 CreateConnectionCancel(1,False,True): BDADDR (6)
 AcceptConnectionRequest(1,True,False,Match,ConnectionCompleteEvent,True,False,BDADDR): BDADDR (6), Role (1)
 RejectConnectionRequest(1,True,False,Match,ConnectionCompleteEvent,True,False,BDADDR): BDADDR (6), Reason (1)

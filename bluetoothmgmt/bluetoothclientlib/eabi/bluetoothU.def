@@ -408,4 +408,5 @@ EXPORTS
 	_ZNK12TL2CapConfig21LegacyModesDisallowedEv @ 407 NONAME
 	_ZNK12TL2CapConfig6MinMRUERi @ 408 NONAME
 	_ZNK12TL2CapConfig6MinMTUERi @ 409 NONAME
+	_ZN23CBluetoothPhysicalLinks24DisconnectAllForPowerOffEv @ 410 NONAME
 

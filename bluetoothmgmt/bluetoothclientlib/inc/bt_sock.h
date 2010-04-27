@@ -191,6 +191,7 @@ typedef TPckgBuf<TLMDisconnectACLIoctl> TLMDisconnectACLBuf;	/*!< Package for TL
 // private tokens for use by RBTBaseband facade and stack
 _LIT8(KDisconnectOnePhysicalLink, "1");		/*!< Specifes one physical link should be disconnected */
 _LIT8(KDisconnectAllPhysicalLinks, "A");	/*!< Specifes all physical links should be disconnected */
+_LIT8(KDisconnectAllPhysicalLinksForPowerOff, "P");	/*!< Specifes all physical links should be disconnected for power off*/
 
 // HCI Ioctls
 /** Add SCO connnection Ioctl
@@ -1533,6 +1534,7 @@ public:
 	IMPORT_C void CancelCreateConnection();
 	IMPORT_C TInt Disconnect(const TBTDevAddr& aDevAddr);
 	IMPORT_C TInt DisconnectAll();
+	IMPORT_C TInt DisconnectAllForPowerOff();
 	
 	IMPORT_C TInt Broadcast(const TDesC8& aData);
 	IMPORT_C TInt ReadRaw(TDes8& aData);

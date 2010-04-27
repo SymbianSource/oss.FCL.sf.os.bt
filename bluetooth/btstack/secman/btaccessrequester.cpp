@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -831,6 +831,7 @@ void CBTAccessRequester::PhysicalLinkChange(const TBTBasebandEventNotification &
 	else if((aEvent.EventType() == ENotifyPhysicalLinkError))
 		{
 		LOG(_L8("\tPhysical link error...Complete(ACCESS DENIED)"));
+		iSecMan.ConnectionsManager().PrefetchMan().RemovePrefetch(DeviceAddress());		
 		LinkError(aEvent.ErrorCode());
 		}
 	}

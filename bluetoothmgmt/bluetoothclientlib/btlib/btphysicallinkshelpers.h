@@ -49,6 +49,7 @@ public:
 	static CBTDisconnector* NewL(CBluetoothPhysicalLinks& aParent);
 	void Disconnect(const TBTDevAddr& aBDAddr);
 	void DisconnectAll();
+	void DisconnectAllForPowerOff();
 	~CBTDisconnector();
 
 

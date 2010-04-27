@@ -185,6 +185,7 @@ enum TLinkPanic
 	EBTSSPModeChangedDuringConnection		=209,
 	EHCICtrlrInitAddingInitialisationCommandInBadState	=210,
 	EHCICtrlrInitOnlyOneResetCmdAllowed		=211,
+	EInvalidDisconnectReason				=212,
 
 	//Please add new panic codes common to all versions of linkmgr here.
 	EVendorSAPBadVendorEvent				=250,
