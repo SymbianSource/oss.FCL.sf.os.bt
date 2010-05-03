@@ -818,7 +818,7 @@ void CPhysicalLink::EncryptionChange(THCIErrorCode aErr, THCIConnHandle aConnH, 
 		if (!aEncrypted)
 			{
 			iLinksMan.LinkManagerProtocol().ACLController().SetParked(iHandle, ETrue);
-			iEncryptionEnforcer->EncryptionDisabled(SimplePairingMode()== EPhySimplePairingEnabled);
+			iEncryptionEnforcer->EncryptionDisabled(IsEncryptionPauseResumeSupported());
 			}
 		else
 			{
@@ -4162,12 +4162,12 @@ void CEncryptionEnforcer::EncryptionEnabled()
 		}
 	}
 
-void CEncryptionEnforcer::EncryptionDisabled(TBool aSecurityModeFour)
+void CEncryptionEnforcer::EncryptionDisabled(TBool aEncryptionPauseResumeSupported)
 	{
 	LOG_FUNC
 	LOG1(_L("CEncryptionEnforcer::EncryptionDisabled() : current status = %d"), iState);
 
-	if(aSecurityModeFour)
+	if(aEncryptionPauseResumeSupported)
 		{
 		Stop();
 		ChangeState(EForcingInProgress);

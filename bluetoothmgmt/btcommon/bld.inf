@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -25,7 +25,7 @@
 #include "../btconfig/bld.inf"
 
 // Logging code
-#include "../../bluetooth/btlogger/group/BLD.INF"
+#include "../../bluetooth/btlogger/group/bld.inf"
 
 // User code	
 #include "../bluetoothclientlib/bld.inf"
@@ -45,7 +45,7 @@
 
 // Profiles
 #include "../../bluetooth/gavdp/group/bld.inf"
-#include "../../bluetoothcommsprofiles/btpan/group/BLD.INF"
+#include "../../bluetoothcommsprofiles/btpan/group/bld.inf"
 
 
 // CSY

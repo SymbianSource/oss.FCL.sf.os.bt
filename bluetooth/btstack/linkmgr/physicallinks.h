@@ -206,7 +206,7 @@ public:
 	static CEncryptionEnforcer* NewLC(CPhysicalLink& aLink, THCIEncryptModeFlag aEncryptionMode);
 	
 	void EncryptionEnabled();
-	void EncryptionDisabled(TBool aSecurityModeFour);
+	void EncryptionDisabled(TBool aEncryptionPauseResumeSupported);
 	void RoleSwitchEvent();
 	
 private:
