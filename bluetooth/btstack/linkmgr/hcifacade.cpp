@@ -35,10 +35,11 @@
 #include <bluetooth/hcicommandqitem.h>
 #include <bluetooth/hcicmdqcontroller.h>
 
+#include <bluetooth/hci/hciopcodes.h>
+
 #include <bluetooth/hci/controllerinitialisationinterface.h>
 #include <bluetooth/hci/hcidataframer.h>
 #include <bluetooth/hci/readlocalsupportedfeaturescommand.h>
-#include <bluetooth/hci/hostbuffersizecommand.h>
 #include <bluetooth/hci/resetcommand.h>
 #include <bluetooth/hci/readbdaddrcommand.h>
 #include <bluetooth/hci/readlocalversioninfocommand.h>
@@ -192,10 +193,6 @@ void CHCIFacade::ConstructL()
 	// used later to ensure that we have enough data to call SetEventMask
 	iReadLocalSupportedFeaturesComplete = EFalse;
 	iReadLocalVersionComplete           = EFalse;
-			
-#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
-	iMBufPool = CHostMBufPool::NewL(*this);
-#endif
 	}
 	
 void CHCIFacade::SetLinkMuxer(CLinkMuxer& aLinkMuxer)
@@ -319,9 +316,6 @@ CHCIFacade::~CHCIFacade()
 	{
 	LOG_FUNC
 	delete iAFHTimer;
-	#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
-	delete iMBufPool;
-	#endif
 
 	delete iCoreHciPlugin;
 	
@@ -430,9 +424,12 @@ void CHCIFacade::HandlePowerStatusChange(TBTPowerState aStatus)
 		iLinkMgrProtocol.LinkMuxer().ChannelsClosed(KHCITransportAllChannels);
 		iLinkMgrProtocol.Error(KErrHardwareNotAvailable);
 		// Reset UI
+		//
 		iLinkMgrProtocol.SetUIConnecting(EFalse);
 		iLinkMgrProtocol.SetUINumPhysicalLinks(0);
-		// The h/w CoD has been reset, so we need to clear our persistent value, to reflect this
+		// The h/w has been (or will be) reset, so we need to clear our locally cached data
+		//
+		iLinkMgrProtocol.LinkMuxer().ResetFlowControlMode();
 		iLinkMgrProtocol.ClearPendingLocalDeviceSettingsCod();
 		
 		// Removes any pending AFH Channel Classification command 
@@ -529,58 +526,39 @@ void CHCIFacade::SetupFlowControlL(TFlowControlMode aMode)
 */
 	{
 	LOG_FUNC
+	
 	switch (aMode)
 		{
-		case ENoFlowControl:
-			{
-#ifndef _DEBUG
-			Panic(ELinkMgrBadFlowControlSetInReleaseBuild);
-#endif
-			break;
-			}
-		case EFlowControlToHostControllerOnly:
-			{
-			// the host will not tell the Controller about its buffers
-
-			User::LeaveIfError(
-				SendInitialisationCommand(CReadBufferSizeCommand::NewL()));
-			break;
-			}
-		case EFlowControlFromHostControllerOnly:
-			{
-#ifdef _DEBUG
-			CHCICommandBase *command = CHostBufferSizeCommand::NewL(KLinkMgrIncomingBufferSize,
-											 KStackSCOBuffersSize, KStackACLBuffersNum,
-											 KStackSCOBuffersNum);
-
-			User::LeaveIfError(SendInitialisationCommand(command));
-
-			command = CSetControllerToHostFlowControlCommand::NewL(ETrue);
-
-			User::LeaveIfError(SendInitialisationCommand(command));
-
-#else
-			Panic(ELinkMgrBadFlowControlSetInReleaseBuild);
-#endif
-			break;
-			}
-		case ETwoWayFlowControlEnabled:
-			{
-			CHCICommandBase *command = CHostBufferSizeCommand::NewL(KLinkMgrIncomingBufferSize,
-											 KStackSCOBuffersSize, KStackACLBuffersNum,
-											 KStackSCOBuffersNum);
-
-			User::LeaveIfError(SendInitialisationCommand(command));
-
-			command = CSetControllerToHostFlowControlCommand::NewL(ETrue);
-
-			User::LeaveIfError(SendInitialisationCommand(command));
-
-			break;
-			}
-		default:
-			Panic(ELinkMgrNoSuchFlowControlMode);
-			break;
+	case ENoFlowControl:
+	case EFlowControlToHostControllerOnly:
+	case EFlowControlFromHostControllerOnly:
+	case ETwoWayFlowControlEnabled:
+		// a valid argument has been provided
+		break;
+	default:
+		Panic(ELinkMgrNoSuchFlowControlMode);
+		break;
+		}
+	
+	TBool ctrlerToHostFlowControl = (aMode == ETwoWayFlowControlEnabled) || (aMode == EFlowControlFromHostControllerOnly);
+	TBool hostToCtrlerFlowControl = (aMode == ETwoWayFlowControlEnabled) || (aMode == EFlowControlToHostControllerOnly);
+	
+	if(hostToCtrlerFlowControl)
+		{
+		LEAVEIFERRORL(SendInitialisationCommand(CReadBufferSizeCommand::NewL()));
+		}
+	
+	if(ctrlerToHostFlowControl)
+		{
+		static const TUint8 KControllerToHostFlowControlAclOnSyncOff = 0x01; 
+		CHCICommandBase* command = 
+			CSetControllerToHostFlowControlCommand::NewL(KControllerToHostFlowControlAclOnSyncOff);
+		LEAVEIFERRORL(SendInitialisationCommand(command));
+		// When this command successfully completes then host buffer size command will be issued.
+		}
+	else
+		{
+		iLinkMuxer->RecordHostControllerToHostFlowControl(EFalse);
 		}
 	}
 
@@ -638,14 +616,6 @@ TUint16 CHCIFacade::ReadACLFramingOverhead() const
 	LOG_FUNC
 	return 0;
 	}
-
-#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
-RMBufChain CHCIFacade::TakeInboundACLDataBufferFromPool(const THCIConnHandle& aForConnHandle)
-	{
-	LOG_FUNC
-	return iMBufPool->TakeBuffer(aForConnHandle);
-	}
-#endif
 
 // MControllerInitialisationObserver
 void CHCIFacade::McioPreResetCommandComplete(TInt aError)
@@ -1098,177 +1068,3 @@ TInt CAFHTimer::RunError(TInt /*aError*/)
 	return KErrNone;
 	}
 
-#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
-
-CHostMBufPool* CHostMBufPool::NewL(CHCIFacade& aHCIFacade)
-	{
-	LOG_FUNC
-	CHostMBufPool* self = new (ELeave) CHostMBufPool(aHCIFacade);
-	CleanupStack::PushL(self);
-	self->ConstructL();
-	CleanupStack::Pop(self);
-	return self;
-	}
-	
-void CHostMBufPool::DeletePool(TSglQue<TPoolBuffer>& aQueue)
-	{
-	LOG_FUNC
-	TPoolBuffer* tmpItem = NULL;
-	TSglQueIter<TPoolBuffer> iter(aQueue);
-	while(iter)
-		{
-		tmpItem=iter++;
-		aQueue.Remove(*tmpItem);
-		delete tmpItem;
-		}
-	}
-	
-CHostMBufPool::~CHostMBufPool()
-	{
-	LOG_FUNC
-	Cancel();
-	DeletePool(iBufferPool);
-	DeletePool(iWaitingAllocPool);
-	}
-	
-CHostMBufPool::CHostMBufPool(CHCIFacade& aHCIFacade) :
-	CActive(0),iHCIFacade(aHCIFacade),iBufferPool(_FOFF(TPoolBuffer,iLink)),
-	iWaitingAllocPool(_FOFF(TPoolBuffer,iLink)),iCurrAckHandle(KErrNotFound),iCurrCompletedPackets(0)
-	{
-	LOG_FUNC
-	}
-	
-void CHostMBufPool::ConstructL()
-/**
-2nd phase constructor for the Host MBuf Pool.
-
-This method will attempt to reserve enough MBufs from the global pool
-for bluetooth use.
-@leave KErrNoMemory If the required number of MBufs couldn't be reserved
-*/
-	{
-	LOG_FUNC
-	LOG2(_L("CHostMBufPool: now reserving %d size %d MBufChains"),KStackACLBuffersNum,KLinkMgrIncomingBufferSize);
-			
-	for (TInt i=0;i<=KStackACLBuffersNum-1;i++)
-		{
-		TPoolBuffer* thisBuffer = new (ELeave) TPoolBuffer();
-		CleanupStack::PushL(thisBuffer);
-		thisBuffer->iCurrentHandle=KErrNotFound; //we assert on this later
-		thisBuffer->iMBufChain.AllocL(KLinkMgrIncomingBufferSize);
-		iBufferPool.AddFirst(*thisBuffer);
-		CleanupStack::Pop(thisBuffer);
-		}
-		
-	CActiveScheduler::Add(this);
-	}
-	
-void CHostMBufPool::DoCancel()
-	{
-	LOG_FUNC
-	iMBufRequester.Cancel();
-	}
-	
-RMBufChain CHostMBufPool::TakeBuffer(const THCIConnHandle& aConnHandle)
-/**
-Takes a buffer from the pool and schedules an asynchronous allocation
-of the next buffer.	 Only when that allocation has succeeded will the host
-controller be signalled with a host_number_of_completed_packets.  Hence,
-if we cannot allocate a buffer from the global MBuf pool, the host controller
-will be flowed off and no data will be lost.
-*/
-	{
-	LOG_FUNC
-	TPoolBuffer* ready = iBufferPool.First();
-	iBufferPool.Remove(*ready);
-	__ASSERT_DEBUG(!ready->iMBufChain.IsEmpty(),Panic(ELinkMgrHostControllerHasOverflowedHost));
-	__ASSERT_DEBUG(ready->iCurrentHandle==KErrNotFound,Panic(ELinkMgrHostControllerHasOverflowedHost));
-	ready->iCurrentHandle = aConnHandle;
-	
-	RMBufChain retChain;
-	retChain.Assign(ready->iMBufChain);
-	
-	if (IsActive())
-		{
-		//This buffer will be reclaimed from the global pool
-		//after the one(s) we're currently trying to reclaim
-		LOG(_L("CHostMBufPool: TakeBuffer, buffer taken while alloc outstanding: queued alloc"));
-		iWaitingAllocPool.AddLast(*ready);
-		}
-	else
-		{
-		LOG(_L("CHostMBufPool: TakeBuffer, buffer taken"));
-		iBufferPool.AddLast(*ready); //NB the Controller cannot use this
-									//buffer until it is alloced as it will
-									//be flowed off.
-		iMBufRequester.Alloc(ready->iMBufChain,KLinkMgrIncomingBufferSize,iStatus);
-		SetActive();
-		}
-		
-	return retChain;
-	}
-	
-void CHostMBufPool::RunL()
-	{
-	LOG_FUNC
-	if (iStatus.Int()!=KErrNone)
-		{
-		LOG1(_L("Error! CHostMBufPool:: RunL %d"),iStatus.Int());
-		__DEBUGGER();
-		}
-	else
-		{
-		TPoolBuffer* justAllocd = iBufferPool.Last();
-		
-		
-		if (iCurrAckHandle==KErrNotFound)
-			{
-			//This is the first completion we have ever seen
-			iCurrAckHandle=justAllocd->iCurrentHandle;
-			}
-		
-		TBool ackNow=((justAllocd->iCurrentHandle!=iCurrAckHandle));
-		
-		if (!ackNow)
-			{
-			iCurrCompletedPackets++;
-			LOG2(_L("CHostMBufPool: CompletedPackets++ for conn: %d [->%d]"),justAllocd->iCurrentHandle,iCurrCompletedPackets);
-			
-			if (iCurrCompletedPackets>=KStackACLBuffersTideMarkNum)
-				{
-				ackNow=ETrue;
-				}
-			}
-			
-		if (ackNow)
-			{
-			TInt err=KErrNone;
-			
-			if (iCurrCompletedPackets>0)
-				{
-				LOG2(_L("CHostMBufPool: Sending HostNumberOfCompletedPackets for conn: %d [%d completed]"),iCurrAckHandle,iCurrCompletedPackets);
-				//Acknowledge the completed packets
-				TRAP(err, iHCIFacade.HostNumberOfCompletedPacketsL(iCurrAckHandle,iCurrCompletedPackets));
-				//if this failed we probably couldn't alloc the memory for the command frame,
-				//the HC is still flowed off.
-				__ASSERT_DEBUG(err==KErrNone,Panic(ELinkMgrCouldNotSendHostNumberOfCompletedPackets));
-				}
-			
-			iCurrCompletedPackets= (justAllocd->iCurrentHandle!=iCurrAckHandle) ? 1:0;
-			iCurrAckHandle=justAllocd->iCurrentHandle;
-			}
-		
-		justAllocd->iCurrentHandle=KErrNotFound;
-		
-		if (!iWaitingAllocPool.IsEmpty())
-			{
-			TPoolBuffer* needsAlloc = iWaitingAllocPool.First();
-			iBufferPool.AddLast(*needsAlloc);
-			iWaitingAllocPool.Remove(*needsAlloc);
-			iMBufRequester.Alloc(needsAlloc->iMBufChain,KLinkMgrIncomingBufferSize,iStatus);
-			SetActive();
-			}
-		}
-	}
-	
-#endif

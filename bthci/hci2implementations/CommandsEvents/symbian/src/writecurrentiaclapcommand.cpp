@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -12,7 +12,7 @@
 //
 // Description:
 // This file was generated automatically from the template commandsource.tmpl
-// on Thu, 29 May 2008 15:17:52 (time stamp)
+// on Wed, 07 Apr 2010 11:59:28 (time stamp)
 // 
 //
 
@@ -38,9 +38,9 @@ _LIT8(KLogComponent, LOG_COMPONENT_COMMANDSEVENTS_SYMBIAN);
 
 EXPORT_C CWriteCurrentIACLAPCommand* CWriteCurrentIACLAPCommand::NewL(TUint8 aNumCurrentIAC, const RArray< TUint32 >& aIACLAP)
 	{
-	CWriteCurrentIACLAPCommand* self = new (ELeave) CWriteCurrentIACLAPCommand(aNumCurrentIAC, aIACLAP);
+	CWriteCurrentIACLAPCommand* self = new (ELeave) CWriteCurrentIACLAPCommand(aNumCurrentIAC);
 	CleanupStack::PushL(self);
-	self->CHCICommandBase::BaseConstructL();
+	self->ConstructL(aIACLAP);
 	CleanupStack::Pop(self);
 	return self;
 	}
@@ -56,10 +56,9 @@ EXPORT_C CWriteCurrentIACLAPCommand* CWriteCurrentIACLAPCommand::NewL()
 
 // Constructors
 
-CWriteCurrentIACLAPCommand::CWriteCurrentIACLAPCommand(TUint8 aNumCurrentIAC, const RArray< TUint32 >& aIACLAP)
+CWriteCurrentIACLAPCommand::CWriteCurrentIACLAPCommand(TUint8 aNumCurrentIAC)
 	: CHCICommandBase(KWriteCurrentIACLAPOpcode)
 	, iNumCurrentIAC(aNumCurrentIAC)
-	, iIACLAP(aIACLAP)
 	{
 	SetExpectsCommandStatusEvent(EFalse);
 	}
@@ -68,6 +67,12 @@ CWriteCurrentIACLAPCommand::CWriteCurrentIACLAPCommand()
 	: CHCICommandBase(KWriteCurrentIACLAPOpcode)
 	{
 	SetExpectsCommandStatusEvent(EFalse);
+	}
+
+void CWriteCurrentIACLAPCommand::ConstructL(const RArray< TUint32 >& aIACLAP)
+	{
+	CHCICommandBase::BaseConstructL();
+	iIACLAP = aIACLAP;
 	}
 
 // Destructor

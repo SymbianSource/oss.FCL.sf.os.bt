@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -160,7 +160,6 @@ public:
 	void ClearHCICommandQueue();
 	
 public: // command functions
-	void WriteSimplePairingModeL(TUint8 aSimplePairingMode);
 	void WriteSimplePairingDebugModeL(TUint8 aSimplePairingDebugMode);
 	void IOCapabilityRequestReplyL(const TBTDevAddr& aBDADDR, THCIIoCapability aIOCapability, THCIOobDataPresence aOOBDataPresent, THCIAuthenticationRequirement aAuthenticationRequirements);
 	void IOCapabilityRequestNegativeReplyL(const TBTDevAddr& aBDADDR, TUint8 aReason);
@@ -190,7 +189,6 @@ private:
 	void SimplePairingCompleteEvent(const THCIEventBase& aEvent);
 	void KeypressNotificationEvent(const THCIEventBase& aEvent);
 
-	void WriteSimplePairingModeOpcode(const THCICommandCompleteEvent& aCompleteEvent);
 	void RemoteOOBDataRequestReplyOpcode(const THCICommandCompleteEvent& aCompleteEvent);
 	void RemoteOOBDataRequestNegativeReplyOpcode(const THCICommandCompleteEvent& aCompleteEvent);
 	void WriteSimplePairingDebugModeOpcode(const THCICommandCompleteEvent& aCompleteEvent);

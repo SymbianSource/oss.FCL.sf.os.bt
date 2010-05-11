@@ -1,4 +1,4 @@
-// Copyright (c) 2001-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2001-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -31,7 +31,7 @@ class CLinkMgrProtocol;
 class CHCICmdQController;
 
 /**
-	Regulates the issuing  of buffers send down the same channel.
+	Regulates the issuing of buffers sent down the same channel.
 
 	The mux decides and notifies the appropriate Q to send data when the wire
 	is free. The mux will need to be fed with 'the wire is free' events and 
@@ -43,17 +43,22 @@ NONSHARABLE_CLASS(CLinkMuxer) : public CBase
 	{
 public:
 	static CLinkMuxer* NewL(CLinkMgrProtocol& aLinkMgrProtocol, CHCIFacade& aHCIFacade);
-	void ObtainHostControllerBufferSizeL();
+	
 	void RecordHostControllerToHostFlowControl(TBool aFlowFlag);
-	CACLDataQController* HandleLocalReadBufferSizeResult(TUint16 aAclMaxLen,
-      TUint8 /*aScoMaxLen*/,TUint16 aNoACL,TUint16 /*aNoSCO*/);
+	CACLDataQController* HandleLocalReadBufferSizeResult(TUint16 aAclMaxLen, TUint8 /*aScoMaxLen*/, 
+														TUint16 aNoACL, TUint16 /*aNoSCO*/);
 	TInt ACLPacketMTU() const;
 
-	CACLDataQController& DataQController() const {return *iDataController;};
+	CACLDataQController& DataQController() const {return *iDataController;}
+	
 	void ChannelsFree(THCITransportChannel aChannel); // notification of free channels
 	void ChannelsClosed(THCITransportChannel aChannel); // notification of closed channels
-	static TInt TryToSendCallBackStatic(TAny* aCLinkMuxer);
+	
 	void TryToSend();	// request to send on certain channels
+	
+	TFlowControlMode FlowControlMode() const {return iFlowControlMode;}
+	void ResetFlowControlMode();
+	
 #ifdef STACK_SCO_DATA
 	TBool CanWriteSCOData();
 #endif
@@ -65,6 +70,8 @@ private:
 	void ConstructL();
 	CLinkMuxer(CLinkMgrProtocol& aLinkMgrProtocol, CHCIFacade& aHCIFacade);
 	void DoSend(/*THCITransportChannel aChannel*/);	// request to send on certain channels
+	static TInt TryToSendCallBackStatic(TAny* aCLinkMuxer);
+	
 private:
 // owned resources
 	CHCICmdQController*	iCommandController;
@@ -73,7 +80,8 @@ private:
 // non-owned resources
 	CHCIFacade&				iHCIFacade;
 	THCITransportChannel	iChannelsFree;
-    TFlowControlMode		iFlowControlMode;
+	TFlowControlMode		iFlowControlMode;
+	TBool					iCtrlerToHostSet;
 	CLinkMgrProtocol&		iLinkMgrProtocol;
 	TInt					iACLPacketMTU;
 	};

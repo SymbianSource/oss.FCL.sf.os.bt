@@ -556,6 +556,10 @@ void CPhysicalLink::UpdateFromInquiryCache()
 		{
 		iDevice.SetClockOffset(jle.iClockOffset);
 		}
+	if(juice->IsCoDFromHCI())
+		{
+		iDevice.SetDeviceClass(jle.iCoD);
+		}
 	}
 
 void CPhysicalLink::StoreDeviceL( TBool aPreventDeviceAddition )
@@ -2302,6 +2306,14 @@ TInt CPhysicalLink::Terminate(THCIErrorCode aReason)
 	LOG_FUNC
 	TInt err = KErrNone;
 
+	__ASSERT_DEBUG(aReason == EAuthenticationFailure
+				|| aReason == ERemoteUserEndedConnection
+				|| aReason == ERemoteLowResources
+				|| aReason == ERemoteAboutToPowerOff
+				|| aReason == EUnsupportedRemoteLMPFeature
+				|| aReason == EPairingWithUnitKeyNotSupported,
+				Panic (EInvalidDisconnectReason)); // Check the error code is valid with the spec
+	
 	if (iLinkState.LinkState() == TBTBasebandLinkState::ELinkPending)
 		{
 		// If the Link is not yet up then we cannot know the correct connection handle
@@ -2897,6 +2909,13 @@ TBool CPhysicalLink::LinkKeyRequestPending()
 	LOG_FUNC
 	return iAuthStateMask & ELinkKeyRequestPending;
 	}
+
+TBool CPhysicalLink::IsAuthenticationRequestPending() const
+	{
+	LOG_FUNC
+	return iAuthStateMask & EAuthenticationRequestPending;
+	}
+
 
 void CPhysicalLink::SetAuthenticationPending(TUint8 aState)
 	{

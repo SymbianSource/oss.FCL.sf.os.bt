@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2008 Nokia Corporation and/or its subsidiary(-ies).
+* Copyright (c) 2008-2010 Nokia Corporation and/or its subsidiary(-ies).
 * All rights reserved.
 * This component and the accompanying materials are made available
 * under the terms of "Eclipse Public License v1.0"
@@ -11,7 +11,7 @@
 *
 * Contributors:
 *
-* Description: 
+* Description:
 *
 */
 
@@ -132,6 +132,7 @@ void CATExtCommonSession::DoServiceCommonL( const RMessage2& aMessage )
 CATExtCommonSession::CATExtCommonSession( CATExtSrvCommon& aServer,
                                           const TVersion& aVersion ) :
     iServer( aServer ),
+    iEComSession( NULL ),
     iVersion( aVersion )
     {
     }
@@ -158,13 +159,12 @@ void CATExtCommonSession::IpcSetCommonInterfaceL( const RMessage2& aMessage )
         TRACE_FUNC_EXIT
         User::Leave( retTemp );
         }
-    REComSession& ecomSession = REComSession::OpenL();
-    CleanupClosePushL( ecomSession );
+    iEComSession = &REComSession::OpenL();
     RImplInfoPtrArray implementations;
     CleanupResetDestroyClosePushL( implementations );
     TUid ifUid = TUid::Uid( ATEXT_INTERFACE_COM_UID );
-    iEComSession.ListImplementationsL( ifUid,
-                                       implementations );
+    iEComSession->ListImplementationsL( ifUid,
+                                        implementations );
     if ( implementations.Count() != 1 )
         {
         TRACE_FUNC_EXIT
@@ -173,9 +173,7 @@ void CATExtCommonSession::IpcSetCommonInterfaceL( const RMessage2& aMessage )
     TUid pluginUid = implementations[0]->ImplementationUid();
     iCommonBase = CATExtCommonBase::NewL( pluginUid, *this, connectionName );
     CleanupStack::PopAndDestroy( &implementations );
-    CleanupStack::Pop( &ecomSession );
     CleanupStack::PopAndDestroy( &connectionName );
-    iEComSession = ecomSession;
     TRACE_FUNC_EXIT
     }
 
@@ -488,7 +486,10 @@ void CATExtCommonSession::Destruct( TBool aSyncClose )
         }
     delete iCommonBase;
     iCommonBase = NULL;
-    iEComSession.Close();
+    if ( iEComSession )
+        {
+        iEComSession->Close();
+        }
     if ( !aSyncClose )
         {
         REComSession::FinalClose();

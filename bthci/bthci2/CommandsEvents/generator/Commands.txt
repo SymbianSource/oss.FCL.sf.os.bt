@@ -12,7 +12,6 @@
 #
 # Description:
 #
-
 # Bluetooth HCI Commands to be generated
 # Syntax is documented below. ("[]" brackets are used for grouping with regexp wildcards, and wildcard operators will only directly follow a ']')
 #

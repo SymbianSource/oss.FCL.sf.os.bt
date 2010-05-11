@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -93,43 +93,7 @@ public:
 private:
 	};
 
-#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
-NONSHARABLE_CLASS(CHostMBufPool) : public CActive
-	{
-	NONSHARABLE_CLASS(TPoolBuffer)
-		{
-	public:
-		RMBufChain		iMBufChain;
-		TInt			iCurrentHandle; //NB THCIConnHandle is TUint16,
-										//we use -1 to indicate no handle
-		TSglQueLink		iLink;
-		};
-public:
-	static CHostMBufPool* NewL(CHCIFacade& aHCIFacade);
-	~CHostMBufPool();
-	RMBufChain TakeBuffer(const THCIConnHandle& aConnHandle);
-private:
-	CHostMBufPool(CHCIFacade& aHCIFacade);
-	void ConstructL();
-	void RunL();
-	void DoCancel();
-	
-	void DeletePool(TSglQue<TPoolBuffer>& aPool);
-	
-private:
-	CHCIFacade&			iHCIFacade;	
-	CAsyncCallBack*		iBufferFreeCallback;
-	
-	TSglQue<TPoolBuffer>	iBufferPool;
-	TSglQue<TPoolBuffer>	iWaitingAllocPool;
-	
-	TInt				iCurrAckHandle;
-	TUint				iCurrCompletedPackets;
-	
-	RMBufAsyncRequest	iMBufRequester;
-	};
-	
-#endif //HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
+
 
 NONSHARABLE_CLASS(CAFHTimer) : public CTimer
 	{
@@ -226,7 +190,6 @@ public:
 	
 	void AcceptConnectionRequestL(const TBTDevAddr& aAddr, TUint8 aRole);
 	void RejectConnectionRequestL(const TBTConnect& aConnect, THCIErrorCode aReason);
-	void HostNumberOfCompletedPacketsL(THCIConnHandle aConnH, TUint16 aFrags);
 	void WriteLinkPolicySettingsL(THCIConnHandle aConnH, TUint16 aSettings);
 	void FlushL(THCIConnHandle aConnH);
 	void SetEventMaskL(const THCIEventMask& aEventMask);
@@ -318,9 +281,6 @@ public:
 	TUint16 ReadACLReportingInterval() const;
 	TUint16 ReadACLFramingOverhead() const;
 	
-	#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
-	RMBufChain TakeInboundACLDataBufferFromPool(const THCIConnHandle& aForConnHandle);
-	#endif
 	void ReadDeviceClassL();
 private:
 	TInt SendInitialisationCommand(CHCICommandBase* aCommand);
@@ -364,6 +324,7 @@ private:
 	void WriteCurrentIACLAPOpcode(THCIErrorCode aHciErr, const THCIEventBase* aEvent, const CHCICommandBase* aRelatedCommand);
 	void WriteClassOfDeviceOpcode(THCIErrorCode aHciErr, const THCIEventBase* aEvent, const CHCICommandBase* aRelatedCommand);
 	void SetControllerToHostFlowControlOpcode(THCIErrorCode aHciErr, const THCIEventBase* aEvent, const CHCICommandBase* aRelatedCommand);
+	void HostBufferSizeOpcode(THCIErrorCode aHciErr, const THCIEventBase* aEvent, const CHCICommandBase* aRelatedCommand);
 	void WriteScanEnableOpcode(THCIErrorCode aHciErr, const THCIEventBase* aEvent, const CHCICommandBase* aRelatedCommand);
 	void SetAFHHostChannelClassificationOpcode(THCIErrorCode aHciErr, const THCIEventBase* aEvent, const CHCICommandBase* aRelatedCommand);
 	void WriteAFHChannelAssessmentModeOpcode(THCIErrorCode aHciErr, const THCIEventBase* aEvent, const CHCICommandBase* aRelatedCommand);
@@ -374,6 +335,8 @@ private:
 	void SwitchRoleOpcode(THCIErrorCode aHciErr, const THCIEventBase* aEvent, const CHCICommandBase* aRelatedCommand);
 	void SetEventMaskOpcode(THCIErrorCode aHciErr, const THCIEventBase* aEvent, const CHCICommandBase* aRelatedCommand);
 	void ReadInquiryResponseTransmitPowerLevelOpcode(THCIErrorCode aHciErr, const THCIEventBase* aEvent, const CHCICommandBase* aRelatedCommand);
+	
+	void WriteSimplePairingModeOpcode(THCIErrorCode aHciErr, const THCIEventBase* aEvent, const CHCICommandBase* aRelatedCommand);	
 	
 	// Functions
 	CHCIFacade(CLinkMgrProtocol& aProtocol);
@@ -443,10 +406,6 @@ private:
 	THCITransportChannel	iHCTLState; // memorize the status of the free channels
 
 	TBTPowerState        iLastPowerState;
-	
-	#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
-	CHostMBufPool*			iMBufPool;
-	#endif	
 
 	// This array contains outstanding command Op Codes.  The array is 
 	// not defined using THCIOpcode as the template type because RArray

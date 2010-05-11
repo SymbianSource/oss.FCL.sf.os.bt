@@ -302,6 +302,13 @@ public:
      */
     CATExtPluginBase* iOldHandler;
 
+    /**
+     * Pointer to editor handler; set when editor mode started,
+     * NULL when editor mode not active.
+     * Not own.
+     */
+    TATExtPluginEntry* iEditorHandler;
+
     };
 
 /**
@@ -519,6 +526,22 @@ public:
                                  TBool aErrorReply,
                                  TATExtensionReplyType aReplyType,
                                  TBool aMultiPart );
+
+    /**
+     * Writes multipart or single part reply buffer to client for handle.
+     * Used for creating a reply for HandleCommand().
+     *
+     * @since S60 5.0
+     * @param aMultiPart ETrue (default behavior) if multipart reply wanted,
+     *                   EFalse otherwise.
+     *                   For multipart replies the reply may be over
+     *                   KDefaultCmdBufLength.
+     * @param aStartOfEditor ETrue if start of editor mode,
+     *                       EFalse otherwise
+     * @return Symbian error code on error, KErrNone otherwise
+     */
+    TInt WriteHandleCmdReplyBuffer( TBool aMultiPart,
+                                    TBool aStartOfEditor );
 
     /**
      * Clears internal initialized command handler data. This is currently used

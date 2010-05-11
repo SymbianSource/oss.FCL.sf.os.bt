@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -42,7 +42,6 @@
 #include <bluetooth/hci/rejectsynchronousconnectionrequestcommand.h>
 #include <bluetooth/hci/disconnectcommand.h>
 #include <bluetooth/hci/writelinkpolicysettingscommand.h>
-#include <bluetooth/hci/hostnumberofcompletedpacketscommand.h>
 #include <bluetooth/hci/acceptconnectionrequestcommand.h>
 #include <bluetooth/hci/rejectconnectionrequestcommand.h>
 #include <bluetooth/hci/readremoteversioninfocommand.h>
@@ -181,20 +180,6 @@ void CHCIFacade::WriteLinkPolicySettingsL(THCIConnHandle aConnH, TUint16 aSettin
 void CHCIFacade::WriteScanEnableL(THCIScanEnable aEnable)
 	{
 	CWriteScanEnableCommand* cmd = CWriteScanEnableCommand::NewL(aEnable);
-
-	// Ownership of cmd transfered even if MhcqAddCommandL leaves
-	iCmdController->MhcqAddCommandL(cmd, *this);
-	}
-
-void CHCIFacade::HostNumberOfCompletedPacketsL(THCIConnHandle aConnH, TUint16 aFrags)
-	{
-	RArray<THCIConnectionHandle> connHandles;
-	connHandles.Append(aConnH);
-
-	RArray<THCINumOfCompletedPackets> numPackets;
-	numPackets.Append(aFrags);
-		
-	CHostNumberOfCompletedPacketsCommand* cmd = CHostNumberOfCompletedPacketsCommand::NewL(1, connHandles, numPackets);
 
 	// Ownership of cmd transfered even if MhcqAddCommandL leaves
 	iCmdController->MhcqAddCommandL(cmd, *this);
