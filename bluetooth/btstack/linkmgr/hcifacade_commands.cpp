@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -189,12 +189,16 @@ void CHCIFacade::WriteScanEnableL(THCIScanEnable aEnable)
 void CHCIFacade::HostNumberOfCompletedPacketsL(THCIConnHandle aConnH, TUint16 aFrags)
 	{
 	RArray<THCIConnectionHandle> connHandles;
-	connHandles.Append(aConnH);
+	connHandles.AppendL(aConnH);
+	CleanupClosePushL(connHandles);
 
 	RArray<THCINumOfCompletedPackets> numPackets;
-	numPackets.Append(aFrags);
-		
+	numPackets.AppendL(aFrags);
+	CleanupClosePushL(numPackets);
+	
 	CHostNumberOfCompletedPacketsCommand* cmd = CHostNumberOfCompletedPacketsCommand::NewL(1, connHandles, numPackets);
+	// ownership of arrays has been taken by cmd
+	CleanupStack::Pop(2, &connHandles); // &numPackets, &connHandles
 
 	// Ownership of cmd transfered even if MhcqAddCommandL leaves
 	iCmdController->MhcqAddCommandL(cmd, *this);

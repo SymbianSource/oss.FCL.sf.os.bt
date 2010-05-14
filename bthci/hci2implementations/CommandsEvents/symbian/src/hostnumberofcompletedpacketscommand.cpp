@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -12,7 +12,7 @@
 //
 // Description:
 // This file was generated automatically from the template commandsource.tmpl
-// on Thu, 29 May 2008 15:17:49 (time stamp)
+// on Wed, 07 Apr 2010 11:59:26 (time stamp)
 // 
 //
 
@@ -38,9 +38,9 @@ _LIT8(KLogComponent, LOG_COMPONENT_COMMANDSEVENTS_SYMBIAN);
 
 EXPORT_C CHostNumberOfCompletedPacketsCommand* CHostNumberOfCompletedPacketsCommand::NewL(TUint8 aNumberOfHandles, const RArray< THCIConnectionHandle >& aConnectionHandle, const RArray< THCINumOfCompletedPackets >& aHostNumOfCompletedPackets)
 	{
-	CHostNumberOfCompletedPacketsCommand* self = new (ELeave) CHostNumberOfCompletedPacketsCommand(aNumberOfHandles, aConnectionHandle, aHostNumOfCompletedPackets);
+	CHostNumberOfCompletedPacketsCommand* self = new (ELeave) CHostNumberOfCompletedPacketsCommand(aNumberOfHandles);
 	CleanupStack::PushL(self);
-	self->CHCICommandBase::BaseConstructL();
+	self->ConstructL(aConnectionHandle, aHostNumOfCompletedPackets);
 	CleanupStack::Pop(self);
 	return self;
 	}
@@ -56,11 +56,9 @@ EXPORT_C CHostNumberOfCompletedPacketsCommand* CHostNumberOfCompletedPacketsComm
 
 // Constructors
 
-CHostNumberOfCompletedPacketsCommand::CHostNumberOfCompletedPacketsCommand(TUint8 aNumberOfHandles, const RArray< THCIConnectionHandle >& aConnectionHandle, const RArray< THCINumOfCompletedPackets >& aHostNumOfCompletedPackets)
+CHostNumberOfCompletedPacketsCommand::CHostNumberOfCompletedPacketsCommand(TUint8 aNumberOfHandles)
 	: CHCICommandBase(KHostNumberOfCompletedPacketsOpcode)
 	, iNumberOfHandles(aNumberOfHandles)
-	, iConnectionHandle(aConnectionHandle)
-	, iHostNumOfCompletedPackets(aHostNumOfCompletedPackets)
 	{
 	SetCreditsConsumed(0);
 	SetExpectsCommandStatusEvent(EFalse);
@@ -73,6 +71,13 @@ CHostNumberOfCompletedPacketsCommand::CHostNumberOfCompletedPacketsCommand()
 	SetCreditsConsumed(0);
 	SetExpectsCommandStatusEvent(EFalse);
 	SetExpectsCommandCompleteEvent(EFalse);
+	}
+
+void CHostNumberOfCompletedPacketsCommand::ConstructL(const RArray< THCIConnectionHandle >& aConnectionHandle, const RArray< THCINumOfCompletedPackets >& aHostNumOfCompletedPackets)
+	{
+	CHCICommandBase::BaseConstructL();
+	iConnectionHandle = aConnectionHandle;
+	iHostNumOfCompletedPackets = aHostNumOfCompletedPackets;
 	}
 
 // Destructor

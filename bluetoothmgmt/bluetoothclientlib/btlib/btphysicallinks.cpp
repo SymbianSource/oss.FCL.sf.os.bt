@@ -164,7 +164,7 @@ EXPORT_C TInt CBluetoothPhysicalLinks::Disconnect(const TBTDevAddr& aBDAddr)
 	}
 
 EXPORT_C TInt CBluetoothPhysicalLinks::DisconnectAll()
-/** Disconnect all members of piconet
+/** Disconnect all members of piconet with the reason code "Remote User Terminated Connection"
 @return Error code
 @capability NetworkControl
 */
@@ -176,16 +176,43 @@ EXPORT_C TInt CBluetoothPhysicalLinks::DisconnectAll()
 
 	//Allow ESock to do multiple disconnects	
 	BTBaseband().Close(); 
-	TInt ESockErr = BTBaseband().Open(SockServer());
-	if(ESockErr != KErrNone)
+	TInt openErr = BTBaseband().Open(SockServer());
+	if(openErr != KErrNone)
 		{
-		return ESockErr;
+		return openErr;
 		}
 		
 	TRAPD(err, iBTDisconnector = CBTDisconnector::NewL(*this));
 	if(err == KErrNone)
 		{
 		iBTDisconnector->DisconnectAll();
+		}
+	return err;
+	}
+
+EXPORT_C TInt CBluetoothPhysicalLinks::DisconnectAllForPowerOff()
+/** Disconnect all members of piconet with the reason code "Remote Device Terminated Connection due to Power Off"
+@return Error code
+@capability NetworkControl
+*/
+	{
+	if(iBTDisconnector)
+		{
+		return KErrInUse;
+		}
+
+	//Allow ESock to do multiple disconnects	
+	BTBaseband().Close(); 
+	TInt openErr = BTBaseband().Open(SockServer());
+	if(openErr != KErrNone)
+		{
+		return openErr;
+		}
+		
+	TRAPD(err, iBTDisconnector = CBTDisconnector::NewL(*this));
+	if(err == KErrNone)
+		{
+		iBTDisconnector->DisconnectAllForPowerOff();
 		}
 	return err;
 	}
@@ -417,10 +444,21 @@ void CBTDisconnector::DisconnectAll()
 	{
 	__ASSERT_ALWAYS(!IsActive(), Panic(EUnfinishedBusiness));
 
-	iParent.BTBaseband().TerminateAllPhysicalLinks(0, iStatus);
+	iParent.BTBaseband().TerminateAllPhysicalLinks(iStatus);
 	iCurrentRequest = EDisconnectAll;
 	SetActive();
 	}
+
+void CBTDisconnector::DisconnectAllForPowerOff()
+
+	{
+	__ASSERT_ALWAYS(!IsActive(), Panic(EUnfinishedBusiness));
+
+	iParent.BTBaseband().TerminateAllPhysicalLinksForPowerOff(iStatus);
+	iCurrentRequest = EDisconnectAll;
+	SetActive();
+	}
+
 
 void CBTDisconnector::RunL()
 //

@@ -11,7 +11,7 @@
 *
 * Contributors:
 *
-* Description: 
+* Description:
 *
 */
 
@@ -322,6 +322,7 @@ TInt CATExtSession::IpcHandleCommand( const RMessage2& aMessage )
         }
     // Third, check a case where there is support but reply is not
     // expected. In this case "" must be returned to complete processing.
+    // Note: The EFalse setting is used only for normal mode.
     if ( !complInfo.iReplyExpected )
         {
         // Return ""
@@ -334,8 +335,8 @@ TInt CATExtSession::IpcHandleCommand( const RMessage2& aMessage )
         TRACE_FUNC_EXIT
         return retTemp;
         }
-    // The rest are for known command with reply. This case is handled in
-    // HandleCommand().
+    // The rest are for known command with reply or data in editor mode.
+    // This case is handled in HandleCommand().
     TRACE_INFO(( _L8("Command handled: wait for asynchronous reply or do nothing") ));
     TRACE_FUNC_EXIT
     return KErrNone;

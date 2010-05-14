@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -2302,6 +2302,14 @@ TInt CPhysicalLink::Terminate(THCIErrorCode aReason)
 	LOG_FUNC
 	TInt err = KErrNone;
 
+	__ASSERT_DEBUG(aReason == EAuthenticationFailure
+				|| aReason == ERemoteUserEndedConnection
+				|| aReason == ERemoteLowResources
+				|| aReason == ERemoteAboutToPowerOff
+				|| aReason == EUnsupportedRemoteLMPFeature
+				|| aReason == EPairingWithUnitKeyNotSupported,
+				Panic (EInvalidDisconnectReason)); // Check the error code is valid with the spec
+	
 	if (iLinkState.LinkState() == TBTBasebandLinkState::ELinkPending)
 		{
 		// If the Link is not yet up then we cannot know the correct connection handle
@@ -2821,11 +2829,12 @@ void CPhysicalLink::PinRequest(const TBTDevAddr& aAddr, MPINCodeResponseHandler&
 		}
 
 	TBTPinCode pinCode;
-	if(iLinksMan.PrefetchMan().IsPrefetchAvailable(aAddr, pinCode))
-		{
-		aRequester.PINCodeRequestReply(aAddr, pinCode);
-		return;
-		}
+	if(iLinksMan.PrefetchMan().GetPrefetch(aAddr, pinCode))
+	    {
+        iLinksMan.PrefetchMan().RemovePrefetch(aAddr);
+        aRequester.PINCodeRequestReply(aAddr, pinCode);
+        return;
+	    }
 
 	iPinHandler = &aRequester;
 
@@ -2896,6 +2905,13 @@ TBool CPhysicalLink::LinkKeyRequestPending()
 	LOG_FUNC
 	return iAuthStateMask & ELinkKeyRequestPending;
 	}
+
+TBool CPhysicalLink::IsAuthenticationRequestPending() const
+	{
+	LOG_FUNC
+	return iAuthStateMask & EAuthenticationRequestPending;
+	}
+
 
 void CPhysicalLink::SetAuthenticationPending(TUint8 aState)
 	{

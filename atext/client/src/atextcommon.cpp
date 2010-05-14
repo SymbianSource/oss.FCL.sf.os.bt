@@ -55,7 +55,7 @@ EXPORT_C TInt RATExtCommon::Connect( const TDesC8& aName )
         Close();
         }
     TRACE_FUNC_EXIT
-    return KErrNone;
+    return retVal;
     }
 
 // ---------------------------------------------------------------------------

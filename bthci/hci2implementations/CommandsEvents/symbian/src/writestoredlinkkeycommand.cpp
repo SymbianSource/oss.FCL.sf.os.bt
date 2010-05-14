@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -12,7 +12,7 @@
 //
 // Description:
 // This file was generated automatically from the template commandsource.tmpl
-// on Thu, 29 May 2008 15:17:53 (time stamp)
+// on Wed, 07 Apr 2010 11:59:29 (time stamp)
 // 
 //
 
@@ -38,9 +38,9 @@ _LIT8(KLogComponent, LOG_COMPONENT_COMMANDSEVENTS_SYMBIAN);
 
 EXPORT_C CWriteStoredLinkKeyCommand* CWriteStoredLinkKeyCommand::NewL(TUint8 aNumKeysToWrite, const RArray< TBTDevAddr >& aBDADDR, const RArray< TBTLinkKey >& aLinkKey)
 	{
-	CWriteStoredLinkKeyCommand* self = new (ELeave) CWriteStoredLinkKeyCommand(aNumKeysToWrite, aBDADDR, aLinkKey);
+	CWriteStoredLinkKeyCommand* self = new (ELeave) CWriteStoredLinkKeyCommand(aNumKeysToWrite);
 	CleanupStack::PushL(self);
-	self->CHCICommandBase::BaseConstructL();
+	self->ConstructL(aBDADDR, aLinkKey);
 	CleanupStack::Pop(self);
 	return self;
 	}
@@ -56,11 +56,9 @@ EXPORT_C CWriteStoredLinkKeyCommand* CWriteStoredLinkKeyCommand::NewL()
 
 // Constructors
 
-CWriteStoredLinkKeyCommand::CWriteStoredLinkKeyCommand(TUint8 aNumKeysToWrite, const RArray< TBTDevAddr >& aBDADDR, const RArray< TBTLinkKey >& aLinkKey)
+CWriteStoredLinkKeyCommand::CWriteStoredLinkKeyCommand(TUint8 aNumKeysToWrite)
 	: CHCICommandBase(KWriteStoredLinkKeyOpcode)
 	, iNumKeysToWrite(aNumKeysToWrite)
-	, iBDADDR(aBDADDR)
-	, iLinkKey(aLinkKey)
 	{
 	SetExpectsCommandStatusEvent(EFalse);
 	}
@@ -69,6 +67,13 @@ CWriteStoredLinkKeyCommand::CWriteStoredLinkKeyCommand()
 	: CHCICommandBase(KWriteStoredLinkKeyOpcode)
 	{
 	SetExpectsCommandStatusEvent(EFalse);
+	}
+
+void CWriteStoredLinkKeyCommand::ConstructL(const RArray< TBTDevAddr >& aBDADDR, const RArray< TBTLinkKey >& aLinkKey)
+	{
+	CHCICommandBase::BaseConstructL();
+	iBDADDR = aBDADDR;
+	iLinkKey = aLinkKey;
 	}
 
 // Destructor

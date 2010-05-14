@@ -766,12 +766,12 @@ void CBTProxySAP::Shutdown(TCloseType aCloseType,const TDesC8& aDisconnectOption
 			return;
 			}										
 
-		if (aDisconnectOption == KDisconnectAllPhysicalLinks)
+		if (aDisconnectOption == KDisconnectAllPhysicalLinks || aDisconnectOption == KDisconnectAllPhysicalLinksForPowerOff)
 			{
 			// Disconnecting All BT Physical Links
 			// Only support link *termination*, this is done as normal cos esock weirdness
 			__ASSERT_ALWAYS(aCloseType == CServProviderBase::ENormal, Panic(EBTProxySAPInvalidTerminate));
-			rerr = iLinksMan.TerminateAllPhysicalLinks(this);
+			rerr = iLinksMan.TerminateAllPhysicalLinks(this, aDisconnectOption == KDisconnectAllPhysicalLinksForPowerOff ? ERemoteAboutToPowerOff : ERemoteUserEndedConnection);
 			LOG2(_L("Proxy SAP 0x%08x -- Terminating all PHY Links, error: %d"), this, rerr);
 			
 			// If there was an error terminating any of the physical links then we can 

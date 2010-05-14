@@ -345,7 +345,7 @@ TInt CRfcommSAP::GetOption(TUint aLevel, TUint aName, TDes8& aOption) const
 			if (iMux)
 				{
 				// Allow for possible credit in header, 1 byte
-				TPckgBuf<TUint> intpckg(iMTU - 1);
+				TPckgBuf<TUint> intpckg(iOptimalMTUForSending - 1);
 				aOption=intpckg;
  				return KErrNone;
 		 		}
@@ -478,8 +478,14 @@ void CRfcommSAP::Error(TInt aErrorCode, TErrorTypes aType)
 
 TUint16 CRfcommSAP::NegotiatedMTU() const
 	{
-	return iMTU;
+	return iNegotiatedMTU;
 	}
+
+TUint16 CRfcommSAP::OptimalMTUForSending() const
+	{
+	return iOptimalMTUForSending;
+	}
+
 
 TUint16 CRfcommSAP::UsableMTU(TUint8 aCredit) const
 	{

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2008-2009 Nokia Corporation and/or its subsidiary(-ies).
+* Copyright (c) 2008-2010 Nokia Corporation and/or its subsidiary(-ies).
 * All rights reserved.
 * This component and the accompanying materials are made available
 * under the terms of "Eclipse Public License v1.0"
@@ -69,15 +69,39 @@ public:
     IMPORT_C TInt SynchronousClose();
 
     /**
-     * Handles a command.
+     * Handles a command. This API supports two modes:
+     * Normal mode (!EReplyTypeEditor) for normal use cases
+     * Editor mode (EReplyTypeEditor) for special AT commands with text mode
+     *
+     * Notes for parameters below:
+     * (1) Command to be handled is used in normal mode only.
+     *     Editor mode is entered when the first EReplyTypeEditor reply is received (5).
+     *     Editor mode is ended when the first !EReplyTypeEditor reply is received (5).
+     * (2) Data received is character set independent; this API is called byte-by-byte
+     *     in editor mode.
+     * (3) The reply string is not used in editor mode's text input.
+     *     Only editor mode's start condition (prompt) and end condition
+     *     (!EReplyTypeEditor) handle the possibly existing reply string.
+     * (4) The remaining reply length setting is not used in editor mode's text input.
+     *     It is only used in editor mode's start condition (prompt) and end condition
+     *     (!EReplyTypeEditor)
+     * (5) Normal mode: Other than EReplyTypeEditor reply.
+     *     Editor mode: Started with EReplyTypeEditor, continued with EReplyTypeEditor,
+     *                  Ended with !EReplyTypeEditor
+     *                  Note: the first reply with EReplyTypeEditor is the "prompt".
+     *                  Subsequent replies with EReplyTypeEditor are ignored.
+     *
+     * Note: The editor mode supported by this API should only be used for
+     * commands not requiring support for signals. These commands include cases
+     * such as DCD signal required by command AT+CMGS.
      *
      * @since S60 v5.0
      * @param aStatus The request status
-     * @param aCmd The command to be handled.
-     * @param aReply The descriptor to hold reply to this command;
+     * @param aCmd The command to be handled (1) or data for editor mode (2).
+     * @param aReply The descriptor to hold reply to this command (3).
      * @param aRemainingReplyLength Tells the length of remaining reply if it is not 0;
-     *                              the remainings can be fetched by GetNextPartOfReply().
-     * @param aReplyType Reply type for the handled AT command
+     *                              the remainings can be fetched by GetNextPartOfReply() (4).
+     * @param aReplyType Reply type for the handled AT command (1) or editor mode (2) (5).
      * @return Symbian error code on error, KErrNone otherwise
      */
     IMPORT_C TInt HandleCommand( TRequestStatus& aStatus,
@@ -88,6 +112,9 @@ public:
 
     /**
      * Cancels a command handling request.
+     * Calling this API in editor mode also causes ATEXT to reset the information
+     * about the plugin currently handling byte-by-byte data.
+     * This causes the next command to be handled in normal mode.
      *
      * @since S60 v5.0
      * @return Symbian error code on error, KErrNone otherwise

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -12,7 +12,7 @@
 //
 // Description:
 // This file was generated automatically from the template commandheader.tmpl
-// on Wed, 25 Jul 2007 17:00:38 (time stamp)
+// on Wed, 07 Apr 2010 11:43:50 (time stamp)
 // 
 //
 
@@ -55,8 +55,9 @@ public:
 	virtual TInt Extension_(TUint aExtensionId, TAny*& aInterface, TAny* aData);
 
 private:
-	CHostNumberOfCompletedPacketsCommand(TUint8 aNumberOfHandles, const RArray< THCIConnectionHandle >& aConnectionHandle, const RArray< THCINumOfCompletedPackets >& aHostNumOfCompletedPackets);
+	CHostNumberOfCompletedPacketsCommand(TUint8 aNumberOfHandles);
 	CHostNumberOfCompletedPacketsCommand();
+	void ConstructL(const RArray< THCIConnectionHandle >& aConnectionHandle, const RArray< THCINumOfCompletedPackets >& aHostNumOfCompletedPackets);
 	
 	// From CHCICommandBase - knows how to format the parameters of this specific command
 	// into the HCTL frame

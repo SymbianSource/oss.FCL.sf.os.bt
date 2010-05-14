@@ -80,7 +80,7 @@ file=ABI_DIR\BT_DIR\a2dpoptimisation.dll	System\Libs\a2dpoptimisation.dll
 REM *** Now for things which should only be included if the device
 REM *** supports bluetooth, to save ROM space...
 
-#ifdef SYMBIAN_EXCLUDE_BLUETOOTH
+#ifndef __BT
 REM Feature BLUETOOTH is not in this ROM (bluetooth.iby)
 #else
 
@@ -133,7 +133,7 @@ file=ABI_DIR\BT_DIR\avctpservices.dll	System\Libs\avctpservices.dll
 
 #endif // BLUETOOTH_NO_AV
 
-#endif // SYMBIAN_EXCLUDE_BLUETOOTH
+#endif // __BT
 
 #endif
 

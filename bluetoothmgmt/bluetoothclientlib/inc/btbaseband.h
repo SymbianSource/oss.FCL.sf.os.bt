@@ -87,10 +87,10 @@ public:
 	void TerminatePhysicalLink(TInt aReason, TRequestStatus& aStatus);
 	void TerminatePhysicalLink(TInt aReason, const TBTDevAddr& aDevAddr, TRequestStatus& aStatus);
 	void ShutdownPhysicalLink(TRequestStatus& aStatus);
-	void TerminateAllPhysicalLinks(TInt aReason);
-	void TerminateAllPhysicalLinks(TInt aReason, TRequestStatus& aStatus);
+	void TerminateAllPhysicalLinks(TRequestStatus& aStatus);
+	void TerminateAllPhysicalLinksForPowerOff(TRequestStatus& aStatus);
 	TInt SubSessionHandle() const;
-	
+
 private:
 	TInt RequestRole(TBTLMOptions aRole);
 	void LocalComplete(TRequestStatus& aStatus, TInt aErr);

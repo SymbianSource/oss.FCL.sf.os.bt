@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -12,7 +12,7 @@
 //
 // Description:
 // This file was generated automatically from the template commandsource.tmpl
-// on Thu, 29 May 2008 15:17:48 (time stamp)
+// on Fri, 26 Mar 2010 16:16:13 (time stamp)
 // 
 //
 
@@ -81,9 +81,13 @@ CSwitchRoleCommand::~CSwitchRoleCommand()
 	{
 	if (aEvent.EventCode() == ERoleChangeEvent)
 		{
-		aMatchesCmd = ETrue;
-		aConcludesCmd = ETrue;
-		aContinueMatching = EFalse;
+		TRoleChangeEvent& event = TRoleChangeEvent::Cast(aEvent);
+		if (event.BDADDR() == BDADDR())
+			{
+			aMatchesCmd = ETrue;
+			aConcludesCmd = ETrue;
+			aContinueMatching = EFalse;
+			}
 		}
 	// Command Status Event and default Command Complete Event matching
 	// is implemented in the base class.  If we haven't matched already

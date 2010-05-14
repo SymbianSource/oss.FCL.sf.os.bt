@@ -1,4 +1,4 @@
-# Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+# Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 # All rights reserved.
 # This component and the accompanying materials are made available
 # under the terms of "Eclipse Public License v1.0"
@@ -40,7 +40,7 @@
 
 import re
 import string
-from parameter import makeParameters, makeMembers
+from parameter import makeParameters, makeMembers, makeNonOwnedParameters, makeOwnedParameters
 from time import strftime
 from utils import doTimeStampCompareAndWrite
 
@@ -49,16 +49,32 @@ def makeConstructorParameters(aParams):
     ctor_str = ""
 
     for p in aParams:
-        ctor_str += 'a' + p.getName() + ', '
+        if not p.Owned():
+            ctor_str += 'a' + p.getName() + ', '
 
     return ctor_str[:-2]
+    
+def makeConstructLParameters(aParams):
+    conl_str = ""
+
+    for p in aParams:
+        if p.Owned():
+            conl_str += 'a' + p.getName() + ', '
+
+    return conl_str[:-2]
+
+# determines if a custom ConstructL needs to be created for this class
+# currently this is only needed for handling owned parameters.
+def customConstructL(aParams):
+    return makeConstructLParameters(aParams) != ''
 
 # makes member initialization part of constructor
 def makeMemberInitialization(aParams):
     init_str = ", "
 
     for p in aParams:
-        init_str += 'i' + p.getName() + '(a' + p.getName() + ')\n\t, '
+        if not p.Owned():
+            init_str += 'i' + p.getName() + '(a' + p.getName() + ')\n\t, '
 
     return init_str[:-4]
 
@@ -71,12 +87,12 @@ def makeNewLDefinitions(aParams, aClass):
 
     return def_str + 'IMPORT_C static C' + aClass +'* NewL();' 
     
-def makeNewLImp(aClass, aParamString, aConsParamString):
+def makeNewLImp(aClass, aParamString, aConsParamString, aConstructLString):
     imp_str = ''
     imp_str += 'EXPORT_C C' + aClass + '* C' + aClass + '::NewL(' + aParamString + ')\n\t{\n\t'
     imp_str += 'C' + aClass + '* self = new (ELeave) C' + aClass + '(' + aConsParamString + ');\n\t'
     imp_str += 'CleanupStack::PushL(self);\n\t'
-    imp_str += 'self->CHCICommandBase::BaseConstructL();\n\t'
+    imp_str += 'self->' + aConstructLString + ';\n\t'
     imp_str += 'CleanupStack::Pop(self);\n\t'
     imp_str += 'return self;\n\t}'
     return imp_str
@@ -86,20 +102,33 @@ def makeNewLImplementations(aParams, aClass):
     imp_str = ''
 
     if len(aParams) > 0:
-        imp_str += makeNewLImp(aClass, makeParameters(aParams), makeConstructorParameters(aParams))
+        imp_str += makeNewLImp(aClass, makeParameters(aParams), makeConstructorParameters(aParams), makeConstructLCall(aParams))
         imp_str += '\n\n'
         
-    imp_str += makeNewLImp(aClass, '', '')
-    return imp_str    
+    imp_str += makeNewLImp(aClass, '', '', 'CHCICommandBase::BaseConstructL()')
+    return imp_str
+    
+def makeConstructLCall(aParams):
+    imp_str = ''
+    if customConstructL(aParams):
+        imp_str += 'ConstructL(' + makeConstructLParameters(aParams) + ')'
+    else:
+        imp_str += 'CHCICommandBase::BaseConstructL()'
+    return imp_str
 
-# makes class constructor definition
+# makes class constructor definition (also ConstructL if appropriate).
 def makeConstructorDefinitions(aParams, aClass):
     def_str = ''
 
     if len(aParams) > 0:
-        def_str += 'C' + aClass + '(' + makeParameters(aParams) + ');\n\t'
+        def_str += 'C' + aClass + '(' + makeNonOwnedParameters(aParams) + ');\n\t'
+        
+    def_str += 'C' + aClass + '();'
+    
+    if customConstructL(aParams):
+        def_str += '\n\tvoid ConstructL(' + makeOwnedParameters(aParams) + ');'
 
-    return def_str + 'C' + aClass + '();'
+    return def_str
 
 # makes class constructor implementation
 def makeConstructorImplementations(aParams, aClass, aMatchParams):
@@ -110,7 +139,7 @@ def makeConstructorImplementations(aParams, aClass, aMatchParams):
     ExpCmdComplete = aMatchParams[2]
 
     if len(aParams) > 0:
-        imp_str += 'C' + aClass + 'Command::C' + aClass + 'Command(' + makeParameters(aParams) + ')\n\t: CHCICommandBase(K' + aClass + 'Opcode)\n\t' + makeMemberInitialization(aParams) + '\n\t{\n\t'
+        imp_str += 'C' + aClass + 'Command::C' + aClass + 'Command(' + makeNonOwnedParameters(aParams) + ')\n\t: CHCICommandBase(K' + aClass + 'Opcode)\n\t' + makeMemberInitialization(aParams) + '\n\t{\n\t'
         if int(CreditsConsumed) != 1:
             imp_str += 'SetCreditsConsumed(' + str(CreditsConsumed) + ');\n\t'
         if ExpCmdStatus == 'False':
@@ -128,6 +157,11 @@ def makeConstructorImplementations(aParams, aClass, aMatchParams):
         imp_str += 'SetExpectsCommandCompleteEvent(EFalse);\n\t'
 
     imp_str += '}'
+    
+    if customConstructL(aParams):
+        imp_str += '\n\nvoid C' + aClass + 'Command::ConstructL(' + makeOwnedParameters(aParams) + ')\n\t{\n\tCHCICommandBase::BaseConstructL();\n\t'
+        imp_str += makeOwnedMemberAssignment(aParams)
+        imp_str += '\n\t}'
 
     return imp_str
     
@@ -198,6 +232,15 @@ def makeMemberAssignment(aParams):
     
     for p in aParams:
         ass_str += p.memberAssignment() + '\n\t'
+
+    return ass_str[:-2]
+    
+def makeOwnedMemberAssignment(aParams):
+    ass_str = ''
+    
+    for p in aParams:
+        if p.Owned():
+            ass_str += p.memberAssignment() + '\n\t'
 
     return ass_str[:-2]
 

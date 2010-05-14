@@ -529,14 +529,7 @@ void RBTBaseband::ShutdownPhysicalLink(TRequestStatus& aStatus)
 		}	
 	}
 
-void RBTBaseband::TerminateAllPhysicalLinks(TInt aReason)
-	{
-	TRequestStatus stat;
-	TerminateAllPhysicalLinks(aReason, stat);
-	User::WaitForRequest(stat);
-	}
-
-void RBTBaseband::TerminateAllPhysicalLinks(TInt /*aReason*/, TRequestStatus& aStatus)
+void RBTBaseband::TerminateAllPhysicalLinks(TRequestStatus& aStatus)
 	{
 	if (!SubSessionHandle())
 		{
@@ -548,6 +541,20 @@ void RBTBaseband::TerminateAllPhysicalLinks(TInt /*aReason*/, TRequestStatus& aS
 		iSocket.Shutdown(RSocket::ENormal, KDisconnectAllPhysicalLinks, dummy, aStatus); // this *means* detach now
 		}
 	}
+
+void RBTBaseband::TerminateAllPhysicalLinksForPowerOff(TRequestStatus& aStatus)
+	{
+	if (!SubSessionHandle())
+		{
+		LocalComplete(aStatus, KErrNotReady);
+		}
+	else
+		{
+		TBuf8<1> dummy;
+		iSocket.Shutdown(RSocket::ENormal, KDisconnectAllPhysicalLinksForPowerOff, dummy, aStatus); // this *means* detach now
+		}
+	}
+
 
 TInt RBTBaseband::Enumerate(RBTDevAddrArray& aBTDevAddrArray, TUint aMaxNumber)
 	{

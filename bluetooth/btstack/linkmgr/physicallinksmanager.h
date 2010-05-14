@@ -75,7 +75,8 @@ public:
 	TInt HandleOverPinRequester(const TBTDevAddr& aAddr, CBTPinRequester* aPinRequester);
 	TInt RegisterForPrefetching(const TBTDevAddr& aAddr, MBluetoothPrefetchNotifier& aNotifier);
 
-	TBool IsPrefetchAvailable(const TBTDevAddr& aAddr, TBTPinCode& aPinCode);
+	TBool GetPrefetch(const TBTDevAddr& aAddr, TBTPinCode& aPinCode) const;
+	void RemovePrefetch(const TBTDevAddr& aAddr);
 
 private:
 	NONSHARABLE_CLASS(RPinRequest)
@@ -105,6 +106,8 @@ private:
 
 	static TBool CompareAddressInRequest(const TBTDevAddr* aDevAddr, const RPinRequest& aRequest);
 	static TBool CompareAddressInStore(const TBTDevAddr* aDevAddr, const TPrefetchedPin& aRequest);
+	
+	TInt IsPrefetchAvailable(const TBTDevAddr& aAddr) const;
 
 private: // from MPINCodeResponseHandler
 	TInt PINCodeRequestReply(const TBTDevAddr& aDevAddr, const TDesC8& aPin) const;
@@ -144,7 +147,7 @@ public:
 	TInt AddListener(MLogicalLink& aLogicalLink, TPhysicalLinkPort aPort);
 	void RemoveListener(MLogicalLink& aLogicalLink);
 	void ClearTerminatingProxy(CBTProxySAP* aProxySAP);
-	TInt TerminateAllPhysicalLinks(CBTProxySAP* aProxySAP);
+	TInt TerminateAllPhysicalLinks(CBTProxySAP* aProxySAP, THCIErrorCode aErrorCode);
 	TInt TerminatePhysicalLink(CPhysicalLink* aConnection, CBTProxySAP* aProxySAP);
 
 	void FatalError(TInt aErr);

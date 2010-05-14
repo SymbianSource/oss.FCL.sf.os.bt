@@ -354,4 +354,5 @@ EXPORTS
 	?SetMinMRU@TL2CapConfig@@QAEHG@Z @ 353 NONAME ; int TL2CapConfig::SetMinMRU(unsigned short)
 	?RetransmissionTimer@TL2CapConfig@@QBEGAAH@Z @ 354 NONAME ; unsigned short TL2CapConfig::RetransmissionTimer(int &) const
 	?MinMRU@TL2CapConfig@@QBEGAAH@Z @ 355 NONAME ; unsigned short TL2CapConfig::MinMRU(int &) const
+	?DisconnectAllForPowerOff@CBluetoothPhysicalLinks@@QAEHXZ @ 356 NONAME ; int CBluetoothPhysicalLinks::DisconnectAllForPowerOff(void)
 

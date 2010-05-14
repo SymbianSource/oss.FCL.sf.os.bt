@@ -157,7 +157,6 @@ private:
 	void DeleteRestoreFile();
 
 	void RenameBackupFileForRestore();
-	void UpdateLocalDeviceNameL();
 
 	// From CActive:
 	void RunL();
@@ -213,8 +212,7 @@ public:
 	static CBTRestoreHandler* NewL(CBTManServerBURMgr& aBURMgr, CBTManServer& aManServer);
 	~CBTRestoreHandler();
 
-	void RestoreLocalDeviceNameL();
-	void RestoreRemoteDeviceTableL(TBTDevAddr& aLocalAddr);
+	void RestoreRegistryL(TBTDevAddr& aLocalAddr);
 
 private:
 	CBTRestoreHandler(CBTManServerBURMgr& aBURMgr, CBTManServer& aManServer);
@@ -223,6 +221,8 @@ private:
 	void LoadRestoreDataL();
 
 	void NotifyLocalTableChange();
+	void NotifyLocalDeviceNameChange(const TDesC8& aLocalName);
+	void NotifyLocalDeviceNameChange(const TDesC16& aLocalName);
 	void NotifyRemoteTableChangeL(const TBTDevAddr& aAddress);
 
 private:
@@ -250,6 +250,7 @@ public:
 	inline TBool HasRegistryData() const;
 
 	void GetRegistryVersionL(TUint32& aRegistryVersionMajor, TUint32& aRegistryVersionMinor) const;
+	const TDesC8& GetLocalDeviceNameL() const;
 	TBool IsLocalAddressNonZeroL() const;
 	TBool IsLocalAddressEqualL(TBTDevAddr& aAddr) const;
 	TInt CountRemoteDevicesL() const;
@@ -261,8 +262,6 @@ public:
 private:
 	CBTRegistryBURData();
 	void ConstructL();
-
-	const TDesC8& GetLocalDeviceNameL() const;
 
 private:
 	TBool iHasRegistryData;
