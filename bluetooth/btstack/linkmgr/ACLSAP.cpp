@@ -1089,13 +1089,7 @@ void CACLLink::BindAndConnectPhysicalLinkL()
 		CPhysicalLink* physicalLink = &iLinksMan.NewPhysicalLinkL(iRemoteDev);
 		// physicalLink is owned by the physical links manager.
 		User::LeaveIfError(BindLink(EACLLink, *physicalLink));
-		TInt err = iPhysicalLink->Connect();
-		if(err != KErrNone)
-			{
-			// If we failed to connect then we should roll back the attachment
-			ClearPhysicalLink();
-			User::Leave(err);
-			}
+		iPhysicalLink->Connect();
 		}
 	}
 

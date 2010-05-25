@@ -128,14 +128,17 @@ public:
 	
 	void Error(TInt anError,CProtocolBase* aSourceProtocol=NULL);
 
+public: // from CProtocolBase
+	// Ref Counting
+	void Close();
+	void Open();
+	
 private: // From CProtocolBase
 	// Factories
 	CHostResolvProvdBase* NewHostResolverL();
 	CServProviderBase* NewSAPL(TUint aSockType);
 	
 	// Ref Counting
-	void Close();
-	void Open();
 	void CloseNow();
 
 	// Others

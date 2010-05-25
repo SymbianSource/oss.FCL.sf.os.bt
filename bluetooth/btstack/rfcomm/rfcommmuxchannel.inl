@@ -28,6 +28,11 @@ inline TBool CRfcommMuxChannel::IsOpen()
 	return iState->IsOpen(*this);
 	}
 
+inline TBool CRfcommMuxChannel::IsErrored()
+	{
+	return iState->IsErrored(*this);
+	}
+
 inline TInt CRfcommMuxChannel::MaxDataSize()
 	{
 	return iMaxDataSize;

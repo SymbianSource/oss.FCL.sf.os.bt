@@ -1,4 +1,4 @@
-// Copyright (c) 2008-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2008-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -14,7 +14,7 @@
 //
 
 #include "eirpublishertxpowerlevel.h"
-#include <bluetooth/eirpublisherbase.h>
+#include "eirmanserver.h"
 
 //**********************************
 // CEirPublisherTxPowerLevel
@@ -22,53 +22,71 @@
 /**
 Provides functionality to publish transmission power level to EIR.
 **/
-CEirPublisherTxPowerLevel* CEirPublisherTxPowerLevel::NewL()
+CEirPublisherTxPowerLevel* CEirPublisherTxPowerLevel::NewL(CEirManServer& aServer)
 	{
 	CEirPublisherTxPowerLevel* self = new (ELeave) CEirPublisherTxPowerLevel();
 	CleanupStack::PushL(self);
-	self->ConstructL();
+	self->ConstructL(aServer);
 	CleanupStack::Pop();
 	return self;
 	}
 
 CEirPublisherTxPowerLevel::CEirPublisherTxPowerLevel()
-:	CEirPublisherBase(EEirTagTxPowerLevel)
 	{
 	}
 
-void CEirPublisherTxPowerLevel::ConstructL()
+void CEirPublisherTxPowerLevel::ConstructL(CEirManServer& aServer)
 	{
-	CEirPublisherBase::ConstructL();
+	iSession = aServer.NewInternalSessionL(*this);
+	iSession->RegisterTag(EEirTagTxPowerLevel);
 	}
 
 CEirPublisherTxPowerLevel::~CEirPublisherTxPowerLevel()
 	{
+	delete iSession;
+	}
+
+void CEirPublisherTxPowerLevel::MeisnRegisterComplete(TInt aResult)
+	{
+	if (aResult == KErrNone)
+		{
+		iTagRegistered = ETrue;
+		if (iTxPowerLevelPublished)
+			{
+			iSession->NewData(KSizeOfTxPowerLevelData);
+			}
+		}
 	}
 
 void CEirPublisherTxPowerLevel::UpdateTxPowerLevel(TInt8 aTxPowerLevel)
 	{
 	iTxPowerLevel = aTxPowerLevel;
-	iPublisher->PublishData(KSizeOfTxPowerLevelData);
+	iTxPowerLevelPublished = ETrue;
+	if (iTagRegistered)
+		{
+		iSession->NewData(KSizeOfTxPowerLevelData);
+		}
 	}
 	
 // From MEirPublisherNotifier
-void CEirPublisherTxPowerLevel::MepnSpaceAvailable(TUint aBytesAvailable)
+void CEirPublisherTxPowerLevel::MeisnSpaceAvailable(TUint aBytesAvailable)
 	{
 	if (aBytesAvailable >= KSizeOfTxPowerLevelData)
 		{
 		// only publish TxPowerLevel if enough space
 		iPublishBuf.Zero();
 		iPublishBuf.Append(iTxPowerLevel);
-		iPublisher->SetData(iPublishBuf, EEirDataComplete);
+		iSession->SetData(iPublishBuf, EEirDataComplete);
 		}
 	else
 		{
 		// Otherwise publish zero length string
 		iPublishBuf.Zero();
-		iPublisher->SetData(iPublishBuf, EEirDataPartial);
+		iSession->SetData(iPublishBuf, EEirDataPartial);
 		}
 	}
 
-void CEirPublisherTxPowerLevel::MepnSetDataError(TInt /*aResult*/)
+void CEirPublisherTxPowerLevel::MeisnSetDataError(TInt /* aError */)
 	{
+	
 	}

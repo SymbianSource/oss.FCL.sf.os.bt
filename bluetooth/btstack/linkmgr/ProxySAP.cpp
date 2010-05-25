@@ -552,7 +552,7 @@ TInt CBTProxySAP::SAPSetOption(TUint aLevel,TUint aName, const TDesC8 &aOption)
 					}
 				else
 					{
-					iRequestedActiveMode = option ? ETrue : EFalse;
+					iRequestedActiveMode = option;
 					if(iRequestedActiveMode)
 						{
 						localPriority = ETrue;

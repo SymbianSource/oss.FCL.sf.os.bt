@@ -1,4 +1,4 @@
-// Copyright (c) 2007-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2007-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -58,9 +58,11 @@ CEirManServer::CEirManServer(MHCICommandQueue& aCommandQueue, CLinkMgrProtocol& 
 	: CPolicyServer(CActive::EPriorityStandard, KEirManServerPolicy)
 	, iCommandQueue(aCommandQueue)
 	, iLinkMgrProtocol(aLinkMgrProtocol)
-	, iSessionCount(0)
+	, iInternalSessionCount(0)
+	, iExternalSessionCount(0)
 	, iIsFeaturesReady(EFalse)
 	, iIsEirSupported(EFalse)
+	, iSessions(_FOFF(CEirManSession, iLink))
 	{
 	LOG_FUNC
 	}
@@ -93,28 +95,63 @@ CSession2* CEirManServer::NewSessionL(const TVersion& aVersion, const RMessage2&
 	
 	CEirManServer* ncThis = const_cast<CEirManServer*>(this);
 	
-	CEirManSession* sess = CEirManSession::NewL(*ncThis);
+	CEirManExternalSession* sess = CEirManExternalSession::NewL(*ncThis);
 	LOG1(_L("\tsess = 0x%08x"), sess);
 	return sess;
 	}
 
-void CEirManServer::AddSession()
+CEirManInternalSession* CEirManServer::NewInternalSessionL(MEirInternalSessionNotifier& aParent)
 	{
 	LOG_FUNC
-	if(iSessionCount++ == 0)
+	// Server will refuse to create any more session if we have found out eir isn't supported.
+	if(iIsFeaturesReady && !iIsEirSupported)
 		{
-		// While we have clients we need to make sure that the protocol remains alive.
-		iLinkMgrProtocol.LocalOpen();
+		User::Leave(KErrNotSupported);
+		}
+	CEirManInternalSession* sess = CEirManInternalSession::NewL(*this, aParent);
+	return sess;
+	}
+
+void CEirManServer::AddSession(CEirManSession& aSession, TBool aInternalSession)
+	{
+	LOG_FUNC
+	
+	iSessions.AddLast(aSession);
+	
+	if (aInternalSession)
+		{
+		if(iInternalSessionCount++ == 0)
+			{
+			// While we have clients we need to make sure that the protocol remains alive.
+			iLinkMgrProtocol.LocalOpen();
+			}
+		}
+	else
+		{
+		if(iExternalSessionCount++ == 0)
+			{
+			// While we have clients we need to make sure that the protocol remains alive.
+			iLinkMgrProtocol.Open();
+			}
 		}
 	}
 
-void CEirManServer::DropSession()
+void CEirManServer::DropSession(TBool aInternalSession)
 	{
 	LOG_FUNC
-	if(--iSessionCount == 0)
+	if (aInternalSession)
 		{
-		// There are no long 
-		iLinkMgrProtocol.LocalClose();
+		if(--iInternalSessionCount == 0)
+			{
+			iLinkMgrProtocol.LocalClose();
+			}
+		}
+	else
+		{
+		if(--iExternalSessionCount == 0)
+			{
+			iLinkMgrProtocol.Close();
+			}		
 		}
 	}
 
@@ -126,8 +163,10 @@ void CEirManServer::NotifyFeaturesReady()
 		TRAPD(err, iEirManager = CEirManager::NewL(iCommandQueue, iLinkMgrProtocol));
 		iIsFeaturesReady = ETrue;
 		
-		iSessionIter.SetToFirst();
-		CSession2* sessionPtr;
+		TDblQueIter<CEirManSession> sessionIter(iSessions);
+		
+		sessionIter.SetToFirst();
+		CEirManSession* sessionPtr;
 		if(iLinkMgrProtocol.IsExtendedInquiryResponseSupportedLocally() && err == KErrNone)
 			{
 			iIsEirSupported = ETrue;
@@ -137,10 +176,9 @@ void CEirManServer::NotifyFeaturesReady()
 			err = ((err != KErrNone) ? KErrNoMemory : KErrNotSupported);
 			}
 		
-		while((sessionPtr = iSessionIter++) != NULL)
+		while((sessionPtr = sessionIter++) != NULL)
 			{
-			CEirManSession* eirSession = static_cast<CEirManSession*>(sessionPtr);
-			eirSession->NotifyEirFeatureState(err);
+			sessionPtr->NotifyEirFeatureState(err);
 			}
 		}
 	}

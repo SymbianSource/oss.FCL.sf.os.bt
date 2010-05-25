@@ -1,4 +1,4 @@
-// Copyright (c) 2007-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2007-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -24,9 +24,11 @@
 #include <e32base.h>
 
 class CEirManSession;
+class CEirManInternalSession;
 class CEirManager;
 class MHCICommandQueue;
 class CLinkMgrProtocol;
+class MEirInternalSessionNotifier;
 
 enum TEirFeatureState
 	{
@@ -44,10 +46,12 @@ public:
 	static CEirManServer* NewL(MHCICommandQueue& aCommandQueue, CLinkMgrProtocol& aLinkMgrProtocol);
 	~CEirManServer();
 	
+	CEirManInternalSession* NewInternalSessionL(MEirInternalSessionNotifier& aParent);
+	
 	inline CEirManager& EirManager() const;
 	
-	void AddSession();
-	void DropSession();
+	void AddSession(CEirManSession& aSession, TBool aInternalSession);
+	void DropSession(TBool aInternalSession);
 	void NotifyFeaturesReady();
 	TEirFeatureState EirFeatureState();
 
@@ -65,9 +69,11 @@ private:
 	CLinkMgrProtocol& 	iLinkMgrProtocol;
 	//owned
 	CEirManager* 		iEirManager;
-	TInt				iSessionCount;
+	TInt				iInternalSessionCount;
+	TInt				iExternalSessionCount;
 	TBool				iIsFeaturesReady;
 	TBool				iIsEirSupported;
+	TDblQue<CEirManSession> iSessions;
 	};
 #include "eirmanserver.inl"
 
