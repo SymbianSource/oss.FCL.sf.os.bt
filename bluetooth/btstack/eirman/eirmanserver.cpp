@@ -209,42 +209,46 @@ CPolicyServer::TCustomResult CEirManServer::CustomSecurityCheckL(const RMessage2
 	_LIT_SECURITY_POLICY_S0(KSDPSecurityPolicy, KSDPServerID);
 	_LIT_SECURITY_POLICY_S0(KStackSecurityPolicy, KStackID);
 	_LIT_SECURITY_POLICY_C1(KVendorSpecificDataSecurityPolicy, ECapabilityWriteDeviceData);
-	if(function == EEirManRegisterTag)
+	_LIT_SECURITY_POLICY_C1(KEirCommonSecurityPolicy, ECapabilityLocalServices);
+
+	if(KEirCommonSecurityPolicy.CheckPolicy(aMsg))
 		{
-		tag = static_cast<TEirTag>(aMsg.Int0());
-		switch(tag)
+		if(function == EEirManRegisterTag)
 			{
-			case EEirTagName:
-			case EEirTagTxPowerLevel:
-				/** These must have come from the stack **/
-				if(KStackSecurityPolicy.CheckPolicy(aMsg))
-					{
-					result = EPass;
-					}
-				break;
-			case EEirTagSdpUuid16:
-			case EEirTagSdpUuid32:
-			case EEirTagSdpUuid128:
-				/** These must have come from SDP server **/
-				if(KSDPSecurityPolicy.CheckPolicy(aMsg))
-					{
-					result = EPass;
-					}
-				break;
-			case EEirTagManufacturerSpecific:
-				/** To do this you must have write device data **/
-				if(KVendorSpecificDataSecurityPolicy.CheckPolicy(aMsg))
-					{
-					result = EPass;
-					}
-				break;
-			
-			case EEirTagFlags:
-				/** At present no implementation of Flags is supported. 
-				    So we are rejecting this until an implementation is provided. **/
-			default: //unknown or reserved tag, reject
-				//no need to do anything 
-				break;
+			tag = static_cast<TEirTag>(aMsg.Int0());
+			switch(tag)
+				{
+				case EEirTagName:
+				case EEirTagTxPowerLevel:
+					/** These must have come from the stack **/
+					if(KStackSecurityPolicy.CheckPolicy(aMsg))
+						{
+						result = EPass;
+						}
+					break;
+				case EEirTagSdpUuid16:
+				case EEirTagSdpUuid32:
+				case EEirTagSdpUuid128:
+					/** These must have come from SDP server **/
+					if(KSDPSecurityPolicy.CheckPolicy(aMsg))
+						{
+						result = EPass;
+						}
+					break;
+				case EEirTagManufacturerSpecific:
+					/** To do this you must have write device data **/
+					if(KVendorSpecificDataSecurityPolicy.CheckPolicy(aMsg))
+						{
+						result = EPass;
+						}
+					break;
+				case EEirTagFlags:
+					/** At present no implementation of Flags is supported. 
+					So we are rejecting this until an implementation is provided. **/
+				default: //unknown or reserved tag, reject
+					//no need to do anything 
+					break;
+				}
 			}
 		}
 	//Anything not covered by the above is invalid so do nothing and let it fail

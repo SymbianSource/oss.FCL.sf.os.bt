@@ -19,6 +19,7 @@
 #include <bluetooth/logger.h>
 #include <bt_sock.h>
 #include <bluetooth/hci/aclpacketconsts.h>
+#include <bluetooth/hci/hciconsts.h>
 
 #include "ACLSAP.h"
 #include "physicallinks.h"

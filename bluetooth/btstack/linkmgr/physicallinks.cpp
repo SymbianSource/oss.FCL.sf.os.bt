@@ -145,6 +145,7 @@ CPhysicalLink::~CPhysicalLink()
 	delete iPhysicalLinkMetrics;
 	delete iPinRequester;
 	delete iNumericComparator;
+	delete iUserConfirmer;
 	delete iPasskeyEntry;
 	delete iArbitrationDelay;
 	delete iRoleSwitchCompleteCallBack;

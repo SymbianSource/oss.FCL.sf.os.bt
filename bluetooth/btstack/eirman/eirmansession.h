@@ -85,11 +85,11 @@ public:
 private:
 	void ConstructL(CEirManServer& aServer);
 	CEirManExternalSession();
-	void RegisterTag(const RMessage2& aMessage);
-	TInt RegisterSpaceAvailableListener(const RMessage2& aMessage, TBool& aComplete);
-	TInt CancelSpaceAvailableListener();
-	TInt NewData(const RMessage2& aMessage);
-	TInt SetData(const RMessage2& aMessage);
+	void RegisterTagL(const RMessage2& aMessage);
+	void RegisterSpaceAvailableListenerL(const RMessage2& aMessage);
+	void CancelSpaceAvailableListenerL(const RMessage2& aMessage);
+	void NewDataL(const RMessage2& aMessage);
+	void SetDataL(const RMessage2& aMessage);
 
 private:
 	void CompleteSpaceAvailableRequest(TUint aBytesAvailable);

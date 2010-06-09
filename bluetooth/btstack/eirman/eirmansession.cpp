@@ -208,49 +208,47 @@ CEirManExternalSession::~CEirManExternalSession()
 		}
 	delete iSession;
 	}
-
+/*
+ * Each of the individual methods is responsible for completing the message.
+ * All 'leaves' are processed in CSession2::ServiceError() resulting in message completion
+ * with the appropriate error code.
+ * RegisterTagL() and RegisterSpaceAvailableListenerL() store aMessage parameter for the future use
+ * when the callbacks are called.
+ */
 void CEirManExternalSession::ServiceL(const RMessage2& aMessage)
 	{
 	LOG_FUNC
 	LOG1(_L("CEirManSession::ServiceL aMessage.Function() = %d"), aMessage.Function());
-	TBool complete = ETrue;
-	TInt ret = KErrNone;
 
 	switch (aMessage.Function())
 		{
 	case EEirManRegisterTag:
-		complete = EFalse; // always async.
-		RegisterTag(aMessage);
+		RegisterTagL(aMessage);
 		break;
 
 	case EEirManSpaceAvailableNotification:
-		ret = RegisterSpaceAvailableListener(aMessage, complete);
+		RegisterSpaceAvailableListenerL(aMessage);
 		break;
 
 	case EEirManCancelSpaceAvailableNotification:
-		ret = CancelSpaceAvailableListener();
+		CancelSpaceAvailableListenerL(aMessage);
 		break;
 
 	case EEirManSetData:
-		ret = SetData(aMessage);
+		SetDataL(aMessage);
 		break;
 		
 	case EEirManNewData:
-		ret = NewData(aMessage);
+		NewDataL(aMessage);
 		break;
 
 	default:
 		aMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidIPC);
 		break;
 		}
-
-	if (complete)
-		{
-		aMessage.Complete(ret);
-		}
 	}
 
-void CEirManExternalSession::RegisterTag(const RMessage2& aMessage)
+void CEirManExternalSession::RegisterTagL(const RMessage2& aMessage)
 	{
 	LOG_FUNC
 	TEirTag tag = static_cast<TEirTag>(aMessage.Int0());
@@ -259,84 +257,91 @@ void CEirManExternalSession::RegisterTag(const RMessage2& aMessage)
 	iRegisterMessage = aMessage;
 	
 	iSession->RegisterTag(tag);
-
 	}
 
 void CEirManExternalSession::MesnRegisterComplete(TInt aResult)
 	{
 	if (aResult == KErrArgument)
 		{
-		__ASSERT_ALWAYS(EFalse, iRegisterMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidTag));
+		iRegisterMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidTag);
 		}
-	iRegisterMessage.Complete(aResult);
+	else
+		{
+		iRegisterMessage.Complete(aResult);
+		}
 	}
 
-TInt CEirManExternalSession::RegisterSpaceAvailableListener(const RMessage2& aMessage, TBool& aComplete)
+void CEirManExternalSession::RegisterSpaceAvailableListenerL(const RMessage2& aMessage)
 	{
 	LOG_FUNC
 
 	if(iDataAvailableListenerMessage.Handle())
 		{
 		LOG(_L("CEirManSession:::RegisterSpaceAvailableListener ERROR IN USE"));
-		return KErrInUse;
+		LEAVEL(KErrInUse);
 		}
 
 	iDataAvailableListenerMessage = aMessage;
-
-	aComplete = EFalse;
 
 	if(iLastSpaceOffered != 0)
 		{
 		LOG(_L("cached space present, completing immediately"));
 		CompleteSpaceAvailableRequest(iLastSpaceOffered);
 		iLastSpaceOffered = 0;
-		return KErrNone;
+		return;
 		}
 	
 	LOG(_L("waiting for callback..."));
-	return KErrNone;
 	}
 	
-TInt CEirManExternalSession::NewData(const RMessage2& aMessage)
+void CEirManExternalSession::NewDataL(const RMessage2& aMessage)
 	{
 	LOG_FUNC
-	__ASSERT_ALWAYS(iSession->EirTag() != EEirTagRESERVED, aMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidTag));
+
+	if (iSession->EirTag() == EEirTagRESERVED)
+		{
+		aMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidTag);
+		return;
+		}
+
 	TInt requiredLength = static_cast<TInt>(aMessage.Int0());
 
-	return iSession->NewData(requiredLength);
+	LEAVEIFERRORL(iSession->NewData(requiredLength));
+	aMessage.Complete(KErrNone);
 	}
 
-TInt CEirManExternalSession::CancelSpaceAvailableListener()
+void CEirManExternalSession::CancelSpaceAvailableListenerL(const RMessage2& aMessage)
 	{
 	LOG_FUNC
 
 	if(!iDataAvailableListenerMessage.Handle())
 		{
-		return KErrNotFound;
+		LEAVEL(KErrNotFound);
 		}
 
 	iDataAvailableListenerMessage.Complete(KErrCancel);
-
-	return KErrNone;
+	aMessage.Complete(KErrNone);
 	}
 
-TInt CEirManExternalSession::SetData(const RMessage2& aMessage)
+void CEirManExternalSession::SetDataL(const RMessage2& aMessage)
 	{
 	LOG_FUNC
-	__ASSERT_ALWAYS(iSession->EirTag() != EEirTagRESERVED, aMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidTag));
+	if (iSession->EirTag() == EEirTagRESERVED)
+		{
+		aMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidTag);
+		return;
+		}
+
 	TEirDataMode eirDataMode = static_cast<TEirDataMode>(aMessage.Int1());
 	LOG1(_L("EirDataMode: %d"),  eirDataMode);
 
 	// No need to allocate memory with an expensive malloc() call (via HBuf8::NewL or whatever), 
 	// since the EIR contents fit in the stack, and the EIR Manager will cache the data anyway
 	TBuf8<KHCIExtendedInquiryResponseMaxLength> data;
-	TInt err = aMessage.Read(0, data);
+	LEAVEIFERRORL(aMessage.Read(0, data));
 	
-	if(err == KErrNone)
-		{
-		err = iSession->SetData(data, eirDataMode);
-		}
-	return err;
+	LEAVEIFERRORL(iSession->SetData(data, eirDataMode));
+	aMessage.Complete(KErrNone);
 	}
 
 void CEirManExternalSession::MesnSpaceAvailable(TUint aSpaceForTag)
