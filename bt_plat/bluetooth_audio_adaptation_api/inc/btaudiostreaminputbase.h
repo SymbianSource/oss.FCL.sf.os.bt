@@ -21,7 +21,7 @@
 
 #include <e32base.h>
 #include <e32std.h>
-#include <mmf/common/MmfUtilities.h> 
+#include <mmf/common/mmfutilities.h>
 
 /**
  *  Observer interface for receiving the audio data buffers. 
