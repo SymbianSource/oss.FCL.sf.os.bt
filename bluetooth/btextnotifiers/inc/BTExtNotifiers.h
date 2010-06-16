@@ -129,7 +129,7 @@ public:
 	IMPORT_C TBool IsValid() const;
 	
 	// Non-exported constructor.  Allows creation of default NULL instance
-	TPanConnection();
+	IMPORT_C TPanConnection();	// To match the EXPORT_C in BtExtNotifiers.cpp
 	
 private:
 	TBTDevAddr iRemoteDeviceAddress;
