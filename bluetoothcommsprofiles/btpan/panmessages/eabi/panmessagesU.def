@@ -21,18 +21,18 @@ EXPORTS
 	_ZTI18TSigPanRolePanRole @ 20  NONAME ; #<TI>#
 	_ZTI27TSigSetupConnectionResponse @ 21  NONAME ; #<TI>#
 	_ZTI8TSigBool @ 22  NONAME ; #<TI>#
-	_ZTIN4Meta5TMetaI17TBluetoothPanRoleEE @ 23  NONAME ; #<TI>#
-	_ZTIN4Meta5TMetaI35TBnepSetupConnectionResponseMessageEE @ 24  NONAME ; #<TI>#
-	_ZTIN4Meta5TMetaI5TUUIDEE @ 25  NONAME ; #<TI>#
-    _ZTIN4Meta5TMetaI15RInternalSocketEE @ 26  NONAME ; #<TI>#
-	_ZTIN4Meta5TMetaIiEE @ 27  NONAME ; #<TI>#
+	_ZTIN4Meta5TMetaI17TBluetoothPanRoleEE @ 23  NONAME ABSENT ; #<TI>#
+	_ZTIN4Meta5TMetaI35TBnepSetupConnectionResponseMessageEE @ 24  NONAME ABSENT ; #<TI>#
+	_ZTIN4Meta5TMetaI5TUUIDEE @ 25  NONAME ABSENT ; #<TI>#
+    _ZTIN4Meta5TMetaI15RInternalSocketEE @ 26  NONAME ABSENT ; #<TI>#
+	_ZTIN4Meta5TMetaIiEE @ 27  NONAME ABSENT ; #<TI>#
 	_ZTV12TSigUuidUuid @ 28  NONAME ; #<VT>#
 	_ZTV18TSigInternalSocket @ 29  NONAME ; #<VT>#
 	_ZTV18TSigPanRolePanRole @ 30  NONAME ; #<VT>#
 	_ZTV27TSigSetupConnectionResponse @ 31  NONAME ; #<VT>#
 	_ZTV8TSigBool @ 32  NONAME ; #<VT>#
-	_ZTVN4Meta5TMetaI17TBluetoothPanRoleEE @ 33  NONAME ; #<VT>#
-	_ZTVN4Meta5TMetaI35TBnepSetupConnectionResponseMessageEE @ 34  NONAME ; #<VT>#
-	_ZTVN4Meta5TMetaI5TUUIDEE @ 35  NONAME ; #<VT>#
-	_ZTVN4Meta5TMetaI15RInternalSocketEE @ 36  NONAME ; #<VT>#
-	_ZTVN4Meta5TMetaIiEE @ 37  NONAME ; #<VT>#
+	_ZTVN4Meta5TMetaI17TBluetoothPanRoleEE @ 33  NONAME ABSENT ; #<VT>#
+	_ZTVN4Meta5TMetaI35TBnepSetupConnectionResponseMessageEE @ 34  NONAME ABSENT ; #<VT>#
+	_ZTVN4Meta5TMetaI5TUUIDEE @ 35  NONAME ABSENT ; #<VT>#
+	_ZTVN4Meta5TMetaI15RInternalSocketEE @ 36  NONAME ABSENT ; #<VT>#
+	_ZTVN4Meta5TMetaIiEE @ 37  NONAME ABSENT ; #<VT>#
