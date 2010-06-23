@@ -556,6 +556,10 @@ void CPhysicalLink::UpdateFromInquiryCache()
 		{
 		iDevice.SetClockOffset(jle.iClockOffset);
 		}
+	if(juice->IsCoDFromHCI())
+		{
+		iDevice.SetDeviceClass(jle.iCoD);
+		}
 	}
 
 void CPhysicalLink::StoreDeviceL( TBool aPreventDeviceAddition )
