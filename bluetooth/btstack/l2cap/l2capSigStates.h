@@ -78,10 +78,10 @@ public:
 	TL2CAPSigState(const CL2CAPSignalStateFactory& aFactory);
 	
 	// Events from the SAP
-	virtual void CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
-	virtual void OpenChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
+	virtual void CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
+	virtual void OpenChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
 	virtual void ConnectRequestReceived(CL2CapSAPSignalHandler& aSignalHandler) const;
-	virtual void ConfigureChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
+	virtual void ConfigureChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
 	virtual TInt UpdateChannelConfig(CL2CapSAPSignalHandler& aSignalHandler, const TL2CapConfig& aAPIConfig) const;
 
 	virtual TInt GetNegotiatedChannelMode(const CL2CapSAPSignalHandler& aSignalHandler, TL2CapChannelMode& aMode) const;
@@ -142,9 +142,9 @@ public:
 	TL2CAPSigStateClosed(const CL2CAPSignalStateFactory& aFactory);
 
 	// Events from the SAP
-	void OpenChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
+	void OpenChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
 	void ConnectRequestReceived(CL2CapSAPSignalHandler& aSignalHandler) const;
-	void CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
+	void CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
 
 	void ConfigRequest(CL2CapSAPSignalHandler& aSignalHandler,
 					   HConfigureRequest* aConfigRequest) const;
@@ -165,7 +165,7 @@ public:
 	TL2CAPSigStateWaitConnectRsp(const CL2CAPSignalStateFactory& aFactory);
 
 	// Events from the SAP
-	void CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
+	void CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
 
 	// L2CAP commands received from the peer.
 	void ConnectResponse(CL2CapSAPSignalHandler& aSignalHandler,
@@ -183,15 +183,16 @@ public:
 	TL2CAPSigStateWaitConnect(const CL2CAPSignalStateFactory& aFactory);	
 
 	// Events from the SAP
-	void OpenChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
-	void CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
+	void OpenChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
+	void CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
 	
 	// L2CAP commands received from the peer.
 	void DisconnectRequest(CL2CapSAPSignalHandler& aSignalHandler, TUint8 aId) const;
 
 	// Change of state state events
 	void PendingCommandsDrained(CL2CapSAPSignalHandler& aSignalHandler) const;
-	
+
+	void Enter(CL2CapSAPSignalHandler& aSignalHandler) const;
 	};
 	
 NONSHARABLE_CLASS(TL2CAPSigStateConfigBase) : public TL2CAPSigState
@@ -212,7 +213,7 @@ public:
 	           MSocketNotify::TOperationBitmasks aErrorAction) const;
 
 	// Events from the SAP
-	void CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
+	void CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
 	TInt UpdateChannelConfig(CL2CapSAPSignalHandler& aSignalHandler, const TL2CapConfig& aAPIConfig) const;
 
 	// Timer Events
@@ -238,7 +239,7 @@ public:
 	TL2CAPSigStateWaitConfig(const CL2CAPSignalStateFactory& aFactory);	
 
 	// Events from the SAP
-	void ConfigureChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
+	void ConfigureChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
 
 	// L2CAP commands received from the peer.
 	void ConfigRequest(CL2CapSAPSignalHandler& aSignalHandler,
@@ -259,7 +260,7 @@ public:
 	TL2CAPSigStateWaitSendConfig(const CL2CAPSignalStateFactory& aFactory);	
 
 	// Events from the SAP
-	void ConfigureChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
+	void ConfigureChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
 	};
 
 NONSHARABLE_CLASS(TL2CAPSigStateWaitConfigReqRsp) : public TL2CAPSigStateConfigBase
@@ -317,7 +318,7 @@ public:
 	TL2CAPSigStateOpen(const CL2CAPSignalStateFactory& aFactory);	
 
 	// Events from the SAP
-	void CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
+	void CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
 
 	// L2CAP commands received from the peer.
 	void DisconnectRequest(CL2CapSAPSignalHandler& aSignalHandler, TUint8 aId) const;
@@ -343,7 +344,7 @@ public:
 	TL2CAPSigStateWaitDisconnect(const CL2CAPSignalStateFactory& aFactory);	
 
 	// Events from the SAP
-	void CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const;
+	void CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const;
 	TInt UpdateChannelConfig(CL2CapSAPSignalHandler& aSignalHandler, const TL2CapConfig& aAPIConfig) const;
 
 	// State changes from the Mux
@@ -360,7 +361,7 @@ public:
 
 	void ConfigResponse(CL2CapSAPSignalHandler& /*aSignalHandler*/,
  	                	HConfigureResponse* /*aConfigResponse*/) const;
-	void ConfigureChannelRequest(CL2CapSAPSignalHandler& /*aSignalHandler*/) const;
+	void ConfigureChannel(CL2CapSAPSignalHandler& /*aSignalHandler*/) const;
 	};
 
 #endif

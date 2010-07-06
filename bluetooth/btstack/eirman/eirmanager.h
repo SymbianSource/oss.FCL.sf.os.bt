@@ -1,4 +1,4 @@
-// Copyright (c) 2007-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2007-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -89,7 +89,7 @@ public:
 
 	TInt RegisterTag(TEirTag aTag, MEirManagerNotifiee& aNotifiee);
 	void DeregisterTag(TEirTag aTag);
-	TInt SetData(TEirTag aTag, TDesC8& aData, TEirDataMode aEirDataMode);
+	TInt SetData(TEirTag aTag, const TDesC8& aData, TEirDataMode aEirDataMode);
 	
 	// from MHCICommandQueueClient
 	void MhcqcCommandEventReceived(const THCIEventBase& aEvent, const CHCICommandBase* aRelatedCommand);

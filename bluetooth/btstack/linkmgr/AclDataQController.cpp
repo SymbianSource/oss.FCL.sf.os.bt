@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -20,10 +20,14 @@
 //
 
 #include <bluetooth/logger.h>
+#include <bluetooth/hci/hciconsts.h>
 #include "AclDataQController.h"
 #include "linkmgr.h"
 #include "AclDataQ.h"
 #include "hcifacade.h"
+#include "hostmbufpool.h"
+#include "linkflowcontrol.h"
+#include "linkconsts.h"
 
 #ifdef __FLOG_ACTIVE
 _LIT8(KLogComponent, LOG_COMPONENT_LINKMGR);
@@ -50,8 +54,6 @@ CACLDataQController* CACLDataQController::NewL(CLinkMgrProtocol& aProtocol,
 	CleanupStack::PushL(self);
 	self->ConstructL(aProtocol, aBufSize, aFrameOverhead, aNumBufs);
 	CleanupStack::Pop(self);
-
-	LOG1(_L("CACLDataQController::NewL self = 0x%08x"), self);
 	return self;
 	}
 
@@ -67,7 +69,11 @@ CACLDataQController::CACLDataQController(CHCIFacade& aHCIFacade,
 CACLDataQController::~CACLDataQController()
 	{
 	LOG_FUNC
-
+	
+#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
+	delete iMBufPool;
+#endif
+	
 	delete iDataQ;
 	iAclConns.Reset();
 	iAclConns.Close();
@@ -81,12 +87,18 @@ void CACLDataQController::ConstructL(CLinkMgrProtocol& aProtocol,
 	LOG_FUNC
 
 	iDataQ = CAclDataQ::NewL(aProtocol, aNumBufs, aBufSize, aFrameOverhead);
+	
 
 #ifdef PROXY_COMMUNICATES
 	LOG(_L("\tPROXY_COMMUNICATES defined- reserving slots for broadcast channel"));
 
 	// Reserve BC one now
 	User::LeaveIfError(ACLLogicalLinkUp(KHCIBroadcastHandle, EFalse));
+#endif
+	
+#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
+	LOG(_L8("\tHOSTCONTROLLER_TO_HOST_FLOW_CONTROL defined- creating buffer pool"));
+	iMBufPool = CHostMBufPool::NewL(aProtocol.HCIFacade().CommandQController());
 #endif
 	}
 
@@ -427,6 +439,15 @@ void CACLDataQController::ACLLogicalLinkDown(THCIConnHandle aConnH)
 	LOG1(_L("CACLDataQController::ACLLogicalLinkDown aConnH = %d"), 
 		aConnH);
 
+#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
+	if(iMBufPool)
+		{
+		iMBufPool->InvalidateByConnH(aConnH);
+		// the packet completions should probably move to the iAclConns model
+		// to clean up this code.
+		}
+#endif // HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
+
 	TInt connection = FindConnection(aConnH);
 		
 	if ( connection == KErrNotFound )
@@ -618,6 +639,45 @@ TInt CACLDataQController::SetFlushInProgress(THCIConnHandle aConnH)
 		}
 
 	return rerr;
+	}
+
+RMBufChain CACLDataQController::PopulateInboundBufferL(THCIConnHandle aConnH, TUint8 aFlag, const TDesC8& aData)
+	{
+	LOG_FUNC
+	// make a new chain consisting of Flag(1st octet) followed by Data.
+	RMBufChain aclData;
+	static const TInt KFlagHeaderOffset = 0;
+	
+#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
+	// Check what flow control mode is in operation
+	TFlowControlMode flowControl = iLinkMuxer.FlowControlMode();
+	TBool ctrlerToHost = (flowControl == ETwoWayFlowControlEnabled) || (flowControl == EFlowControlFromHostControllerOnly);
+	if(ctrlerToHost)
+		{
+		__ASSERT_DEBUG(iMBufPool, Panic(ELinkMgrFlowControlChangeOfMind));
+		aclData = iMBufPool->TakeBufferL(aConnH);
+		aclData.CopyIn(aData, KLinkMgrIncomingBufferHeaderSize);
+		// return the reserved MBufs we didn't need to the global pool
+		aclData.TrimEnd(aData.Length() + KLinkMgrIncomingBufferHeaderSize);
+		}
+	else
+#endif // HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
+		{
+		aclData.CreateL(aData, KLinkMgrIncomingBufferHeaderSize);
+		}
+	
+	aclData.First()->Ptr()[KFlagHeaderOffset] = aFlag;
+	
+	return aclData;
+	}
+
+void CACLDataQController::NoExplicitInboundPoolNeeded()
+	{
+	LOG_FUNC
+#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
+	delete iMBufPool;
+	iMBufPool = NULL;
+#endif // HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
 	}
 
 //

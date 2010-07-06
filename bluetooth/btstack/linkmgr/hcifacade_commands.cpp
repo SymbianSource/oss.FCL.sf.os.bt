@@ -42,7 +42,6 @@
 #include <bluetooth/hci/rejectsynchronousconnectionrequestcommand.h>
 #include <bluetooth/hci/disconnectcommand.h>
 #include <bluetooth/hci/writelinkpolicysettingscommand.h>
-#include <bluetooth/hci/hostnumberofcompletedpacketscommand.h>
 #include <bluetooth/hci/acceptconnectionrequestcommand.h>
 #include <bluetooth/hci/rejectconnectionrequestcommand.h>
 #include <bluetooth/hci/readremoteversioninfocommand.h>
@@ -181,24 +180,6 @@ void CHCIFacade::WriteLinkPolicySettingsL(THCIConnHandle aConnH, TUint16 aSettin
 void CHCIFacade::WriteScanEnableL(THCIScanEnable aEnable)
 	{
 	CWriteScanEnableCommand* cmd = CWriteScanEnableCommand::NewL(aEnable);
-
-	// Ownership of cmd transfered even if MhcqAddCommandL leaves
-	iCmdController->MhcqAddCommandL(cmd, *this);
-	}
-
-void CHCIFacade::HostNumberOfCompletedPacketsL(THCIConnHandle aConnH, TUint16 aFrags)
-	{
-	RArray<THCIConnectionHandle> connHandles;
-	connHandles.AppendL(aConnH);
-	CleanupClosePushL(connHandles);
-
-	RArray<THCINumOfCompletedPackets> numPackets;
-	numPackets.AppendL(aFrags);
-	CleanupClosePushL(numPackets);
-	
-	CHostNumberOfCompletedPacketsCommand* cmd = CHostNumberOfCompletedPacketsCommand::NewL(1, connHandles, numPackets);
-	// ownership of arrays has been taken by cmd
-	CleanupStack::Pop(2, &connHandles); // &numPackets, &connHandles
 
 	// Ownership of cmd transfered even if MhcqAddCommandL leaves
 	iCmdController->MhcqAddCommandL(cmd, *this);

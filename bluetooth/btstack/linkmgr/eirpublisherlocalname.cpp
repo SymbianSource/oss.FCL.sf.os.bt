@@ -1,4 +1,4 @@
-// Copyright (c) 2008-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2008-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -15,8 +15,9 @@
 
 #include "eirpublisherlocalname.h"
 #include "linkutil.h"
-#include <bluetooth/eirpublisherbase.h>
 #include <bluetooth/logger.h>
+
+#include "eirmanserver.h"
 
 #ifdef __FLOG_ACTIVE
 _LIT8(KLogComponent, LOG_COMPONENT_EIRMANAGER);
@@ -29,18 +30,17 @@ _LIT8(KLogComponent, LOG_COMPONENT_EIRMANAGER);
 /**
 Provides functionality to publish Local Name to EIR.
 **/
-CEirPublisherLocalName* CEirPublisherLocalName::NewL()
+CEirPublisherLocalName* CEirPublisherLocalName::NewL(CEirManServer& aServer)
 	{
 	LOG_STATIC_FUNC
 	CEirPublisherLocalName* self = new (ELeave) CEirPublisherLocalName();
 	CleanupStack::PushL(self);
-	self->ConstructL();
+	self->ConstructL(aServer);
 	CleanupStack::Pop();
 	return self;
 	}
 
 CEirPublisherLocalName::CEirPublisherLocalName()
-:	CEirPublisherBase(EEirTagName)
 	{
 	LOG_FUNC
 	}
@@ -49,26 +49,49 @@ CEirPublisherLocalName::~CEirPublisherLocalName()
 	{
 	LOG_FUNC
 	delete iPublishBuf;
+	delete iSession;
 	}
 	
-void CEirPublisherLocalName::ConstructL()
+void CEirPublisherLocalName::ConstructL(CEirManServer& aServer)
 	{
 	LOG_FUNC
-	CEirPublisherBase::ConstructL();
+	iSession = aServer.NewInternalSessionL(*this);
+	iSession->RegisterTag(EEirTagName);
 	}
+
+void CEirPublisherLocalName::MeisnRegisterComplete(TInt aResult)
+	{
+	if (aResult == KErrNone)
+		{
+		iTagRegistered = ETrue;
+		if (iLocalName.Length() > 0)
+			{
+			iSession->NewData(iLocalName.Length());
+			}
+		}
+	}
+
+void CEirPublisherLocalName::MeisnSetDataError(TInt /* aError */)
+	{
 	
+	}
+
+
 void CEirPublisherLocalName::UpdateName(const TDesC8& aName)
 	{
 	LOG_FUNC
 	// Check aName isn't longer than 248 characters
 	__ASSERT_DEBUG(aName.Length() <= 248, Panic(EEIRPublisherUpdateNameTooLong));
 	iLocalName = aName;
-	iPublisher->PublishData(aName.Size());
+	if (iTagRegistered)
+		{
+		iSession->NewData(iLocalName.Size());
+		}
 	}
 	
 
 // From MEirPublisherNotifier
-void CEirPublisherLocalName::MepnSpaceAvailable(TUint aBytesAvailable)
+void CEirPublisherLocalName::MeisnSpaceAvailable(TUint aBytesAvailable)
 	{
 	LOG_FUNC
 	// Delete memory from last time this was called
@@ -84,7 +107,7 @@ void CEirPublisherLocalName::MepnSpaceAvailable(TUint aBytesAvailable)
 		iPublishBuf = iLocalName.Left(avail).Alloc();
 		if(iPublishBuf)
 			{
-			iPublisher->SetData(*iPublishBuf, EEirDataPartial);
+			iSession->SetData(*iPublishBuf, EEirDataPartial);
 			}
 		}
 	else
@@ -94,17 +117,14 @@ void CEirPublisherLocalName::MepnSpaceAvailable(TUint aBytesAvailable)
 		iPublishBuf = iLocalName.Alloc();
 		if(iPublishBuf)
 			{
-			iPublisher->SetData(*iPublishBuf, EEirDataComplete);
+			iSession->SetData(*iPublishBuf, EEirDataComplete);
 			}
 		}
 	// Final case to handle if OOM occurs.
 	if(!iPublishBuf)
 		{
-		iPublisher->SetData(KNullDesC8(), EEirDataPartial);
+		iSession->SetData(KNullDesC8(), EEirDataPartial);
 		}
 	}
-	
-void CEirPublisherLocalName::MepnSetDataError(TInt /*aResult*/)
-	{
-	LOG_FUNC
-	}
+
+

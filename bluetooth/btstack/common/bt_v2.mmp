@@ -69,6 +69,7 @@ SOURCE AcceptWatchdog.cpp
 SOURCE Subscribers.cpp
 SOURCE btcommands.cpp
 SOURCE AclDataQ.cpp
+SOURCE hostmbufpool.cpp
 SOURCE AclDataQController.cpp
 SOURCE bredrcontrollerconfiguration.cpp
 
@@ -231,6 +232,7 @@ LIBRARY		eirclient.lib
 MACRO CONNECTION_PREEMPTS_INQUIRY
 //MACRO KEEP_L2CAP_DEBUG_STATISTICS
 MACRO BT_LINKMGR_V2
+MACRO HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
 
 OPTION		cw -strict on -w pedantic,unused,hidevirtual,padding,ptrintconv
 

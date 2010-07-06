@@ -1,4 +1,4 @@
-// Copyright (c) 2008-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2008-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -18,7 +18,9 @@
 #define EIRPUBLISHERTXPOWERLEVEL_H
 
 #include <e32base.h>
-#include <bluetooth/eirpublisherbase.h>
+#include "eirmansession.h"
+
+class CEirManServer;
 
 #define KSizeOfTxPowerLevelData 1
 
@@ -28,24 +30,28 @@
 /**
 Provides functionality to publish TxPowerLevel to EIR.
 **/
-NONSHARABLE_CLASS(CEirPublisherTxPowerLevel) : public CEirPublisherBase
+NONSHARABLE_CLASS(CEirPublisherTxPowerLevel) : public CBase, public MEirInternalSessionNotifier
 	{
 public:
-	static CEirPublisherTxPowerLevel* NewL();
+	static CEirPublisherTxPowerLevel* NewL(CEirManServer& aServer);
 	~CEirPublisherTxPowerLevel();
 	void UpdateTxPowerLevel(TInt8 aTxPowerLevel);
 
 private:
 	CEirPublisherTxPowerLevel();
-	void ConstructL();
+	void ConstructL(CEirManServer& aServer);
 	
-	// From MEirPublisherNotifier
-	virtual void MepnSpaceAvailable(TUint aBytesAvailable);
-	virtual void MepnSetDataError(TInt aResult);
-
+	// From MEirInternalSessionNotifier
+	virtual void MeisnSpaceAvailable(TUint aBytesAvailable);
+	virtual void MeisnRegisterComplete(TInt aResult);
+	virtual void MeisnSetDataError(TInt aError);
+	
 private:
 	TInt8 iTxPowerLevel;
 	TBuf8<KSizeOfTxPowerLevelData> iPublishBuf;
+	CEirManInternalSession* iSession;
+	TBool iTxPowerLevelPublished;
+	TBool		iTagRegistered;
 	};
 	
 #endif	//EIRPUBLISHERTXPOWERLEVEL_H

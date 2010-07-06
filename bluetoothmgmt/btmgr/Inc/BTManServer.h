@@ -362,6 +362,7 @@ enum TBTManServerPanic
 	EBTManClientShouldBeBusy,
 	EBTManBadState,
 	EBTManUnexpectedDbError,
+	EBTManOutstandingMessagesOnClosedSession,
 	};
 
 

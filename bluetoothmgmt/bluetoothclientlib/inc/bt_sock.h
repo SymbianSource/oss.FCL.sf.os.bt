@@ -615,6 +615,7 @@ const static TInt KErrRfcommNotBound = KRFErrorBase-6;						/*!< RFCOMM SAP not 
 const static TInt KErrRfcommParameterNegotiationFailure = KRFErrorBase-7;	/*!< RFCOMM parameter negotiation failure error code. */
 const static TInt KErrRfcommNotListening = KRFErrorBase-8;					/*!< RFCOMM not listening error code. */
 const static TInt KErrRfcommNoMoreServerChannels = KRFErrorBase-9;			/*!< RFCOMM no more server channels available error code. */
+const static TInt KErrRfcommMuxChannelErrored = KRFErrorBase-10;			/*!< RFCOMM Mux channel errored */
 
 //RFCOMMIoctls
 

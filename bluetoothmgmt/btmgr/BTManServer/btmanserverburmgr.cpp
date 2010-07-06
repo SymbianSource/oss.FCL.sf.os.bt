@@ -19,6 +19,7 @@
 #include <e32property.h>
 #include <f32file.h>
 #include <s32file.h>
+#include <bluetooth/hci/hciconsts.h>
 #include "btmanserverutil.h"
 #include "btmanserverburmgr.h"
 #include "BTManServer.h"

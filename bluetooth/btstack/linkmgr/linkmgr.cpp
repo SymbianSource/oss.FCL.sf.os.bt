@@ -652,8 +652,8 @@ void CLinkMgrProtocol::LocalClose()
 void CLinkMgrProtocol::ExternalOpenInit()
 	{
 	LOG_FUNC
-	TRAP_IGNORE(iLocalNamePublisher = CEirPublisherLocalName::NewL());
-	TRAP_IGNORE(iTxPowerLevelPublisher = CEirPublisherTxPowerLevel::NewL());
+	TRAP_IGNORE(iLocalNamePublisher = CEirPublisherLocalName::NewL(*iEirManServer));
+	TRAP_IGNORE(iTxPowerLevelPublisher = CEirPublisherTxPowerLevel::NewL(*iEirManServer));
 	if(iLocalNamePublisher)
 		{
 		// Publish the initial name.

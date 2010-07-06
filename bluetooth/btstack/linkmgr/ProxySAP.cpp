@@ -1,4 +1,4 @@
-// Copyright (c) 2003-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2003-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -26,6 +26,7 @@
 #include "linkmgr.h"
 
 #include <bluetooth/hci/aclpacketconsts.h>
+#include <bluetooth/hci/hciconsts.h>
 
 #ifdef __FLOG_ACTIVE
 _LIT8(KLogComponent, LOG_COMPONENT_LINKMGR);
@@ -552,7 +553,7 @@ TInt CBTProxySAP::SAPSetOption(TUint aLevel,TUint aName, const TDesC8 &aOption)
 					}
 				else
 					{
-					iRequestedActiveMode = option ? ETrue : EFalse;
+					iRequestedActiveMode = option;
 					if(iRequestedActiveMode)
 						{
 						localPriority = ETrue;

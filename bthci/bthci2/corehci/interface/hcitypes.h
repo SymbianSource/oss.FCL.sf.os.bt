@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -179,17 +179,6 @@ HCI encryption mode flag
 	EEncryptionDisabled = 0x00, /*!< Encryption disabled */
 	EPointToPointEncryption = 0x01, /*!< Point to point encryption enabled */
 	EPointToPointAndBroadcastEncryption = 0x02, /*!< Point to point and broadcast encryption enabled */
-	};
-
-enum THCIScanEnable 
-/**
-HCI Scan enable mask
-*/
-	{
-	ENoScansEnabled = 0x00, /*!< No HCI scans enabled */
-	EInquiryScanOnly = 0x01, /*!< HCI inquiry scan enabled */
-	EPageScanOnly = 0x02, /*!< HCI page scan enabled */
-	EInquiryAndPageScan = 0x03 /*!< HCI inquiry and page scan enabled */
 	};
 
 enum THCIInquiryMode 
