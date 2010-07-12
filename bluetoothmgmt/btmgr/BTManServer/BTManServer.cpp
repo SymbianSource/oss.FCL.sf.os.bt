@@ -534,15 +534,19 @@ void CBTManSession::ConstructL()
 CBTManSession::~CBTManSession()
 	{
 	LOG_FUNC
+	
+	delete iSubSessions;
+	Server().DeleteContainer(iContainer);
+	Server().DropSession();
+	
 	if (iMessageArray)
 		{
+		__ASSERT_DEBUG(iMessageArray->Count()== 0, PanicServer(EBTManOutstandingMessagesOnClosedSession));
+	
 		CompleteOutstandingMessages();
 		iMessageArray->ResetAndDestroy();
 		}
 	delete iMessageArray;
-	delete iSubSessions;
-	Server().DeleteContainer(iContainer);
-	Server().DropSession();
 	}
 
 void CBTManSession::CompleteOutstandingMessages()

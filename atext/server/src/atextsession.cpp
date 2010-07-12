@@ -11,7 +11,7 @@
 *
 * Contributors:
 *
-* Description: 
+* Description:
 *
 */
 
@@ -199,6 +199,7 @@ void CATExtSession::DoServiceL( const RMessage2& aMessage )
 //
 CATExtSession::CATExtSession( CATExtSrv& aServer, const TVersion& aVersion ) :
     iServer( aServer ),
+    iEComSession( NULL ),
     iListener( NULL ),
     iMetadata( NULL ),
     iVersion( aVersion )
@@ -217,8 +218,7 @@ void CATExtSession::IpcSetInterfaceL( const RMessage2& aMessage )
         TRACE_FUNC_EXIT
         User::Leave( KErrGeneral );
         }
-    REComSession& ecomSession = REComSession::OpenL();
-    CleanupClosePushL( ecomSession );
+    iEComSession = &REComSession::OpenL();
     TPckgBuf<TUid> ifUidPckgBuf;
     TInt retTemp = ReadStructFromMessage( ifUidPckgBuf,
                                           EATExtConnectParamUid,
@@ -239,10 +239,10 @@ void CATExtSession::IpcSetInterfaceL( const RMessage2& aMessage )
         User::Leave( retTemp );
         }
     // Create listener
-    CATExtListen* listener = CATExtListen::NewLC( ecomSession, this );
+    CATExtListen* listener = CATExtListen::NewLC( *iEComSession, this );
     listener->AddInterfaceUid( ifUidPckgBuf() );
     // Create metadata. Pass iListener to add the UIDs
-    CATExtMetadata* metadata = CATExtMetadata::NewLC( ecomSession,
+    CATExtMetadata* metadata = CATExtMetadata::NewLC( *iEComSession,
                                                       listener,
                                                       *this );
     metadata->CreateImplementationMetadataL( ifUidPckgBuf(), connectionName );
@@ -250,8 +250,6 @@ void CATExtSession::IpcSetInterfaceL( const RMessage2& aMessage )
     CleanupStack::Pop( metadata );
     CleanupStack::Pop( listener );
     CleanupStack::PopAndDestroy( &connectionName );
-    CleanupStack::Pop( &ecomSession );
-    iEComSession = ecomSession;
     iListener = listener;
     iMetadata = metadata;
     TRACE_FUNC_EXIT
@@ -322,6 +320,7 @@ TInt CATExtSession::IpcHandleCommand( const RMessage2& aMessage )
         }
     // Third, check a case where there is support but reply is not
     // expected. In this case "" must be returned to complete processing.
+    // Note: The EFalse setting is used only for normal mode.
     if ( !complInfo.iReplyExpected )
         {
         // Return ""
@@ -334,8 +333,8 @@ TInt CATExtSession::IpcHandleCommand( const RMessage2& aMessage )
         TRACE_FUNC_EXIT
         return retTemp;
         }
-    // The rest are for known command with reply. This case is handled in
-    // HandleCommand().
+    // The rest are for known command with reply or data in editor mode.
+    // This case is handled in HandleCommand().
     TRACE_INFO(( _L8("Command handled: wait for asynchronous reply or do nothing") ));
     TRACE_FUNC_EXIT
     return KErrNone;
@@ -896,7 +895,10 @@ void CATExtSession::Destruct( TBool aSyncClose )
     iListener = NULL;
     delete iMetadata;
     iMetadata = NULL;
-    iEComSession.Close();
+    if ( iEComSession )
+        {
+        iEComSession->Close();
+        }
     if ( !aSyncClose )
         {
         REComSession::FinalClose();

@@ -191,6 +191,7 @@ typedef TPckgBuf<TLMDisconnectACLIoctl> TLMDisconnectACLBuf;	/*!< Package for TL
 // private tokens for use by RBTBaseband facade and stack
 _LIT8(KDisconnectOnePhysicalLink, "1");		/*!< Specifes one physical link should be disconnected */
 _LIT8(KDisconnectAllPhysicalLinks, "A");	/*!< Specifes all physical links should be disconnected */
+_LIT8(KDisconnectAllPhysicalLinksForPowerOff, "P");	/*!< Specifes all physical links should be disconnected for power off*/
 
 // HCI Ioctls
 /** Add SCO connnection Ioctl
@@ -614,6 +615,7 @@ const static TInt KErrRfcommNotBound = KRFErrorBase-6;						/*!< RFCOMM SAP not 
 const static TInt KErrRfcommParameterNegotiationFailure = KRFErrorBase-7;	/*!< RFCOMM parameter negotiation failure error code. */
 const static TInt KErrRfcommNotListening = KRFErrorBase-8;					/*!< RFCOMM not listening error code. */
 const static TInt KErrRfcommNoMoreServerChannels = KRFErrorBase-9;			/*!< RFCOMM no more server channels available error code. */
+const static TInt KErrRfcommMuxChannelErrored = KRFErrorBase-10;			/*!< RFCOMM Mux channel errored */
 
 //RFCOMMIoctls
 
@@ -1533,6 +1535,7 @@ public:
 	IMPORT_C void CancelCreateConnection();
 	IMPORT_C TInt Disconnect(const TBTDevAddr& aDevAddr);
 	IMPORT_C TInt DisconnectAll();
+	IMPORT_C TInt DisconnectAllForPowerOff();
 	
 	IMPORT_C TInt Broadcast(const TDesC8& aData);
 	IMPORT_C TInt ReadRaw(TDes8& aData);

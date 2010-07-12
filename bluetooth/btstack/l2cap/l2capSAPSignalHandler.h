@@ -128,6 +128,7 @@ public:
 	static TInt TimerExpired(TAny* aSAPSignalHandler);
 
 	void StartConfigurationTimer();
+	void StartConfigRequestDelayTimer();
 	void CancelTimer();
 
 	void DetachFromMux();
@@ -136,14 +137,16 @@ public:
 	TInt SendEchoRequest(const TDes8* aData);
 	void EchoResponseReceived(const TDesC8* aData);
 
+	inline void ConfigureChannel();
+
 	void OverrideParkMode();
 	void UndoOverrideParkMode();
 	void OverrideLPMWithTimeout();
+
 	inline TInt SignalHandlerErrorCode() const;
 	inline MSocketNotify::TOperationBitmasks SignalHandlerErrorAction() const;
 	inline void SetSignalHandlerErrorCode(TInt aError);
 	inline void SetSignalHandlerErrorAction(MSocketNotify::TOperationBitmasks aAction);
-
 private:
 	CL2CapSAPSignalHandler(CL2CAPConnectionSAP& aSAP);
 	void ConstructL();
@@ -187,9 +190,14 @@ private:
 	// OpenChannelRequest, so OpenChannelRequest is delayed until Information Response comes
 	// through.
 	TBool iOpenChannelRequestAwaitingPeerEntityConfig;
-	// The SAP is ready to send a config request
-	// Flag to indicate that we are delaying sending this config request
-	TBool iAwaitingConfigRequestDelayTimer;
+	// A ConfigureChannelRequest from the SAP is only expected in an active open scenario.
+	// On passive open we kick the configuration ourselves.
+	TBool iAwaitConfigureChannelRequest;
+
+	friend class TL2CAPSigStateClosed;
+	friend class TL2CAPSigStateWaitConnectRsp;
+	friend class TL2CAPSigStateWaitConnect;
+	friend class TL2CAPSigStateConfigBase;
 	};
 
 inline TUint8 CL2CapSAPSignalHandler::GetOutstandingRequestID()
@@ -230,7 +238,7 @@ inline TL2CAPPort CL2CapSAPSignalHandler::RemotePort() const
 	{
 	return iRemotePort;
 	}
-	
+
 inline const TBTDevAddr& CL2CapSAPSignalHandler::RemoteBTAddress() const
 	{
 	return iSAP->RemoteDev();
@@ -280,5 +288,10 @@ inline void CL2CapSAPSignalHandler::SetSignalHandlerErrorAction(MSocketNotify::T
 	{
 	iSignalHandlerErrorAction = aAction;
 	}
-	
+
+inline void CL2CapSAPSignalHandler::ConfigureChannel()
+	{
+	iSigState->ConfigureChannel(*this);
+	}
+
 #endif

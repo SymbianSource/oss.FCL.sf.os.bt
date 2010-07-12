@@ -107,9 +107,9 @@ TUint16 TRfcommFlowStrategyInitial::UsableMTU(const CRfcommSAP& aSAP, TUint8 /*a
 	**/
 	{
 	LOG_FUNC
-	__ASSERT_DEBUG(aSAP.NegotiatedMTU(), Panic(ERfcommBadCalculatedMTU));
+	__ASSERT_DEBUG(aSAP.OptimalMTUForSending(), Panic(ERfcommBadCalculatedMTU));
 
-	return aSAP.NegotiatedMTU();
+	return aSAP.OptimalMTUForSending();
 	}
 
 TBool TRfcommFlowStrategyInitial::AllowWrite(CRfcommSAP& /*aSAP*/)
@@ -372,10 +372,10 @@ TUint16 TRfcommFlowStrategyCreditBased::UsableMTU(const CRfcommSAP& aSAP, TUint8
 	**/
 	{
 	LOG_FUNC
-	__ASSERT_DEBUG(aSAP.NegotiatedMTU(), Panic(ERfcommBadCalculatedMTU));
+	__ASSERT_DEBUG(aSAP.OptimalMTUForSending(), Panic(ERfcommBadCalculatedMTU));
 
 	//Allow for possible credit in header.
-	return (STATIC_CAST(TUint16, (aSAP.NegotiatedMTU() - (aCredit?1:0))));
+	return (STATIC_CAST(TUint16, (aSAP.OptimalMTUForSending() - (aCredit?1:0))));
 	}
 
 TBool TRfcommFlowStrategyCreditBased::AllowWrite(CRfcommSAP& aSAP)

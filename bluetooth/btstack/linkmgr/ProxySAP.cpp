@@ -1,4 +1,4 @@
-// Copyright (c) 2003-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2003-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -26,6 +26,7 @@
 #include "linkmgr.h"
 
 #include <bluetooth/hci/aclpacketconsts.h>
+#include <bluetooth/hci/hciconsts.h>
 
 #ifdef __FLOG_ACTIVE
 _LIT8(KLogComponent, LOG_COMPONENT_LINKMGR);
@@ -552,7 +553,7 @@ TInt CBTProxySAP::SAPSetOption(TUint aLevel,TUint aName, const TDesC8 &aOption)
 					}
 				else
 					{
-					iRequestedActiveMode = option ? ETrue : EFalse;
+					iRequestedActiveMode = option;
 					if(iRequestedActiveMode)
 						{
 						localPriority = ETrue;
@@ -766,12 +767,12 @@ void CBTProxySAP::Shutdown(TCloseType aCloseType,const TDesC8& aDisconnectOption
 			return;
 			}										
 
-		if (aDisconnectOption == KDisconnectAllPhysicalLinks)
+		if (aDisconnectOption == KDisconnectAllPhysicalLinks || aDisconnectOption == KDisconnectAllPhysicalLinksForPowerOff)
 			{
 			// Disconnecting All BT Physical Links
 			// Only support link *termination*, this is done as normal cos esock weirdness
 			__ASSERT_ALWAYS(aCloseType == CServProviderBase::ENormal, Panic(EBTProxySAPInvalidTerminate));
-			rerr = iLinksMan.TerminateAllPhysicalLinks(this);
+			rerr = iLinksMan.TerminateAllPhysicalLinks(this, aDisconnectOption == KDisconnectAllPhysicalLinksForPowerOff ? ERemoteAboutToPowerOff : ERemoteUserEndedConnection);
 			LOG2(_L("Proxy SAP 0x%08x -- Terminating all PHY Links, error: %d"), this, rerr);
 			
 			// If there was an error terminating any of the physical links then we can 

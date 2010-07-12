@@ -1,4 +1,4 @@
-// Copyright (c) 2003-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2003-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -19,6 +19,7 @@
 #include <bluetooth/logger.h>
 #include <bt_sock.h>
 #include <bluetooth/hci/aclpacketconsts.h>
+#include <bluetooth/hci/hciconsts.h>
 
 #include "ACLSAP.h"
 #include "physicallinks.h"
@@ -1089,13 +1090,7 @@ void CACLLink::BindAndConnectPhysicalLinkL()
 		CPhysicalLink* physicalLink = &iLinksMan.NewPhysicalLinkL(iRemoteDev);
 		// physicalLink is owned by the physical links manager.
 		User::LeaveIfError(BindLink(EACLLink, *physicalLink));
-		TInt err = iPhysicalLink->Connect();
-		if(err != KErrNone)
-			{
-			// If we failed to connect then we should roll back the attachment
-			ClearPhysicalLink();
-			User::Leave(err);
-			}
+		iPhysicalLink->Connect();
 		}
 	}
 
@@ -1333,53 +1328,34 @@ void CACLLink::Shutdown(TCloseType aOption, const TDesC8& /*aDisconnectionData*/
 	iState->Shutdown(*this, aOption);
 	}
 
-
 void CACLLink::NotifyDataToSocket(TUint8 aFlag, const TDesC8& aData)
 	{
 	LOG_FUNC
-	const TUint8 KFlagHeaderSize =1;
 /*
 	The design of the protocol specification for L2CAP
 	means that both we and L2CAP need to know the flag parameter
 	for now we just signal one datagram (*could* signal two - one for flag: but that's just as grubby)
 */
 
-
-	// make a new chain consisting of Flag(1st octet) followed by Data.
 	RMBufChain aclData;
-	#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
-	THCIConnHandle connH=iHandle;
-	aclData = const_cast<CHCIFacade&>(iLinksMan.HCIFacade()).TakeInboundACLDataBufferFromPool(connH);
-	aclData.CopyIn(aData,KFlagHeaderSize);
-	aclData.TrimEnd(aData.Length()+KFlagHeaderSize); //return the reserved MBufs we didn't need
-													 //to the global pool
-	#else
-	TRAPD(err, aclData.CreateL(aData, KFlagHeaderSize));
 
+	CACLDataQController& aclQctrl = iProtocol.ACLController();
+	THCIConnHandle connH = iHandle;
+	TRAPD(err, aclData = aclQctrl.PopulateInboundBufferL(connH, aFlag, aData));
 	if (err)
 		{
-		//Since HC->H flow control is off, and we have run out of MBufs
-		//there is nothing we can do here but drop or disconnect the link
-		//due to limited resources. We drop.
+		// We have run out of MBufs, there is nothing we can do here but 
+		// 1) drop the received packet, or
+		// 2) disconnect the link
+		// We drop the packet to be multi-profile "friendly"
+		LOG1(_L8("*** ERROR: Dropping ACL Data!!! (error = %d) ***"), err);
 		return;
 		}
-	#endif
-
-	aclData.First()->Ptr()[0] = aFlag;	// aData is already in the chain
-
-
+	
 	// slap onto the RMBufPacketQ
 	iInboundBuffer.Append(aclData); // transfers
 	
-
-	#ifndef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
-	if (!err)
-		{
-	#endif
-		iSocket->NewData(1);	// datagrams: could async notify - or get l2cap to drain async
-	#ifndef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
-		}
-	#endif
+	iSocket->NewData(1);	// datagrams: could async notify - or get l2cap to drain async
 	}
 
 

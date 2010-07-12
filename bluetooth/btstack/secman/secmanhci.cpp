@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -118,14 +118,6 @@ MHCICommandQueue& CSecManCommandController::CommandQueue() const
 	return *iCommandQueue;
 	}
 
-void CSecManCommandController::WriteSimplePairingModeL(TUint8 aSimplePairingMode)
-	{
-	LOG_FUNC
-	// Ownership of cmd transfered
-	CWriteSimplePairingModeCommand* cmd = CWriteSimplePairingModeCommand::NewL(aSimplePairingMode);
-	CommandQueue().MhcqAddCommandL(cmd, *this);
-	}
-
 void CSecManCommandController::WriteSimplePairingDebugModeL(TUint8 aSimplePairingDebugMode)
 	{
 	LOG_FUNC
@@ -207,10 +199,8 @@ void CSecManCommandController::MhcqcCommandEventReceived(const THCIEventBase& aE
 	switch(aEvent.EventCode())
 		{
 	case ECommandCompleteEvent:
-		{
 		CommandCompleteEvent(aEvent);
 		break;
-		}
 		
 	case ECommandStatusEvent:
 		CommandStatusEvent(aEvent);
@@ -314,11 +304,7 @@ void CSecManCommandController::CommandCompleteEvent(const THCIEventBase& aEvent)
 	THCIErrorCode hciErr = aEvent.ErrorCode();
 	
 	switch (opcode)
-		{
-	case KWriteSimplePairingModeOpcode:
-		WriteSimplePairingModeOpcode(completeEvent);
-		break;
-		
+		{	
 	case KRemoteOOBDataRequestReplyOpcode:
 		RemoteOOBDataRequestReplyOpcode(completeEvent);
 		break;
@@ -362,17 +348,6 @@ void CSecManCommandController::CommandStatusEvent(const THCIEventBase& aEvent)
 	const TCommandStatusEvent& commandStatusEvent = TCommandStatusEvent::Cast(aEvent);
 	THCIOpcode opcode = commandStatusEvent.CommandOpcode();
 	THCIErrorCode hciErr = commandStatusEvent.ErrorCode();
-	}
-
-void CSecManCommandController::WriteSimplePairingModeOpcode(const THCICommandCompleteEvent& aCompleteEvent)
-	{
-	LOG_FUNC
-	if(aCompleteEvent.ErrorCode() == EOK)
-		{
-		iSecMan.SetLocalSimplePairingMode(ETrue);
-		}
-	// if we got an error then we make the reasonable assumption that the local controller is not
-	// capable of secure simple pairing.
 	}
 
 void CSecManCommandController::RemoteOOBDataRequestReplyOpcode(const THCICommandCompleteEvent& aCompleteEvent)

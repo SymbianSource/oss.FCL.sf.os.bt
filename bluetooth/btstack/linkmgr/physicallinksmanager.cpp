@@ -316,7 +316,7 @@ void CPhysicalLinksManager::UpdateTerminatingProxy(CBTProxySAP* aProxySAP)
 	iTerminatingProxy=aProxySAP;
 	}
 	
-TInt CPhysicalLinksManager::TerminateAllPhysicalLinks(CBTProxySAP* aProxySAP)
+TInt CPhysicalLinksManager::TerminateAllPhysicalLinks(CBTProxySAP* aProxySAP, THCIErrorCode aErrorCode)
 	{
 	TInt count=iPhysicalLinks.Count();
 	TInt retVal = (count==0) ? KErrNotFound : KErrNone;
@@ -325,7 +325,7 @@ TInt CPhysicalLinksManager::TerminateAllPhysicalLinks(CBTProxySAP* aProxySAP)
 		{
 		// If any one of the physical links return an error then this 
 		// function needs to return an error.
-		TInt err = iPhysicalLinks[i]->Terminate(ERemoteUserEndedConnection);
+		TInt err = iPhysicalLinks[i]->Terminate(aErrorCode);
 		if (err != KErrNone)
 			{
 			retVal=err;
@@ -1309,16 +1309,30 @@ TInt CBluetoothPrefetchManager::RegisterForPrefetching(const TBTDevAddr& aAddr, 
 	return KErrNone;
 	}
 
-TBool CBluetoothPrefetchManager::IsPrefetchAvailable(const TBTDevAddr& aAddr, TBTPinCode& aPinCode)
+
+TInt CBluetoothPrefetchManager::IsPrefetchAvailable(const TBTDevAddr& aAddr) const
+    {
+    return iPrefetchedPins.Find(aAddr, CompareAddressInStore);
+    }
+
+TBool CBluetoothPrefetchManager::GetPrefetch(const TBTDevAddr& aAddr, TBTPinCode& aPinCode) const
+    {
+    TInt ix = IsPrefetchAvailable(aAddr);
+    if (ix >= 0)
+        {
+        aPinCode.Copy(iPrefetchedPins[ix].iPin);
+        return ETrue;
+        }
+    return EFalse;
+    }
+
+void CBluetoothPrefetchManager::RemovePrefetch(const TBTDevAddr& aAddr)
 	{
-	TInt ix = iPrefetchedPins.Find(aAddr, CompareAddressInStore);
-	if (ix < 0)
+	TInt ix = IsPrefetchAvailable(aAddr);
+	if (ix >= 0)
 		{
-		return EFalse;
+        iPrefetchedPins.Remove(ix);
 		}
-	aPinCode.Copy(iPrefetchedPins[ix].iPin);
-	iPrefetchedPins.Remove(ix);
-	return ETrue;
 	}
 
 TInt CBluetoothPrefetchManager::PINCodeRequestReply(const TBTDevAddr& aDevAddr, const TDesC8& aPin) const

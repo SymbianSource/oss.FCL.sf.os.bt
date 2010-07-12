@@ -89,6 +89,7 @@ public:
 	void Open();
 	void Close();
 	TBool IsOpen();
+	TBool IsErrored();
 	TInt MaxDataSize();
 
 	// Rfcomm events
@@ -142,6 +143,7 @@ public:
 	virtual void Open(CRfcommMuxChannel& aContext);
 	virtual void Close(CRfcommMuxChannel& aContext);
 	virtual TBool IsOpen(CRfcommMuxChannel& aContext);
+	virtual TBool IsErrored(CRfcommMuxChannel& aContext);
 	virtual void UA(CRfcommMuxChannel& aContext);
 	virtual void DISC(CRfcommMuxChannel& aContext);
 	virtual void DM(CRfcommMuxChannel& aContext);
@@ -221,6 +223,7 @@ public:
 	void Open(CRfcommMuxChannel& aContext);
 	void Close(CRfcommMuxChannel& aContext);
 	TBool CanAttachSAP();
+	TBool IsErrored(CRfcommMuxChannel& aContext);
 	};
 
 /**

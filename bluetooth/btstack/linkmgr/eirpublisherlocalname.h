@@ -1,4 +1,4 @@
-// Copyright (c) 2008-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2008-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -17,8 +17,10 @@
 #define EIRPUBLISHERLOCALNAME_H
 
 #include <e32base.h>
-#include <bluetooth/eirpublisherbase.h>
 #include <bluetooth/hci/hciconsts.h>
+#include "eirmansession.h"
+
+class CEirManServer;
 
 //**********************************
 // CEirPublisherLocalName
@@ -26,24 +28,27 @@
 /**
 Provides functionality to publish 16 bit UUIDs to EIR.
 **/
-NONSHARABLE_CLASS(CEirPublisherLocalName) : public CEirPublisherBase
+NONSHARABLE_CLASS(CEirPublisherLocalName): public CBase, public MEirInternalSessionNotifier
 	{
 public:
-	static CEirPublisherLocalName* NewL();
+	static CEirPublisherLocalName* NewL(CEirManServer& aServer);
 	~CEirPublisherLocalName();
 	void UpdateName(const TDesC8& aName);
 
 private:
 	CEirPublisherLocalName();
-	void ConstructL();
+	void ConstructL(CEirManServer& aServer);
 
-	// From MEirPublisherNotifier
-	virtual void MepnSpaceAvailable(TUint aBytesAvailable);
-	virtual void MepnSetDataError(TInt aResult);
+	// From MEirInternalSessionNotifier
+	virtual void MeisnSpaceAvailable(TUint aBytesAvailable);
+	virtual void MeisnRegisterComplete(TInt aResult);
+	virtual void MeisnSetDataError(TInt aError);
 
 private:
 	TBuf8<KHCILocalDeviceNameMaxLength> iLocalName;
 	HBufC8* iPublishBuf;
+	CEirManInternalSession* iSession;
+	TBool		iTagRegistered;
 	};
 	
 #endif	// EIRPUBLISHERLOCALNAME_H

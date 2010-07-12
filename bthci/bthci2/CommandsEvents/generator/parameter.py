@@ -1,4 +1,4 @@
-# Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+# Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 # All rights reserved.
 # This component and the accompanying materials are made available
 # under the terms of "Eclipse Public License v1.0"
@@ -19,6 +19,24 @@ def makeParameters(aParams):
     
     for p in aParams:
         param_str += p.toParameter() + ', '
+
+    return param_str[:-2]
+    
+def makeOwnedParameters(aParams):
+    param_str = ""
+    
+    for p in aParams:
+        if p.Owned():
+            param_str += p.toParameter() + ', '
+
+    return param_str[:-2]
+    
+def makeNonOwnedParameters(aParams):
+    param_str = ""
+    
+    for p in aParams:
+        if not p.Owned():
+            param_str += p.toParameter() + ', '
 
     return param_str[:-2]
 
@@ -145,3 +163,8 @@ class Parameter:
     # Returns a string of the format 'iName = aName;'
     def memberAssignment(self):
         return 'i' + self.getName() + ' = a' + self.getName() + ';'
+        
+    def Owned(self):
+        return self.iArray != ''
+    
+    

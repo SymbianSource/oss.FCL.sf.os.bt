@@ -1,4 +1,4 @@
-// Copyright (c) 2001-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2001-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -69,7 +69,7 @@ const TUint KBluetoothMinHCBufs = 5;
 // Physical Link Config
 //
 
-const TUint16 KLinkMgrIncomingBufferSize = 672; //L2Cap Default MTU
+const TUint16 KStackACLBuffersSize = 1021; // size of 3DH-5 (largest packet size)
 const TUint16 KStackACLBuffersNum = 16;
 const TUint16 KStackACLBuffersTideMarkNum = 8;
 
@@ -80,6 +80,9 @@ const TUint16 KStackSCOBuffersNum = 1;
 const TUint8 KStackSCOBuffersSize = 0;
 const TUint16 KStackSCOBuffersNum = 0;
 #endif
+
+const TUint16 KLinkMgrIncomingBufferHeaderSize = 1; // header is just the ACL flags
+const TUint16 KLinkMgrIncomingBufferSize = KStackACLBuffersSize + KLinkMgrIncomingBufferHeaderSize;
 
 static const THCIScanEnable KHCIDefaultScanMode =  EInquiryAndPageScan;
 

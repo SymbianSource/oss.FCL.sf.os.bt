@@ -19,6 +19,7 @@
 #include <e32property.h>
 #include <f32file.h>
 #include <s32file.h>
+#include <bluetooth/hci/hciconsts.h>
 #include "btmanserverutil.h"
 #include "btmanserverburmgr.h"
 #include "BTManServer.h"
@@ -306,9 +307,9 @@ void CBTManServerBURMgr::SetLocalAddress(TBTDevAddr& aLocalAddr)
 
 /**
 Receives notification that a restore file has been provided by the Secure Backup Engine.
-Upon receiving this notification, the restore file is renamed to have the appropriate extension and 
-the local device name is updated in the registry. The restore of the remote devices table is postponed
-until the next time BTManServer starts, so any ongoing BT connections are not affected.
+Upon receiving this notification, the restore file is renamed to have the appropriate extension 
+The actual restore to the registry is postponed until the next time BTManServer starts, 
+so any ongoing BT connections are not affected.
 **/
 void CBTManServerBURMgr::RestoreFileReady()
 	{
@@ -317,8 +318,6 @@ void CBTManServerBURMgr::RestoreFileReady()
 
 	// Rename restore file
 	RenameBackupFileForRestore();
-	// Attempt to update local device name in the registry (best efforts only)
-	TRAP_IGNORE(UpdateLocalDeviceNameL());
 	}
 
 void CBTManServerBURMgr::HandleStateNormal()
@@ -524,7 +523,7 @@ void CBTManServerBURMgr::HandleStateProcessRestoreFileL()
 
 	// Start restore file processing
 	iRestoreHandler = CBTRestoreHandler::NewL(*this, iBTManServer);
-	iRestoreHandler->RestoreRemoteDeviceTableL(iLocalAddr);
+	iRestoreHandler->RestoreRegistryL(iLocalAddr);
 
 	iStateMachine->TransitionState(EBTBUREventProcessRestoreFileComplete);
 	}
@@ -710,24 +709,6 @@ void CBTManServerBURMgr::RenameBackupFileForRestore()
 		}
 	}
 
-/**
-Parses the restore file and updates the loal device name in the registry.
-This update takes place as soon as the restore file is available, regardless of whether or not the local device
-address matches that held in the registry. If the local device name has already been set to a non-default value,
-then it is not modified.
-**/
-void CBTManServerBURMgr::UpdateLocalDeviceNameL()
-	{
-	LOG_FUNC
-		
-	CBTRestoreHandler* restoreHandler = CBTRestoreHandler::NewL(*this, iBTManServer);
-	CleanupStack::PushL(restoreHandler);
-
-	restoreHandler->RestoreLocalDeviceNameL();
-
-	CleanupStack::PopAndDestroy(restoreHandler);
-	}
-
 void CBTManServerBURMgr::RunL()
 	{
 	LOG_FUNC
@@ -865,22 +846,7 @@ CBTRestoreHandler::~CBTRestoreHandler()
 	delete iRegistryData;
 	}
 
-void CBTRestoreHandler::RestoreLocalDeviceNameL()
-	{
-	LOG_FUNC
-
-	LoadRestoreDataL();
-
-	// If the local device name is still default, restore without validating the local address
-	// (otherwise we will not be able to restore this field before the next stack start, which may cause problems with some UIs)
-	CBTRegistry& registry = iManServer.Registry();
-	if (iRegistryData->WriteLocalDeviceNameToRegistryL(registry))
-		{
-		NotifyLocalTableChange();
-		}
-	}
-
-void CBTRestoreHandler::RestoreRemoteDeviceTableL(TBTDevAddr& aLocalAddr)
+void CBTRestoreHandler::RestoreRegistryL(TBTDevAddr& aLocalAddr)
 	{
 	LOG_FUNC
 	__ASSERT_DEBUG(aLocalAddr != TBTDevAddr(), PANIC(KBTBackupPanicCat, EBTBURMgrMissingLocalAddress));
@@ -890,8 +856,14 @@ void CBTRestoreHandler::RestoreRemoteDeviceTableL(TBTDevAddr& aLocalAddr)
 	// Compare local address held in restore file with our local address
 	if (iRegistryData->IsLocalAddressEqualL(aLocalAddr))
 		{
-    		// Proceed with restore of remote devices table
+		// Proceed with restore
 		CBTRegistry& registry = iManServer.Registry();
+
+		if (iRegistryData->WriteLocalDeviceNameToRegistryL(registry))
+			{
+			NotifyLocalTableChange();
+			NotifyLocalDeviceNameChange(iRegistryData->GetLocalDeviceNameL());
+			}
 
 		TInt noRemoteDevices = iRegistryData->CountRemoteDevicesL();
 		for (TInt i = 0; i < noRemoteDevices; i++)
@@ -936,6 +908,39 @@ void CBTRestoreHandler::NotifyLocalTableChange()
 	
 	// Notify the P&S key that the remote devices table has changed
 	iManServer.Publish(KPropertyKeyBluetoothGetRegistryTableChange, KRegistryChangeLocalTable);
+	}
+
+/**
+Sends a notification that the local device name has been changed.
+This notification is observable through the P&S key KPRopertyKeyBluetoothSetDeviceName.
+@param aLocalName The modified local device name as an 8-bit descriptor.
+**/
+void CBTRestoreHandler::NotifyLocalDeviceNameChange(const TDesC8& aLocalName)
+	{
+	LOG_FUNC
+	
+	// The P&S key requires the local device name in unicode format.
+	TBuf16<KMaxBluetoothNameLen> localNameUniCode;
+	localNameUniCode.Copy(aLocalName);
+	
+	NotifyLocalDeviceNameChange(localNameUniCode);
+	}
+
+/**
+Sends a notification that the local device name has been changed.
+This notification is observable through the P&S key KPRopertyKeyBluetoothSetDeviceName.
+@param aLocalName The modified local device name in unicode format.
+**/
+void CBTRestoreHandler::NotifyLocalDeviceNameChange(const TDesC16& aLocalName)
+	{
+	LOG_FUNC
+	
+	// The KPropertyKeyBluetoothSetDeviceName P&S key may or may not exist at this point.
+	TInt err = RProperty::Set( KPropertyUidBluetoothCategory, KPropertyKeyBluetoothSetDeviceName, aLocalName);
+	if (err != KErrNone && err != KErrNotFound)
+		{
+		LOG1(_L("CBTRegistryBURData::NotifyLocalDeviceNameChange() - RProperty::Set() failed with %d"), err);
+		}
 	}
 
 /**
@@ -1544,8 +1549,8 @@ void CBTRegistryBURData::ReadFromRegistryL(CBTRegistry& aRegistry)
 	}
 
 /**
-Updates the persistence table of the registry with local device name held in this instance
-if the registry currently holds a default name.
+Updates the persistence table of the registry with local device name held in this instance.
+The update is only performed if the local name held in this instance differs from that currently held in the registry.
 @param aRegistry The CBTRegistry instance to use for registry access.
 @return ETrue if an update was made to the registry.
 **/
@@ -1554,24 +1559,15 @@ TBool CBTRegistryBURData::WriteLocalDeviceNameToRegistryL(CBTRegistry& aRegistry
 	LOG_FUNC
 
 	TBool updateDone = EFalse;
-
-	// Update device name only if the registry has a default name 
-	TBTLocalDevice defaultDevice;
-	TRAP_IGNORE(aRegistry.GetDefaultDeviceFromIniL(defaultDevice));
-
-	if (!defaultDevice.IsValidDeviceName())
-		{
-		// Could not obtain a default name - use KDefaultLocalName instead
-		defaultDevice.SetDeviceName(KDefaultLocalName);
-		}
-
+	
 	TBTLocalDevice* localDevice = aRegistry.GetLocalDeviceL();
 	CleanupStack::PushL(localDevice);
 
-	if (localDevice->DeviceName() == defaultDevice.DeviceName())
+	const TDesC8& localName = GetLocalDeviceNameL();
+
+	if (localDevice->DeviceName() != localName)
 		{
-		// Local device name is default, update with restored value.
-		localDevice->SetDeviceName(GetLocalDeviceNameL());
+		localDevice->SetDeviceName(localName);
 		aRegistry.UpdateLocalDeviceL(*localDevice);
 		updateDone = ETrue;
 		}
@@ -1600,7 +1596,7 @@ TBool CBTRegistryBURData::WriteRemoteDeviceToRegistryL(CBTRegistry& aRegistry, T
 	const CBTDevice& nextRemDevice = GetRemoteDeviceL(aDeviceIndex);
 	TSecureId nextRemDeviceSid = GetRemoteDeviceEntrySidL(aDeviceIndex);
 
-	// Try to add device to registry. If this fails with KErrAlreadExists, then update existing device.
+	// Try to add device to registry. If this fails with KErrAlreadyExists, then update existing device.
 	TRAPD(err, aRegistry.CreateDeviceL(nextRemDevice, nextRemDevice.IsValidUiCookie(), nextRemDeviceSid));
 
 	if (err == KErrNone)

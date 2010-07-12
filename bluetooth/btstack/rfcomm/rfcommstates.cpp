@@ -1059,8 +1059,10 @@ void TRfcommStateWaitForPNResp::Enter(CRfcommSAP& aSAP)
 #ifdef _DEBUG
 	aSAP.iProxyForRemoteCreditsSupplied = params.iInitialCredit;
 #endif
-	aSAP.iMTU=params.iMaxFrameSize;  // Remember the newly calculated MTU
-	LOG2(_L("RFCOMM: Sending PN (Calculated MTU %d from frame size %d)"), aSAP.iMTU, aSAP.iMux->GetMaxDataSize());	
+	aSAP.iNegotiatedMTU=params.iMaxFrameSize;  // Remember the newly calculated MTU
+	aSAP.iOptimalMTUForSending=params.iMaxFrameSize;  // Remember the newly calculated MTU
+
+	LOG2(_L("RFCOMM: Sending PN (Calculated MTU %d from frame size %d)"), aSAP.iNegotiatedMTU, aSAP.iMux->GetMaxDataSize());	
 	
 	TInt error=aSAP.iMux->SendPN(aSAP, params);
 
@@ -1106,7 +1108,8 @@ void TRfcommStateWaitForPNResp::PNResp(CRfcommSAP& aSAP, TRfcommPortParams& aPar
 
 		// If we get an error continue but with a possible non-optimal MTU value. iMTU is the max
 		// data size so remove the max Rfcomm header size as these will get added later.
- 		aSAP.iMTU = (error == KErrNone) ? restrictedMtu() - KMaxFrameOverhead : aParams.iMaxFrameSize;
+ 		aSAP.iOptimalMTUForSending = (error == KErrNone) ? restrictedMtu() - KMaxFrameOverhead : aParams.iMaxFrameSize;
+ 		aSAP.iNegotiatedMTU = aParams.iMaxFrameSize;
  		error = KErrNone;
  		
 		}
@@ -1156,7 +1159,7 @@ void TRfcommStateWaitForUA::UA(CRfcommSAP& aSAP)
 		{
 		TRAPD(err, 
 			  aSAP.iDataBuffer.SetLengthL(aSAP.iMux->FlowStrategy()->DataBufferMultiple()*
-										  aSAP.iMTU));
+										  aSAP.iNegotiatedMTU));
 		if(err != KErrNone)
 			{
 			// Failed to alloc, so fail this connect and error
@@ -1165,8 +1168,8 @@ void TRfcommStateWaitForUA::UA(CRfcommSAP& aSAP)
 			return;
 			}
 		
-		aSAP.iHighTideMark=KRfcommSAPBufferHighMultiple*(aSAP.iMTU);
-		aSAP.iLowTideMark=KRfcommSAPBufferLowMultiple*(aSAP.iMTU);
+		aSAP.iHighTideMark=KRfcommSAPBufferHighMultiple*(aSAP.iNegotiatedMTU);
+		aSAP.iLowTideMark=KRfcommSAPBufferLowMultiple*(aSAP.iNegotiatedMTU);
 
 		
 		ChangeState(aSAP, CRfcommStateFactory::EOpen);
@@ -1410,14 +1413,17 @@ void TRfcommStateWaitForSABM::SABM(CRfcommSAP& aSAP, CRfcommMuxer& aMux, TUint8 
 	We received a SABM - Tell our parent SAP that we're connected
 	**/
 	{
-	if(aSAP.iMTU==0)	//	i.e. We've not entered into any negotiations...
-		aSAP.iMTU=KRfcommDefaultMTU;	//	...so set to default.
+	if(aSAP.iNegotiatedMTU==0)	//	i.e. We've not entered into any negotiations...
+		{
+		aSAP.iNegotiatedMTU=KRfcommDefaultMTU;	//	...so set to default.
+		aSAP.iOptimalMTUForSending=KRfcommDefaultMTU;
+		}
 
 	//	We can set up the Data Buffer since MTU negotiations are now over.
 	//TRAPD(err, aSAP.iDataBuffer.SetLengthL(KRfcommSAPBufferMultiple*aSAP.iMTU));
 		TRAPD(err, 
 			  aSAP.iDataBuffer.SetLengthL(aMux.FlowStrategy()->DataBufferMultiple()*
-										  aSAP.iMTU));
+										  aSAP.iNegotiatedMTU));
 	if(err != KErrNone)
 		{
 		// Failed to alloc, so fail this connect and error
@@ -1426,8 +1432,8 @@ void TRfcommStateWaitForSABM::SABM(CRfcommSAP& aSAP, CRfcommMuxer& aMux, TUint8 
 		return;
 		}
 	
-	aSAP.iHighTideMark=KRfcommSAPBufferHighMultiple*(aSAP.iMTU);
-	aSAP.iLowTideMark=KRfcommSAPBufferLowMultiple*(aSAP.iMTU);
+	aSAP.iHighTideMark=KRfcommSAPBufferHighMultiple*(aSAP.iNegotiatedMTU);
+	aSAP.iLowTideMark=KRfcommSAPBufferLowMultiple*(aSAP.iNegotiatedMTU);
 
 	ChangeState(aSAP,CRfcommStateFactory::EWaitForIncomingSecurityCheck);
 	}
@@ -1441,19 +1447,20 @@ void TRfcommStateWaitForSABM::PN(CRfcommSAP& aSAP, TRfcommPortParams& aParams,
 #endif
 	{
 	__ASSERT_DEBUG(aSAP.iMux==&aMux,PanicInState(ERfcommInvalidMuxInSAP));
-	if(aSAP.iMTU==0)
+	if(aSAP.iNegotiatedMTU==0)
 		{
 		//	We have no MTU set for the SAP at the moment. Try to determine
 		//	the upper limit of what we can handle
-		aSAP.iMTU=aSAP.MaximumMTU();
+		aSAP.iNegotiatedMTU=aSAP.MaximumMTU();
+		aSAP.iOptimalMTUForSending= aSAP.NegotiatedMTU();
 		}
 		
-	if(aParams.iMaxFrameSize>aSAP.iMTU || aParams.iMaxFrameSize<=0)
+	if(aParams.iMaxFrameSize>aSAP.iNegotiatedMTU || aParams.iMaxFrameSize<=0)
 		{
 		//	Either the remote device wants a larger MTU or has provided us
 		//	with a nonsensical <=0 one.
 		//	Either way, try to negotiate the MTU to our maximum
-		aParams.iMaxFrameSize=aSAP.iMTU;
+		aParams.iMaxFrameSize=aSAP.iNegotiatedMTU;
 		}
 	else
 		{
@@ -1468,7 +1475,8 @@ void TRfcommStateWaitForSABM::PN(CRfcommSAP& aSAP, TRfcommPortParams& aParams,
 		
 		// If we get an error continue but with a possible non-optimal MTU value. iMTU is the max
 		// data size so remove the max Rfcomm header size as these will get added later.
- 		aSAP.iMTU = (err == KErrNone) ? restrictedMtu() - KMaxFrameOverhead : aParams.iMaxFrameSize;
+ 		aSAP.iOptimalMTUForSending = (err == KErrNone) ? restrictedMtu() - KMaxFrameOverhead : aParams.iMaxFrameSize;
+ 		aSAP.iNegotiatedMTU = aParams.iMaxFrameSize;
  		}	
 
 	if(aParams.iCreditIndicator == (KCBFCCommandFlag >> 4))
@@ -1909,8 +1917,12 @@ void TRfcommStateOpen::NewData(CRfcommSAP& aSAP, const TDesC8& aData)
 	TInt storelen=aSAP.DataBuffer().Add(aData.Ptr(), aData.Length());
 	if(storelen != aData.Length())
 		{
+		__ASSERT_DEBUG(EFalse, PanicInState(ERfCommStateBufferFull));
 		// We've not got room for some of the data
-		LOG(_L("RFCOMM: Warning received data loss"));
+		LOG(_L("RFCOMM: Received data loss - disconnecting"));
+		aSAP.iSocket->Disconnect();
+		ChangeState(aSAP, CRfcommStateFactory::EClosed);
+		return;
 		}
 
 	// Check to see if we need to quench the source

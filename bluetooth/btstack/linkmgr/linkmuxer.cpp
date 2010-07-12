@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -68,7 +68,10 @@ void CLinkMuxer::ConstructL()
 	}
 
 CLinkMuxer::CLinkMuxer(CLinkMgrProtocol& aLinkMgrProtocol, CHCIFacade& aHCIFacade)
-	: iHCIFacade(aHCIFacade), iChannelsFree(KHCITransportNoChannels), iLinkMgrProtocol(aLinkMgrProtocol) 
+	: iHCIFacade(aHCIFacade)
+	, iChannelsFree(KHCITransportNoChannels)
+	, iFlowControlMode(EFlowControlToHostControllerOnly) // by design flow control to the controller is always used
+	, iLinkMgrProtocol(aLinkMgrProtocol)
 /**
 	We expect the transport to notify us when the transport channels are ready
 **/
@@ -189,56 +192,61 @@ TBool CLinkMuxer::CanWriteSCOData()
 	}
 #endif
 
+void CLinkMuxer::ResetFlowControlMode()
+	{
+	LOG_FUNC
+	iFlowControlMode = EFlowControlToHostControllerOnly;
+	iCtrlerToHostSet = EFalse;
+	}
+
 void CLinkMuxer::RecordHostControllerToHostFlowControl(TBool aFlowFlag)
 /**
-	Called when HCIFacade receives a Command Complete event to the SetHostControllerToHostFlowControl command
-	@param	aFlowFlag - true is command succeeded, false otherwise
-
+	Called when HCIFacade successfully configures some level of controller to host
+	flow control
+	@param	aFlowFlag - true if flow control set-up succeeded, false otherwise
 **/
-    {
+	{
 	LOG_FUNC
-     // check our current mode
-    switch (iFlowControlMode)
-        {
-        case ENoFlowControl:
-            {
-#ifdef _DEBUG
-            if(aFlowFlag) 
-                {iFlowControlMode=EFlowControlFromHostControllerOnly;}
-#else
-            Panic(ELinkMgrNoFlowControlSetInReleaseBuild);
-#endif
-            break;
-        }
-        case EFlowControlToHostControllerOnly:
-            {
-            if(aFlowFlag)
-                {iFlowControlMode=ETwoWayFlowControlEnabled;}
-            break;
-            }
-        case EFlowControlFromHostControllerOnly:
-            {
-#ifdef _DEBUG
-            if(aFlowFlag==EFalse)
-                {iFlowControlMode=ENoFlowControl;}
-#else
-            Panic(ELinkMgrNoFlowControlSetInReleaseBuild);
-#endif
-            break;
-            }
-        case ETwoWayFlowControlEnabled:
-            {
-            if(aFlowFlag==EFalse)
-				{
-				// tried to do two-way but the HC can't to HC->H FC
-				iFlowControlMode=EFlowControlToHostControllerOnly;
-				}
-            break;
-            }
-		default:
-			Panic(ELinkMgrNoSuchFlowControlMode);
-        } //switch
-	}    
+	
+	__ASSERT_DEBUG(!iCtrlerToHostSet, Panic(ELinkMgrFlowControlUnexpectedUpdate));
+	
+	switch (iFlowControlMode)
+		{
+	case EFlowControlToHostControllerOnly:
+		if(aFlowFlag)
+			{
+			// Success! We're using using two way flow control
+			iFlowControlMode = ETwoWayFlowControlEnabled;
+			}
+		else
+			{
+			// Fail! we only allow one shot to set this up on initialisation
+			// so inform the data controller that any reserved memory can be
+			// be released.
+			iDataController->NoExplicitInboundPoolNeeded();
+			}
+		break;
+		
+	case ETwoWayFlowControlEnabled:
+		// We shouldn't get this twice (we only have one shot of setting it up
+		// and to reach this point we've been in this function once before).
+		break;
+	
+	case EFlowControlFromHostControllerOnly:
+		// fall-through
+	case ENoFlowControl:
+		Panic(ELinkMgrNoFlowControlSetInReleaseBuild);
+		break;
+	
+	default:
+		Panic(ELinkMgrNoSuchFlowControlMode);
+		break;
+		}
+	
+	iCtrlerToHostSet = ETrue;
+	}
+	
+
 
 
 CACLDataQController* CLinkMuxer::HandleLocalReadBufferSizeResult(

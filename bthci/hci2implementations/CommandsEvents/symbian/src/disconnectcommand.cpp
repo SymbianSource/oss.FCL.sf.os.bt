@@ -81,9 +81,13 @@ CDisconnectCommand::~CDisconnectCommand()
 	{
 	if (aEvent.EventCode() == EDisconnectionCompleteEvent)
 		{
-		aMatchesCmd = ETrue;
-		aConcludesCmd = ETrue;
-		aContinueMatching = EFalse;
+		TDisconnectionCompleteEvent& event = TDisconnectionCompleteEvent::Cast(aEvent);
+		if (event.ConnectionHandle() == ConnectionHandle())
+			{
+			aMatchesCmd = ETrue;
+			aConcludesCmd = ETrue;
+			aContinueMatching = EFalse;
+			}
 		}
 	// Command Status Event and default Command Complete Event matching
 	// is implemented in the base class.  If we haven't matched already

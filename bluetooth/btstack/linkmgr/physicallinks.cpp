@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -145,6 +145,7 @@ CPhysicalLink::~CPhysicalLink()
 	delete iPhysicalLinkMetrics;
 	delete iPinRequester;
 	delete iNumericComparator;
+	delete iUserConfirmer;
 	delete iPasskeyEntry;
 	delete iArbitrationDelay;
 	delete iRoleSwitchCompleteCallBack;
@@ -556,6 +557,10 @@ void CPhysicalLink::UpdateFromInquiryCache()
 		{
 		iDevice.SetClockOffset(jle.iClockOffset);
 		}
+	if(juice->IsCoDFromHCI())
+		{
+		iDevice.SetDeviceClass(jle.iCoD);
+		}
 	}
 
 void CPhysicalLink::StoreDeviceL( TBool aPreventDeviceAddition )
@@ -923,7 +928,12 @@ void CPhysicalLink::SCODataReceived(THCIConnHandle aConnH, const TDesC8& aData)
 void CPhysicalLink::ConnectionComplete(THCIErrorCode aErr, const TBTConnect& aConn)
 	{
 	LOG_FUNC
-	if (aErr == KErrNone)
+	ConnectionComplete(CHciUtil::SymbianErrorCode(aErr), aConn);
+	}
+
+void CPhysicalLink::ConnectionComplete(TInt aResult, const TBTConnect& aConn)
+	{
+	if (aResult == KErrNone)
 		{
 		if(aConn.iLinkType == ESCOLink && !iSyncLogicalLink)
 			{
@@ -932,12 +942,9 @@ void CPhysicalLink::ConnectionComplete(THCIErrorCode aErr, const TBTConnect& aCo
 			//a remote device to respond to a connection request.
 			iLinksMan.Baseband().UpdateModelForConnectionError(aConn.iBdaddr, aConn.iLinkType);
 
-			if(aErr==EOK) // if error, aConn.iConnH will refer to the ACL link used to initialise the SCO link, so dont disconnect that
-				{
-				//The baseband might actually have established a SCO link, so send a Disconnect.
-				//If no SCO link exists the command will fail gracefully.
-				TRAP_IGNORE(iLinksMan.HCIFacade().DisconnectL(aConn.iConnH, ERemoteUserEndedConnection));
-				}
+			//The baseband might actually have established a SCO link, so send a Disconnect.
+			//If no SCO link exists the command will fail gracefully.
+			TRAP_IGNORE(iLinksMan.HCIFacade().DisconnectL(aConn.iConnH, ERemoteUserEndedConnection));
 
 			return;
 			}
@@ -985,7 +992,7 @@ void CPhysicalLink::ConnectionComplete(THCIErrorCode aErr, const TBTConnect& aCo
 			if (aConn.iEncryptMode)
 				{
 				// pretend there's been an encryption event
-				EncryptionChange(aErr, aConn.iConnH, aConn.iEncryptMode);
+				EncryptionChange(EOK, aConn.iConnH, aConn.iEncryptMode);
 				}
 			}
 
@@ -1057,13 +1064,13 @@ void CPhysicalLink::ConnectionComplete(THCIErrorCode aErr, const TBTConnect& aCo
 			}
 
 		iLinksMan.Baseband().UpdateModelForConnectionError(aConn.iBdaddr, aConn.iLinkType);
-		NotifyLogicalLinkError(aConn.iLinkType, CHciUtil::SymbianErrorCode(aErr));
+		NotifyLogicalLinkError(aConn.iLinkType, aResult);
 		if (aConn.iLinkType == EACLLink)
 			{
 			// BT 1.2 says that as the ACL Link goes up and down, so does the physical link
 			// so if the ACL Link has gone, so has this
 			// for SCO we remain in place.
-			TBTBasebandEventNotification event(ENotifyPhysicalLinkError, CHciUtil::SymbianErrorCode(aErr));
+			TBTBasebandEventNotification event(ENotifyPhysicalLinkError, aResult);
 			NotifyStateChange(event);
 			delete this;
 			}
@@ -1696,73 +1703,60 @@ TInt CPhysicalLink::Arbitrate(TBool aImmediately, TBool aLocalPriority)
 	{
 	LOG_FUNC
 	if (!IsConnected())
+		{
+		LOG(_L8("Physical link not connected, no arbitration executed"));
 		return KErrDisconnected;
-
-	if ( aImmediately )
-		{
-		iArbitrationDelay->Cancel();
-		return DoArbitrate(aLocalPriority);		
 		}
-	else if (iArbitrationDelay->IsActive())
-		{
-		return KErrNone;
-		}
-	else
-		{
-		iArbitrationDelay->Start(aLocalPriority);
-		return KErrNone;
-		}
+	// The arbitration delay object will decide how much delay
+	return iArbitrationDelay->Start(aImmediately, aLocalPriority);
 	}
 
 TInt CPhysicalLink::DoArbitrate(TBool aLocalPriority)
 	{
+	LOG_FUNC
 	if (!IsConnected())
 		{
+		LOG(_L8("Physical link not connected, no arbitration executed"));
 		return KErrDisconnected;
 		}
 
 	//start arbitrate process with what our local controller supports
 	TUint8 allowedModesMask = EHoldMode | EParkMode | ESniffMode; // local features sorted out later
-	TBool roleSwitchAllowed = EFalse;
-
- 	if (iLinksMan.LinkManagerProtocol().IsRoleSwitchSupportedLocally() && iLinksMan.RoleSwitchAllowed())
- 		{
- 		roleSwitchAllowed = ETrue;
- 		}
-
+	TBool roleSwitchAllowed = iLinksMan.LinkManagerProtocol().IsRoleSwitchSupportedLocally() && iLinksMan.RoleSwitchAllowed();
+	LOG2(_L8("Arbitration: link policy (LPM:0x%02x, Role:0x%x) - Prior to proxies"), allowedModesMask, roleSwitchAllowed);
+	
 	// ask proxies what they want from the PHY
- 	TUint8 requestedModeMask = 0;
- 	TUint8 requestedMode = 0;
- 	TBool activeModeIsRequested = EFalse;
+	TUint16 requestedModeMask = 0; // mask of current LPM requests from proxy's
+	static const TUint16 KExplicitActiveMode = 0x0100; // special bit for explicit active mode requests
+	
 	TSglQueIter<CBTProxySAP> iter(iProxySAPs);
 	while (iter)
 		{
 		CBTProxySAP* proxy = iter++;
 
- 		requestedMode = proxy->GetRequestedModes();
- 		requestedModeMask |= requestedMode;
+		TUint8 requestedMode = proxy->GetRequestedModes();
+		requestedModeMask |= requestedMode;
 
-		if (requestedMode == EActiveMode && proxy->RequestedActiveMode())
- 			{
- 			// An Active Mode request will override all other local low power mode requests
- 			// but continue to collect the requirement from the other proxies..
- 			activeModeIsRequested = ETrue;
- 			}
+		TBool explicitActiveModeRequest = proxy->RequestedActiveMode();
+		if (requestedMode == EActiveMode && explicitActiveModeRequest)
+			{
+			requestedModeMask |= KExplicitActiveMode;
+			}
 
-		allowedModesMask &= proxy->GetAllowedModes();
-		roleSwitchAllowed &= proxy->IsRoleSwitchAllowed();
+		TUint8 allowedModes = proxy->GetAllowedModes();
+		allowedModesMask &= allowedModes;
+		
+		TBool roleSwitchAllowedByProxy = proxy->IsRoleSwitchAllowed();
+		roleSwitchAllowed = roleSwitchAllowed && roleSwitchAllowedByProxy;
+		
+		LOG4(_L8("Arbitration: Proxy(0x%08x) - requested mode = 0x%04x, link policy (LPM:0x%02x, Role:0x%x)"), proxy, requestedMode, allowedModes, roleSwitchAllowedByProxy);
 		}
-
- 	if (activeModeIsRequested)
- 		{
- 		// Any Active Mode request will override all other low power mode requests,
- 		// so overwrite the requestedModeMask but keep allowedModesMask and roleSwitchAllowed
- 		// as specified by all the local proxies
- 		requestedModeMask = EActiveMode;
- 		}
+	LOG2(_L8("Arbitration: link policy (LPM:0x%02x, Role:0x%x) - after proxies"), allowedModesMask, roleSwitchAllowed);
 
 	// clear out modes not supported by local Controller
+	// Future improvement - what about modes supported by the remote device?
 	allowedModesMask &= iLinksMan.LinkManagerProtocol().ModesSupportedLocally();
+	LOG2(_L8("Arbitration: link policy (LPM:0x%02x, Role:0x%x) - only supported modes"), allowedModesMask, roleSwitchAllowed);
 
 	if(iOverrideParkRequests)
 		{
@@ -1770,13 +1764,11 @@ TInt CPhysicalLink::DoArbitrate(TBool aLocalPriority)
 		// The only way to guarantee this is to disallow PARK via the link policy settings.
 		allowedModesMask &= ~EParkMode;
 		}
+	LOG2(_L8("Arbitration: link policy (LPM:0x%02x, Role:0x%x) - overrides applied"), allowedModesMask, roleSwitchAllowed);
 
-	if(allowedModesMask != iLinkPolicy.LowPowerModePolicy()
-		|| roleSwitchAllowed != iLinkPolicy.IsSwitchAllowed())
-		{
-		// Controller policy for the connection needs updating
-		SetModesAllowed(allowedModesMask, roleSwitchAllowed);
-		}
+	// Controller policy for the connection may need updating
+	SetModesAllowed(allowedModesMask, roleSwitchAllowed);
+	LOG2(_L8("Arbitration: link policy (LPM:0x%02x, Role:0x%x) - submitted"), allowedModesMask, roleSwitchAllowed);
 
 	//If OverrideLPM flag is set, we do not disable LP modes via the link policy settings
 	//This is done because OverrideLPM should not prevent remotes putting us into an LPM
@@ -1786,9 +1778,11 @@ TInt CPhysicalLink::DoArbitrate(TBool aLocalPriority)
 		// We need to ensure the physical link is in active mode.
 		allowedModesMask = EActiveMode;
 		}
+	LOG2(_L8("Arbitration: link policy (LPM:0x%02x, Role:0x%x) - post setting overrides applied"), allowedModesMask, roleSwitchAllowed);
 
-	TUint8 modeChangeMask = static_cast<TUint8>(requestedModeMask & allowedModesMask);
-	TUint8 modeCompareMask = 0;
+	TUint16 modeChangeMask = requestedModeMask & (static_cast<TUint16>(allowedModesMask)|KExplicitActiveMode);
+	TUint16 modeCompareMask = 0;
+	LOG2(_L8("Arbitration: mode change mask = 0x%04x, local priority = 0x%x"), modeChangeMask, aLocalPriority);
 
 	if(aLocalPriority)
 		{
@@ -1805,57 +1799,89 @@ TInt CPhysicalLink::DoArbitrate(TBool aLocalPriority)
 		// modeCompareMask should start only having zero bits where
 		// requestedModeMask has a zero bit and iPreviousRequestedModeMask does not
 		// i.e. a mode is newly no longer requested.
-		modeCompareMask = requestedModeMask | ~iPreviousRequestedModeMask;
+		modeCompareMask = ~((requestedModeMask ^ iPreviousRequestedModeMask) & iPreviousRequestedModeMask);
 
 		// Remove bits from modeCompareMask that are not in allowedModesMask
 		// We cannot stay in a power mode that we do not allow.
-		modeCompareMask &= allowedModesMask;
+		modeCompareMask &= (static_cast<TUint16>(allowedModesMask)|KExplicitActiveMode);
 		}
+	LOG1(_L8("Arbitration: Comparison mask = 0x%04x"), modeCompareMask);
 
 	iPreviousRequestedModeMask = requestedModeMask; // Update previous requested to current value.
 
-	TUint8 currentModeMask = static_cast<TUint8>(iLinkState.LinkMode());
+	// get the current mode.
+	TBTLinkMode currentMode = iLinkState.LinkMode();
+	TUint16 currentModeMask = static_cast<TUint16>(currentMode);
+	if(currentModeMask == EActiveMode)
+		{
+		// if in active mode then could have been because of an explicit active mode request
+		currentModeMask |= KExplicitActiveMode;
+		}
+	LOG1(_L8("Arbitration: Current mode mask = 0x%04x"), currentModeMask);
+	
 	if(modeCompareMask & currentModeMask)
 		{
+		LOG2(_L8("Arbitration: Comparison mask (0x%04x) matched, so staying in current mode (0x%04x)"), modeCompareMask, currentModeMask);
 		// The current state is the same as the permitted required role(s).
 		return KErrNone;
 		}
-
-	if(modeChangeMask == EActiveMode && currentModeMask != EActiveMode)
+	
+	TBTLinkMode nextMode = EActiveMode;
+	// Determine which LPM we should be in (if any)
+	if(modeChangeMask & KExplicitActiveMode)
 		{
-		// The current low power mode should be exited.
-		return RequestActive();
+		nextMode = EActiveMode;
 		}
-
-	if(modeChangeMask != EActiveMode)
+	else if(modeChangeMask & EHoldMode)
 		{
-		if(currentModeMask != EActiveMode)
+		nextMode = EHoldMode;
+		}
+	else if(modeChangeMask & ESniffMode)
+		{
+		nextMode = ESniffMode;
+		}
+	else if(modeChangeMask & EParkMode)
+		{
+		nextMode = EParkMode;
+		}
+	LOG2(_L8("Arbitration: Arbitrating mode 0x%02x -> 0x%02x"), currentMode, nextMode);
+	
+	if(nextMode != currentMode)
+		{
+		if(currentMode != EActiveMode)
 			{
-			// The system is currently in a low power mode.  Exit this before
-			// entering the new mode.
-			TInt rerr = RequestActive();
-			if(rerr != KErrNone)
+			LOG(_L8("Arbitration: Exiting existing LPM mode..."));
+			TInt err = RequestActive();
+			if(err != KErrNone)
 				{
-				return rerr;
+				return err;
 				}
 			}
-
-		if(modeChangeMask & EHoldMode)
+		if(nextMode == EHoldMode)
 			{
+			LOG(_L8("Arbitration: Entering Hold mode..."));
 			return RequestHold();
 			}
-		if(modeChangeMask & ESniffMode)
+		else if(nextMode == ESniffMode)
 			{
+			LOG(_L8("Arbitration: Entering Sniff mode..."));
 			return RequestSniff();
 			}
-		if(modeChangeMask & EParkMode)
+		else if(nextMode == EParkMode)
 			{
+			LOG(_L8("Arbitration: Entering Park mode..."));
 			return RequestPark();
 			}
+		else if(nextMode == EActiveMode)
+			{
+			LOG(_L8("Arbitration: Staying in Active mode..."));
+			return KErrNone;
+			}
+		// Shouldn't reach here, we have a strange mode
+		DEBUG_PANIC_LINENUM;
 		}
 
-	// This point in the code is reached if the Link Policy settings are
-	// changed but the mode is not.	 Return OK error code.
+	LOG(_L8("Arbitration: Already in correct LPM, not doing anything"));
 	return KErrNone;
 	}
 
@@ -1876,10 +1902,10 @@ const TBTPinCode& CPhysicalLink::PassKey() const
 void CPhysicalLink::StartArbitrationTimer() const
 	{
 	LOG_FUNC
-	iArbitrationDelay->Start();
+	iArbitrationDelay->Restart();
 	}
 
-TInt CPhysicalLink::Connect(TBasebandPageTimePolicy aPolicy)
+void CPhysicalLink::Connect(TBasebandPageTimePolicy aPolicy)
 	{
 	LOG_FUNC
 	// assume that we will be master until told otherwise
@@ -1898,16 +1924,20 @@ TInt CPhysicalLink::Connect(TBasebandPageTimePolicy aPolicy)
 	// optimise paging (as a best-effort attempt).
 	TBasebandTime pagetimeout = CalculatePageTimeout(aPolicy, psrm, clockOffset & KHCIClockOffsetValidBit);
 	iLinksMan.TryToChangePageTimeout(pagetimeout);
+	
+	// Set state in anticipation of the connection
+	iLinkState.SetLinkState(TBTBasebandLinkState::ELinkPending);
+	iLinksMan.Baseband().UpdateModel(iDevice.Address(), pkt, EACLLink);
+	iLinkState.SetLinkRole(EMaster);
 
 	TRAPD(ret, iLinksMan.HCIFacade().ConnectL(iDevice.Address(), pkt, psrm, psm, clockOffset, allowRoleSwitch));
-	if(ret==KErrNone)
+	if(ret != KErrNone) // a physical link is in charge of it's own destiny.
 		{
-		iLinkState.SetLinkState(TBTBasebandLinkState::ELinkPending);
-		iLinksMan.Baseband().UpdateModel(iDevice.Address(), pkt, EACLLink);
-		iLinkState.SetLinkRole(EMaster);
+		TBTConnect conn;
+		conn.iBdaddr = BDAddr();
+		conn.iLinkType = EACLLink;
+		ConnectionComplete(ret, conn);
 		}
-
-	return ret;
 	}
 
 TInt CPhysicalLink::SCOConnect()
@@ -2260,7 +2290,7 @@ void CPhysicalLink::NotifyStateChange(TBTBasebandEventNotification& aEvent)
 		(aEvent.EventType() & ENotifyHoldMode)) &&
 		(aEvent.ErrorCode() == KErrNone))
 		{
-		iArbitrationDelay->Start();
+		iArbitrationDelay->Restart();
 		}
 	}
 
@@ -2302,6 +2332,14 @@ TInt CPhysicalLink::Terminate(THCIErrorCode aReason)
 	LOG_FUNC
 	TInt err = KErrNone;
 
+	__ASSERT_DEBUG(aReason == EAuthenticationFailure
+				|| aReason == ERemoteUserEndedConnection
+				|| aReason == ERemoteLowResources
+				|| aReason == ERemoteAboutToPowerOff
+				|| aReason == EUnsupportedRemoteLMPFeature
+				|| aReason == EPairingWithUnitKeyNotSupported,
+				Panic (EInvalidDisconnectReason)); // Check the error code is valid with the spec
+	
 	if (iLinkState.LinkState() == TBTBasebandLinkState::ELinkPending)
 		{
 		// If the Link is not yet up then we cannot know the correct connection handle
@@ -2821,11 +2859,12 @@ void CPhysicalLink::PinRequest(const TBTDevAddr& aAddr, MPINCodeResponseHandler&
 		}
 
 	TBTPinCode pinCode;
-	if(iLinksMan.PrefetchMan().IsPrefetchAvailable(aAddr, pinCode))
-		{
-		aRequester.PINCodeRequestReply(aAddr, pinCode);
-		return;
-		}
+	if(iLinksMan.PrefetchMan().GetPrefetch(aAddr, pinCode))
+	    {
+        iLinksMan.PrefetchMan().RemovePrefetch(aAddr);
+        aRequester.PINCodeRequestReply(aAddr, pinCode);
+        return;
+	    }
 
 	iPinHandler = &aRequester;
 
@@ -2896,6 +2935,13 @@ TBool CPhysicalLink::LinkKeyRequestPending()
 	LOG_FUNC
 	return iAuthStateMask & ELinkKeyRequestPending;
 	}
+
+TBool CPhysicalLink::IsAuthenticationRequestPending() const
+	{
+	LOG_FUNC
+	return iAuthStateMask & EAuthenticationRequestPending;
+	}
+
 
 void CPhysicalLink::SetAuthenticationPending(TUint8 aState)
 	{
@@ -3358,17 +3404,18 @@ TBasebandTime CPhysicalLink::CalculatePageTimeout(TBasebandPageTimePolicy aPolic
 // CArbitrationDelayTimer
 
 CArbitrationDelayTimer::CArbitrationDelayTimer(CPhysicalLink* aParent)
-	:CTimer(CActive::EPriorityStandard),
-	iParent(aParent)
+	: CTimer(CActive::EPriorityStandard)
+	, iParent(aParent)
 	{
 	LOG_FUNC
+	ASSERT_DEBUG(iParent);
+	CActiveScheduler::Add(this);
 	}
 
 void CArbitrationDelayTimer::ConstructL()
 	{
 	LOG_FUNC
 	CTimer::ConstructL();
-	CActiveScheduler::Add(this);
 	}
 
 CArbitrationDelayTimer* CArbitrationDelayTimer::NewL(CPhysicalLink* aParent)
@@ -3381,14 +3428,44 @@ CArbitrationDelayTimer* CArbitrationDelayTimer::NewL(CPhysicalLink* aParent)
 	return self;
 	}
 
-void CArbitrationDelayTimer::Start(TBool aLocalPriority)
+TInt CArbitrationDelayTimer::Start(TBool aImmediate, TBool aLocalPriority)
 	{
 	LOG_FUNC
 	// Work out what the local priority will be now
-	TBool localPriority = iLocalPriority || aLocalPriority;
-	Cancel(); // cancel current timer (will also reset priority so ...
-	iLocalPriority = localPriority; // set the new priority)
+	iLocalPriority = iLocalPriority || aLocalPriority;
+	LOG1(_L8("Arbitraion: Local Priority now %d"), iLocalPriority);
+	if(aImmediate)
+		{
+		LOG(_L8("Arbitraion: Immediate Arbitration Requested..."));
+		CancelButPreserveLocalPriority();
+		return DoArbitrate();
+		}
+	else if(!IsActive())
+		{
+		LOG(_L8("Arbitraion: Arbitration requested, will execute after delay timer..."));
+		After(KBTArbitrationDelay);
+		}
+	else // timer is already on its way
+		{
+		LOG(_L8("Arbitraion: Arbitration delay timer still pending..."));
+		}
+	return KErrNone;
+	}
+
+void CArbitrationDelayTimer::Restart()
+	{
+	LOG_FUNC
+	LOG(_L8("Arbitraion: Arbitration timer restarted..."));
+	CancelButPreserveLocalPriority();
 	After(KBTArbitrationDelay);
+	}
+
+void CArbitrationDelayTimer::CancelButPreserveLocalPriority()
+	{
+	LOG_FUNC
+	TBool localPriority = iLocalPriority;
+	Cancel();
+	iLocalPriority = localPriority;
 	}
 
 
@@ -3398,10 +3475,16 @@ Allow arbitration of low power modes when the timer expires
 **/
 	{
 	LOG_FUNC
-	if (iParent)
-		{
-		iParent->DoArbitrate(iLocalPriority);
-		}
+	LOG(_L8("Arbitraion: Delayed Arbitration executing..."));
+	static_cast<void>(DoArbitrate()); // ignore the error (always has been...)
+	}
+
+TInt CArbitrationDelayTimer::DoArbitrate()
+	{
+	LOG_FUNC
+	TBool localPriority = iLocalPriority;
+	iLocalPriority = EFalse;
+	return iParent->DoArbitrate(localPriority);
 	}
 
 void CArbitrationDelayTimer::DoCancel()

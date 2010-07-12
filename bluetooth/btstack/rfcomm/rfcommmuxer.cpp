@@ -209,9 +209,17 @@ void CRfcommMuxer::AddSAP(CRfcommSAP& aSAP)
 	DequeIdleTimer();
 	iSAPs.AddFirst(aSAP);
 	if(iMuxChannel->IsOpen())
+		{
 		aSAP.MuxUp();
+		}
+	else if (iMuxChannel->IsErrored())
+		{
+		aSAP.Error(KErrRfcommMuxChannelErrored, CRfcommSAP::EErrorFatal);
+		}
 	else
+		{
 		iMuxChannel->Open();  // Eventually calls back
+		}
 	}
 
 void CRfcommMuxer::DetachSAP(CRfcommSAP& aSAP)

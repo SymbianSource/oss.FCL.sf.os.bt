@@ -49,7 +49,7 @@ TL2CAPSigState::TL2CAPSigState(const CL2CAPSignalStateFactory& aFactory):
 	}
 
 // Events from the SAP
-void TL2CAPSigState::CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const
+void TL2CAPSigState::CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
 	// This is a standard action for most states.
@@ -62,7 +62,7 @@ void TL2CAPSigState::CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler)
 	aSignalHandler.SAP()->ChannelClosed();
 	}
 
-void TL2CAPSigState::OpenChannelRequest(CL2CapSAPSignalHandler& /*aSignalHandler*/) const	
+void TL2CAPSigState::OpenChannel(CL2CapSAPSignalHandler& /*aSignalHandler*/) const	
 	{
 	LOG_FUNC
 	PanicInState(EL2CAPUnexpectedSAPEvent);
@@ -74,7 +74,7 @@ void TL2CAPSigState::ConnectRequestReceived(CL2CapSAPSignalHandler& /*aSignalHan
 	PanicInState(EL2CAPUnexpectedSAPEvent);
 	}
 
-void TL2CAPSigState::ConfigureChannelRequest(CL2CapSAPSignalHandler& /*aSignalHandler*/) const	
+void TL2CAPSigState::ConfigureChannel(CL2CapSAPSignalHandler& /*aSignalHandler*/) const	
 	{
 	LOG_FUNC
 	PanicInState(EL2CAPUnexpectedSAPEvent);
@@ -282,7 +282,7 @@ TL2CAPSigStateClosed::TL2CAPSigStateClosed(const CL2CAPSignalStateFactory& aFact
 	LOG_FUNC
 	}
 
-void TL2CAPSigStateClosed::OpenChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const
+void TL2CAPSigStateClosed::OpenChannel(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
 	// The SAP has requested a channel be opened.
@@ -353,7 +353,7 @@ void TL2CAPSigStateClosed::ConnectRequestReceived(CL2CapSAPSignalHandler& aSigna
 	}
 
 
-void TL2CAPSigStateClosed::CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const
+void TL2CAPSigStateClosed::CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
 	// Detach from the Mux.  Inform the SAP that disconnection is complete.
@@ -381,6 +381,8 @@ void TL2CAPSigStateClosed::Enter(CL2CapSAPSignalHandler& aSignalHandler) const
 	LOG_FUNC
 	// Cancel the configuration timer.
 	aSignalHandler.CancelTimer();
+
+	aSignalHandler.iOpenChannelRequestAwaitingPeerEntityConfig = EFalse;
 
 	// If Park mode has been overridden during either channel establishment or
 	// channel disconnect, remove the override.
@@ -446,7 +448,7 @@ void TL2CAPSigStateWaitConnectRsp::ConfigRequest(CL2CapSAPSignalHandler& /*aSign
 	}
 
 // Events from the Mux
-void TL2CAPSigStateWaitConnectRsp::CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const
+void TL2CAPSigStateWaitConnectRsp::CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const
 	{	
 	// Disconnect the channel.	
 	HandleSAPDisconnect(aSignalHandler);
@@ -457,6 +459,7 @@ void TL2CAPSigStateWaitConnectRsp::Enter(CL2CapSAPSignalHandler& aSignalHandler)
 	LOG_FUNC
 	//set the remote CID to 0
 	aSignalHandler.SetRemotePort(TL2CAPPort(0));
+	aSignalHandler.iAwaitConfigureChannelRequest = ETrue;
 	}
 
 /****************************************************************************/
@@ -469,7 +472,7 @@ TL2CAPSigStateWaitConnect::TL2CAPSigStateWaitConnect(const CL2CAPSignalStateFact
 	}
 	
 // Events from the SAP
-void TL2CAPSigStateWaitConnect::OpenChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const
+void TL2CAPSigStateWaitConnect::OpenChannel(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
 
@@ -489,7 +492,7 @@ void TL2CAPSigStateWaitConnect::OpenChannelRequest(CL2CapSAPSignalHandler& aSign
 				// We should never get in here! The timer, which allows the delay
 				// should have been started on entry to the state "WaitConfig". 
 				{
-				aSignalHandler.ConfigureChannelRequest();
+				aSignalHandler.ConfigureChannel();
 				}
 			}
 		} // Success Response
@@ -516,7 +519,7 @@ void TL2CAPSigStateWaitConnect::OpenChannelRequest(CL2CapSAPSignalHandler& aSign
 	}
 
 // Events from the Mux
-void TL2CAPSigStateWaitConnect::CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const
+void TL2CAPSigStateWaitConnect::CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
 
@@ -567,6 +570,12 @@ void TL2CAPSigStateWaitConnect::DisconnectRequest(CL2CapSAPSignalHandler& aSigna
 	HandleDisconnectRequest(aSignalHandler, aId);
 	}
 
+void TL2CAPSigStateWaitConnect::Enter(CL2CapSAPSignalHandler& aSignalHandler) const
+	{
+	LOG_FUNC
+	aSignalHandler.iAwaitConfigureChannelRequest = EFalse;
+	}
+
 
 /**************************************************************************/
 // Implementation of TL2CAPSigStateConfigBase
@@ -606,7 +615,7 @@ void TL2CAPSigStateConfigBase::Error(CL2CapSAPSignalHandler& aSignalHandler,
 	}      							 	
 
 // Events from the SAP
-void TL2CAPSigStateConfigBase::CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const
+void TL2CAPSigStateConfigBase::CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
 	// Disconnect the channel.
@@ -624,7 +633,7 @@ TInt TL2CAPSigStateConfigBase::UpdateChannelConfig(CL2CapSAPSignalHandler& /*aSi
 void TL2CAPSigStateConfigBase::ConfigurationTimerExpiry(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
-	CloseChannelRequest(aSignalHandler);
+	CloseChannel(aSignalHandler);
 	}
 	
 // Common handling of Config Request and Response commands.
@@ -669,13 +678,29 @@ void TL2CAPSigStateConfigBase::ConfigRequest(CL2CapSAPSignalHandler& aSignalHand
 							case EConfigSuccess:
 								// Move to next state.
 								aSignalHandler.SetState(iFactory.GetState(aConfigSuccessState));
+
+								if (!configRequestSent && !aSignalHandler.iAwaitConfigureChannelRequest)
+									{
+									// The delay timer is there so that we don't send a
+									// Config Req before receiving one from the remote
+									// (as a workaround for some broken carkits, see 
+									// DelayConfigRequest()). Since we've just received a
+									// ConfigReq from the remote, we can stop the delay
+									// timer and send our request if this is passive open
+                                    // or remotely-initiated reconfiguration.
+									// If it's an active open scenario then we need to wait
+									// for security access request to get completed.
+									aSignalHandler.CancelTimer();
+									aSignalHandler.StartConfigurationTimer();
+									aSignalHandler.ConfigureChannel();
+									}
 								break;
-	
+
 							case EConfigUnacceptableParams:
 							case EConfigRejected:
 								// Stay in current state.
 								break;
-	
+
 							case EConfigUnknownOption: // impossible on this path
 							default:
 								__ASSERT_DEBUG(EFalse, PanicInState(EL2CAPInvalidConfigResponseCodeGenerated));
@@ -836,7 +861,7 @@ TL2CAPSigStateWaitConfig::TL2CAPSigStateWaitConfig(const CL2CAPSignalStateFactor
 	}
 
 // Events from the SAP
-void TL2CAPSigStateWaitConfig::ConfigureChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const
+void TL2CAPSigStateWaitConfig::ConfigureChannel(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
 	// Local config can now be initiated.  The local config requirements must
@@ -851,7 +876,7 @@ void TL2CAPSigStateWaitConfig::ConfigureChannelRequest(CL2CapSAPSignalHandler& a
 		if(err == KErrNone)
 			{
 			aSignalHandler.SetState(iFactory.GetState(CL2CAPSignalStateFactory::EWaitConfigReqRsp));
-			}						
+			}
 		else
 			{
 			Error(aSignalHandler, KErrCouldNotConnect, MSocketNotify::EErrorAllOperations);
@@ -859,7 +884,7 @@ void TL2CAPSigStateWaitConfig::ConfigureChannelRequest(CL2CapSAPSignalHandler& a
 		}
 	// Else wait until the delay timer expires.
 	}
-	
+
 // L2CAP commands received from the peer.
 void TL2CAPSigStateWaitConfig::ConfigRequest(CL2CapSAPSignalHandler& aSignalHandler,
 								  			 HConfigureRequest* aConfigRequest) const
@@ -868,12 +893,14 @@ void TL2CAPSigStateWaitConfig::ConfigRequest(CL2CapSAPSignalHandler& aSignalHand
 	// Call the config base class helper method to process this command.
 	TL2CAPSigStateConfigBase::ConfigRequest(aSignalHandler, aConfigRequest, CL2CAPSignalStateFactory::EWaitSendConfig);
 	}
-		
+
 // Change of state events
 void TL2CAPSigStateWaitConfig::Enter(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
-	aSignalHandler.StartConfigurationTimer();
+	// First start the ConfigReq sending delay timer (see DelayConfigRequest() for why).
+	// It's short lived, we'll start the proper L2CAP config timer when it expires.
+	aSignalHandler.StartConfigRequestDelayTimer();
 	}
 
 /**************************************************************************/
@@ -890,7 +917,7 @@ TL2CAPSigStateWaitSendConfig::TL2CAPSigStateWaitSendConfig(const CL2CAPSignalSta
 	}
 	
 // Events from the SAP
-void TL2CAPSigStateWaitSendConfig::ConfigureChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const
+void TL2CAPSigStateWaitSendConfig::ConfigureChannel(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
 	// Local config can now be initiated.  The local config requirements must
@@ -1005,9 +1032,6 @@ void TL2CAPSigStateOpen::ConfigRequest(CL2CapSAPSignalHandler& aSignalHandler,
 	// should not be sent until it completes.
 	aSignalHandler.ReconfiguringChannel();
 	static_cast<void>(aSignalHandler.HandleConfigureRequest(aConfigRequest));
-
-	// Start local reconfiguration.
-	aSignalHandler.ConfigureChannelRequest();
 	}
 
 TInt TL2CAPSigStateOpen::UpdateChannelConfig(CL2CapSAPSignalHandler& aSignalHandler, const TL2CapConfig& aAPIConfig) const
@@ -1019,14 +1043,14 @@ TInt TL2CAPSigStateOpen::UpdateChannelConfig(CL2CapSAPSignalHandler& aSignalHand
 		{
 		aSignalHandler.ReconfiguringChannel();
 		aSignalHandler.SetState(iFactory.GetState(CL2CAPSignalStateFactory::EWaitConfig));
-		aSignalHandler.ConfigureChannelRequest();
+		aSignalHandler.ConfigureChannel();
 		rerr = KErrL2CAPConfigPending;
 		}
 	return rerr;
 	}
 
 
-void TL2CAPSigStateOpen::CloseChannelRequest(CL2CapSAPSignalHandler& aSignalHandler) const
+void TL2CAPSigStateOpen::CloseChannel(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
 	// Disconnect the channel.
@@ -1060,16 +1084,16 @@ void TL2CAPSigStateOpen::Enter(CL2CapSAPSignalHandler& aSignalHandler) const
 		LOG(_L("CL2CapSigStateOpen::Enter doing reconfig"));
 		// now get reconfiguring
 		aSignalHandler.SetState(iFactory.GetState(CL2CAPSignalStateFactory::EWaitConfig));
-		aSignalHandler.ConfigureChannelRequest();
+		aSignalHandler.ConfigureChannel();
 		}
 	else
 		{
 		// Remove and park override.
 		aSignalHandler.UndoOverrideParkMode();
-		
+
 		// Cancel the configuration timer.
 		aSignalHandler.CancelTimer();
-		
+
 		// Inform the SAP that the channel is now configured and ready to use.
 		aSignalHandler.SAP()->ChannelConfigured(aSignalHandler.ChannelConfig(),
 		                                        aSignalHandler.Mux(),
@@ -1153,7 +1177,7 @@ void TL2CAPSigStateWaitDisconnect::Enter(CL2CapSAPSignalHandler& aSignalHandler)
 	aSignalHandler.CancelTimer();
 	}
 
-void TL2CAPSigStateWaitDisconnect::CloseChannelRequest(CL2CapSAPSignalHandler& /*aSignalHandler*/) const
+void TL2CAPSigStateWaitDisconnect::CloseChannel(CL2CapSAPSignalHandler& /*aSignalHandler*/) const
 	{
 	LOG_FUNC
 	// Already disconnecting.
@@ -1201,7 +1225,7 @@ void TL2CAPSigStateWaitDisconnect::ConfigResponse(CL2CapSAPSignalHandler& /*aSig
 	// Could well be in this state - just drop.
 	}
 
-void TL2CAPSigStateWaitDisconnect::ConfigureChannelRequest(CL2CapSAPSignalHandler& /*aSignalHandler*/) const
+void TL2CAPSigStateWaitDisconnect::ConfigureChannel(CL2CapSAPSignalHandler& /*aSignalHandler*/) const
 	{
 	LOG_FUNC
 	// This may be called if an Information Request times out

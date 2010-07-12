@@ -18,6 +18,7 @@
 #include <bt_subscribe.h>
 #include <bt_sock.h>
 #include <utf.h>
+#include <bluetooth/hci/hciconsts.h>
 #include "Subscribers.h"
 #include "linkmgr.h"
 #include "physicallinksmanager.h"

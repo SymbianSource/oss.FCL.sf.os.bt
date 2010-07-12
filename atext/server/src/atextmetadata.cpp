@@ -211,6 +211,22 @@ TInt CATExtMetadata::HandleCommand( const RMessage2& aMessage,
         TRACE_FUNC_EXIT
         return retTemp;
         }
+    // First check if in editor mode
+    if ( iCmdData.iEditorHandler )
+        {
+        iCmdData.iReplyExpected = EFalse;
+        iCmdData.iHandler = iCmdData.iEditorHandler;
+        iCmdData.iHandler->iInstance->HandleCommand( iCmdData.iCmdBuffer,
+                                                     iCmdData.iCmdReplyBuffer,
+                                                     EFalse );
+        aComplInfo.iProcessed = ETrue;
+        aComplInfo.iReplyExpected = ETrue;
+        // Note: The aComplInfo.iReplyExpected is used only for normal mode and
+        // is set to ETrue here to skip a check in CATExtSession::IpcHandleCommand().
+        TRACE_FUNC_EXIT
+        return KErrNone;
+        }
+    // Not in editor so handle in normal mode
     TRACE_INFO(( _L8("Received command '%S'"), &iCmdData.iCmdBuffer ));
     // Now the command exists. Load the plugins for a command and check support.
     TRAPD( retTrap, CreateAndFindSupportL(iCmdData.iCmdBuffer,
@@ -327,19 +343,41 @@ TInt CATExtMetadata::CompleteCommandMessage( CATExtPluginBase* aPlugin,
         TRACE_FUNC_EXIT
         return KErrInUse;
         }
-    // Next check if aPlugin is set (the call comes from a plugin and not from
-    // ATEXT) and a reply is not needed. In this case do nothing as it is wrong
-    // behavior from the plugin (a plugin must not complete messages where no
-    // reply is expected; this is done by ATEXT)
-    if ( aPlugin && !iCmdData.iReplyExpected )
-        {
-        TRACE_FUNC_EXIT
-        return KErrAlreadyExists;
-        }
     if ( !iCmdData.iCmdMessage.Handle() )
         {
         TRACE_FUNC_EXIT
         return KErrBadHandle;
+        }
+    TBool startOfEditor = EFalse;
+    if ( aReplyType == EReplyTypeEditor)
+        {
+        // If completion is for editor command then set iCmdData.iEditorHandler
+        // for the first time only
+        if ( !iCmdData.iEditorHandler )
+            {
+            iCmdData.iEditorHandler = FindInstanceFromPlugindata( aPlugin );
+            iCmdData.iReplyExpected = ETrue;  // reply expected when first reply in editor mode
+            startOfEditor = ETrue;
+            }
+        }
+    else
+        {
+        // If completion was something else than EReplyTypeEditor then just end
+        // editor mode (no need to check iEditorHandler)
+        if ( iCmdData.iEditorHandler )
+            {
+            iCmdData.iReplyExpected = ETrue;  // reply expected when last reply in editor mode
+            }
+        iCmdData.iEditorHandler = NULL;
+        }
+    // Next check if aPlugin is set (the call comes from a plugin and not from
+    // ATEXT) and a reply is not needed. In this case do nothing as it is wrong
+    // behavior from the plugin (a plugin must not complete messages where no
+    // reply is expected; this is done by ATEXT)
+    if ( aPlugin && !iCmdData.iReplyExpected && !iCmdData.iEditorHandler )
+        {
+        TRACE_FUNC_EXIT
+        return KErrAlreadyExists;
         }
     // Finally write the data and complete the message
     TPckg<TATExtensionReplyType> replyType( aReplyType );
@@ -356,25 +394,44 @@ TInt CATExtMetadata::CompleteCommandMessage( CATExtPluginBase* aPlugin,
             {
             CreateEmptyOrErrorBuffer( iCmdData.iCmdReplyBuffer, aErrorReply );
             }
-        if ( aMultiPart )
-            {
-            WriteReplyBufferToClient( iCmdData.iCmdReplyBuffer,
-                                      EATExtHandleCmdParamReply,
-                                      iCmdData.iCmdMessage,
-                                      ETrue,
-                                      EATExtHandleCmdParamLength );
-            }
-        else
-            {
-            WriteReplyBufferToClient( iCmdData.iCmdReplyBuffer,
-                                      EATExtHandleCmdParamReply,
-                                      iCmdData.iCmdMessage );
-            }
+        WriteHandleCmdReplyBuffer( aMultiPart, startOfEditor );
         }
     iCmdData.iCmdStarted = EFalse;
     iCmdData.iReplyExpected = EFalse;
     iCmdData.iCmdMessage.Complete( aError );
     ClearInitializedCmdHandlerData( aMultiPart );
+    TRACE_FUNC_EXIT
+    return KErrNone;
+    }
+
+// ---------------------------------------------------------------------------
+// Writes multipart or single part reply buffer to client for handle.
+// Used for creating a reply for HandleCommand().
+// ---------------------------------------------------------------------------
+//
+TInt CATExtMetadata::WriteHandleCmdReplyBuffer( TBool aMultiPart,
+                                                TBool aStartOfEditor )
+    {
+    TRACE_FUNC_ENTRY
+    if ( iCmdData.iEditorHandler && !aStartOfEditor )
+        {
+        TRACE_FUNC_EXIT
+        return KErrNotReady;
+        }
+    if ( aMultiPart )
+        {
+        WriteReplyBufferToClient( iCmdData.iCmdReplyBuffer,
+                                  EATExtHandleCmdParamReply,
+                                  iCmdData.iCmdMessage,
+                                  ETrue,
+                                  EATExtHandleCmdParamLength );
+        }
+    else
+        {
+        WriteReplyBufferToClient( iCmdData.iCmdReplyBuffer,
+                                  EATExtHandleCmdParamReply,
+                                  iCmdData.iCmdMessage );
+        }
     TRACE_FUNC_EXIT
     return KErrNone;
     }
@@ -964,6 +1021,7 @@ void CATExtMetadata::Initialize()
     iCmdData.iReplyExpected = EFalse;
     iCmdData.iHandler = NULL;
     iCmdData.iOldHandler = NULL;
+    iCmdData.iEditorHandler = NULL;
     iCarriageReturn = KDefaultCarriageReturn;
     iLineFeed = KDefaultLineFeed;
     iQuietMode = EFalse;
@@ -1185,7 +1243,7 @@ TBool CATExtMetadata::IsCommandHandling()
     TRACE_FUNC_ENTRY
     if ( iCmdData.iCmdStarted ||
         (iCmdData.iCmdMessage.Handle() && iCmdData.iCmdBuffer.Length()>0) ||
-        iCmdData.iCmdReplyBuffer.Length()>0 )
+         iCmdData.iCmdReplyBuffer.Length()>0 )
         {
         TRACE_FUNC_EXIT
         return ETrue;
@@ -1227,6 +1285,7 @@ TInt CATExtMetadata::DestroyPlugindata()
     iPluginData = NULL;
     iCmdData.iHandler = NULL;
     iCmdData.iOldHandler = NULL;
+    iCmdData.iEditorHandler = NULL;
     TRACE_FUNC_EXIT
     return KErrNone;
     }
@@ -1248,6 +1307,7 @@ TInt CATExtMetadata::CancelCommandOperation( TInt aError, TBool aCheckLock )
     if ( iCmdData.iHandler && iCmdData.iHandler->iInstance )
         {
         iCmdData.iHandler->iInstance->HandleCommandCancel();
+        iCmdData.iEditorHandler = NULL;
         }
     CompleteCommandMessage( NULL,
                             aError,
@@ -2336,6 +2396,7 @@ void CATExtMetadata::HandleCommandL( TATExtEntrySupport& aEntrySupport,
         iCmdData.iCmdStarted = ETrue;
         iCmdData.iCmdMessage = aEntrySupport.iMessage;
         iCmdData.iHandler = aEntrySupport.iEntry;
+        iCmdData.iEditorHandler = NULL;
         }
     // No "else" here as HandleCommandL() is used also with observer plugins
     if ( !aAtCmdFull )
@@ -2372,6 +2433,12 @@ void CATExtMetadata::SendToMultipleObserverL(
         TRACE_FUNC_EXIT
         User::Leave( KErrGeneral );
         }
+    if ( !aEntrySupport.iSupportFound )
+        {
+        // No initial support found -> do nothing
+        TRACE_FUNC_EXIT
+        return;
+        }
     TInt i;
     TInt count = aEntrySupport.iSupport->Count();
     for ( i=aEntrySupport.iStartIndex; i<count; i++ )
@@ -2382,11 +2449,7 @@ void CATExtMetadata::SendToMultipleObserverL(
             continue;
             }
         aEntrySupport.iEntry = &(*iPluginData)[oneCmdSupport.iEntryIndex];
-        TBool supported = EFalse;
-        if ( !aEntrySupport.iSupportFound )
-            {
-            supported = HandleCommandSupportL( aEntrySupport, aAtCmdFull );
-            }
+        TBool supported = HandleCommandSupportL( aEntrySupport, aAtCmdFull );
         if ( supported )
             {
             HandleCommandL( aEntrySupport, EFalse, aAtCmdFull );

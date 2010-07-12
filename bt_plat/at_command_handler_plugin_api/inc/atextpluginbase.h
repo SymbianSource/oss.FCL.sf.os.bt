@@ -33,9 +33,10 @@ enum TATExtensionCharType
 enum TATExtensionReplyType
     {
     EReplyTypeUndefined,  // For error conditions (handling failed)
-    EReplyTypeOther,      // For other than OK or ERROR
-    EReplyTypeOk,         // For "OK"
-    EReplyTypeError,      // For "ERROR"
+    EReplyTypeOther,      // !(EReplyTypeOk||EReplyTypeError||EReplyTypeEditor)
+    EReplyTypeOk,         // For "OK" (or "" in quiet mode)
+    EReplyTypeError,      // For "ERROR" (or "" in quiet mode)
+    EReplyTypeEditor,     // For editor mode
     };
 
 /**  Default buffer length for command reply buffer */
@@ -143,6 +144,11 @@ public:
      * After an extension plugin has handled or decided to reject the given AT
      * command, it must inform ATEXT by HandleCommandCompleted() with a proper
      * error code.
+	 *
+	 * Note that in editor mode the setting of aReplyNeeded is always "ETrue"
+	 * when a plugin processing the editor mode meets the end condition for the
+	 * editor mode (!EReplyTypeEditor reply in editor mode). In this case the
+	 * plugin must create the last reply even when aReplyNeeded is EFalse.
      *
      * @since S60 5.0
      * @param aCmd The AT command to be handled. Its format may vary depending

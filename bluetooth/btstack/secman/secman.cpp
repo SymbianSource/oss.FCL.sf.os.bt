@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -585,7 +585,7 @@ void CBTSecMan::UserConfirmationRequest(const TBTDevAddr& aAddr, TUint32 aNumeri
 	else if (!link->IsPairingExpected()
 			|| ((link->AuthenticationRequirement() == EMitmNotReqDedicatedBonding 
 					|| link->AuthenticationRequirement() == EMitmReqDedicatedBonding)
-				&& !IsDedicatedBondingAttempted(aAddr)))
+				&& !link->IsAuthenticationRequestPending()))
 		{
 		TRAPD(err,link->NewUserConfirmerL(aAddr, *this, ETrue));
 		if(err)
@@ -610,7 +610,7 @@ void CBTSecMan::UserConfirmationRequest(const TBTDevAddr& aAddr, TUint32 aNumeri
 			TBTSecEventUserConfirmationComplete event(ETrue);
 			requester->SendEvent(event);
 			}
-
+		link->PinRequestSent();
 		// note: -- check errors here
 		TRAP_IGNORE(iCommandController->UserConfirmationRequestReplyL(aAddr));
 		}

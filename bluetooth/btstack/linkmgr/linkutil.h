@@ -1,4 +1,4 @@
-// Copyright (c) 2000-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2000-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -185,11 +185,14 @@ enum TLinkPanic
 	EBTSSPModeChangedDuringConnection		=209,
 	EHCICtrlrInitAddingInitialisationCommandInBadState	=210,
 	EHCICtrlrInitOnlyOneResetCmdAllowed		=211,
+	EInvalidDisconnectReason				=212,
 
 	//Please add new panic codes common to all versions of linkmgr here.
 	EVendorSAPBadVendorEvent				=250,
 	EBTACLSAPIndeterminateInitiator			=251,
 	EBTACLSAPUnexpectedSecurityResult		=252,
+	ELinkMgrFlowControlUnexpectedUpdate		=253,
+	ELinkMgrFlowControlChangeOfMind			=254,
 	};
 
 /**

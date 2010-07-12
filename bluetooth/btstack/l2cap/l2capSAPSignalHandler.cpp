@@ -631,32 +631,44 @@ void CL2CapSAPSignalHandler::L2CapEntityConfigUpdated()
  		// SAP state machine requested that we open the channel before we could do it.
  		// We can do it now.
  		iOpenChannelRequestAwaitingPeerEntityConfig = EFalse;
- 		iSigState->OpenChannelRequest(*this);
+ 		iSigState->OpenChannel(*this);
  		}
  	}
 
 TBool CL2CapSAPSignalHandler::DelayConfigRequest()
 	{
 	LOG_FUNC
-	iAwaitingConfigRequestDelayTimer = iSAPSignalHandlerTimerState==EConfigRequestDelayTimer;
-
-	return iAwaitingConfigRequestDelayTimer; //true if we are delaying
+	// The whole delaying of sending of ConfigRequest is basically a workaround for
+	// certain broken carkits from a certain Swedish manufacturer at a certain stretch
+	// of time.
+	// The defect was: the carkits advertised their capability to do RTM in Extended
+	// Feature Mask, but when sent a ConfigRequest with RTM they would just panic
+	// (ie. they really only did Basic mode). 
+	// So the workaround is to delay the sending of our Config Request such that
+	// we receive the carkit's request first - we have an optimization which will
+	// downgrade our requested channel mode to Basic if the remote requests it before
+	// we've sent out our ConfigReq. This way we send Basic mode in our ConfigReq
+	// and the carkit is happy.
+	return iSAPSignalHandlerTimerState==EConfigRequestDelayTimer;
 	}
-				
+
 void CL2CapSAPSignalHandler::ConfigRequestDelayTimerExpiry()	
  	{
  	LOG_FUNC
- 	if(iAwaitingConfigRequestDelayTimer)
+ 	// Now that ConfigReq delay timer have expired we can start the proper configuration timer.
+ 	StartConfigurationTimer();
+
+ 	if (!iAwaitConfigureChannelRequest)
  		{
- 		iAwaitingConfigRequestDelayTimer = EFalse;
-		ConfigureChannelRequest();
+		ConfigureChannel();
  		}
+ 	// [else]: we're in an active open scenario and SAP hasn't yet issued a ConfigureChannelRequest.
  	}
 
 void CL2CapSAPSignalHandler::CloseChannelRequest()
 	{
 	LOG_FUNC
-	iSigState->CloseChannelRequest(*this);
+	iSigState->CloseChannel(*this);
 	}
 
 void CL2CapSAPSignalHandler::OpenChannelRequest()
@@ -667,7 +679,7 @@ void CL2CapSAPSignalHandler::OpenChannelRequest()
 
 	if (IsPeerInfoDefined())
 		{
-		iSigState->OpenChannelRequest(*this);
+		iSigState->OpenChannel(*this);
 		}
 	else
 		{
@@ -686,7 +698,12 @@ void CL2CapSAPSignalHandler::ConnectRequestReceived()
 void CL2CapSAPSignalHandler::ConfigureChannelRequest()
 	{
 	LOG_FUNC
-	iSigState->ConfigureChannelRequest(*this);
+	iAwaitConfigureChannelRequest = EFalse;
+
+	if (iSAPSignalHandlerTimerState != EConfigRequestDelayTimer)
+		{
+		ConfigureChannel();
+		}
 	}
 
 void CL2CapSAPSignalHandler::PendingCommandsDrained()
@@ -707,34 +724,31 @@ void CL2CapSAPSignalHandler::PendingCommandsDrained()
 void CL2CapSAPSignalHandler::StartConfigurationTimer()
 	{
 	LOG_FUNC
-	switch(iSAPSignalHandlerTimerState)
-		{
-		case EConfigurationTimer:
-		case EConfigRequestDelayTimer:
-			// The timer is already running. Cancel it and start it again.
-			BTSocketTimer::Remove(iSAPSignalHandlerTimerEntry);
-			iSAPSignalHandlerTimerState = ETimerIdle;
-			break;
-					
-		case ETimerIdle:
-		default:
-			// No timer running, nothing needs to be done.
-			break;
-		};
+	__ASSERT_DEBUG(iSAPSignalHandlerTimerState == ETimerIdle,
+				   Panic(EL2CapAttemptToStartConfigTimerWhenItIsRunning));
 
-	if(iSAPSignalHandlerTimerState == ETimerIdle)
-		{
-		TCallBack cb(TimerExpired, this);
-		iSAPSignalHandlerTimerEntry.Set(cb);
-		BTSocketTimer::Queue(KL2ConfigRequestDelayTimout, 
-		                     iSAPSignalHandlerTimerEntry);
-		iSAPSignalHandlerTimerState = EConfigRequestDelayTimer;
-		}
+	TCallBack cb(TimerExpired, this);
+	iSAPSignalHandlerTimerEntry.Set(cb);
+	BTSocketTimer::Queue(KL2ConfigWatchdogTimeout * KL2ProtocolSecondTimerMultiplier, 
+	                     iSAPSignalHandlerTimerEntry);
+	iSAPSignalHandlerTimerState = EConfigurationTimer;
 	}
-	
+
+void CL2CapSAPSignalHandler::StartConfigRequestDelayTimer()
+	{
+	LOG_FUNC
+	__ASSERT_DEBUG(iSAPSignalHandlerTimerState == ETimerIdle,
+				   Panic(EL2CapAttemptToStartConfigTimerWhenItIsRunning));
+
+	TCallBack cb(TimerExpired, this);
+	iSAPSignalHandlerTimerEntry.Set(cb);
+	BTSocketTimer::Queue(KL2ConfigRequestDelayTimout, 
+						 iSAPSignalHandlerTimerEntry);
+	iSAPSignalHandlerTimerState = EConfigRequestDelayTimer;
+	}
+
 void CL2CapSAPSignalHandler::CancelTimer()
 	{
-
 	LOG_FUNC
 	if(iSAPSignalHandlerTimerState != ETimerIdle)
 		{
@@ -751,18 +765,14 @@ void CL2CapSAPSignalHandler::HandleTimerExpired()
 		case ETimerIdle:
 			Panic(EL2CAPSSHTimerExpiredWhileInIdleState);
 			break;
-			
+	
 		case EConfigRequestDelayTimer:
 			{
-			TCallBack cb(TimerExpired, this);
-			iSAPSignalHandlerTimerEntry.Set(cb);
-			BTSocketTimer::Queue(KL2ConfigWatchdogTimeout * KL2ProtocolSecondTimerMultiplier, 
-			                     iSAPSignalHandlerTimerEntry);
-			iSAPSignalHandlerTimerState = EConfigurationTimer;
+			iSAPSignalHandlerTimerState = ETimerIdle;
 			ConfigRequestDelayTimerExpiry();
 			}
 			break;
-			
+
 		case EConfigurationTimer:
 			iSAPSignalHandlerTimerState = ETimerIdle;
 			iSigState->ConfigurationTimerExpiry(*this);

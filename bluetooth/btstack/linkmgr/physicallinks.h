@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -70,17 +70,20 @@ NONSHARABLE_CLASS(CArbitrationDelayTimer) : public CTimer
 	{
 public:
 	static CArbitrationDelayTimer* NewL(CPhysicalLink* aParent);
-    void Start(TBool aLocalPriority=EFalse);
-	
+	TInt Start(TBool aImmediate, TBool aLocalPriority);
+	void Restart();
+
 private:
 	CArbitrationDelayTimer(CPhysicalLink* aParent);
 	void ConstructL();
 	void RunL();
-    void DoCancel();
-    
+	void DoCancel();
+	TInt DoArbitrate();
+	void CancelButPreserveLocalPriority();
+
 private:
-	CPhysicalLink* 	iParent;
-    TBool iLocalPriority;	
+	CPhysicalLink* iParent;
+	TBool iLocalPriority;
 	};
 
 
@@ -296,15 +299,14 @@ public:
 	inline TBTBasebandRole Role() const;
 	void SetDeviceNamePending(TBool aBool);
 	TInt GetOption(TUint aLevel,TUint aName,TDes8& aOption) const;
-	TInt Connect(TBasebandPageTimePolicy aPolicy=EPagingNormal);
+	void Connect(TBasebandPageTimePolicy aPolicy=EPagingNormal);
 	TInt SCOConnect();
 	TInt SCOConnect(const TUint16 aUserHVPacketTypes);
 	TInt SynchronousConnect(TUint aTransmitBandwidth, TUint aReceiveBandwidth,
 		TUint16 aMaxLatency, TUint16 aVoiceSettings,
 		TUint8 aRetransmissionEffort, const TBTSyncPacketTypes aUserPacketTypes);
-	TInt PassiveOpen();
-    TInt Arbitrate(TBool aImmediately=EFalse, TBool aLocalPriority=EFalse); 
-    TInt DoArbitrate(TBool aLocalPriority);
+	TInt Arbitrate(TBool aImmediately=EFalse, TBool aLocalPriority=EFalse); 
+	TInt DoArbitrate(TBool aLocalPriority);
 	void SetPassKey(const TDesC8& aPassKey);
 	const TBTPinCode& PassKey() const;		
 
@@ -374,11 +376,16 @@ public:
 	virtual void RoleChange(THCIErrorCode aErr, const TBTDevAddr& aAddr, TBTBasebandRole aRole);
 	virtual void ClockOffset(THCIErrorCode aErr, THCIConnHandle aConnH, TBasebandTime aClockOffset);
 	virtual void RemoteName(THCIErrorCode aErr, const TBTDevAddr& aAddr, const TBTDeviceName8& aName);
+	
+	void ConnectionComplete(TInt aResult, const TBTConnect& aConn);
 
 	TBool LinkKeyRequestPending();
 	void SetAuthenticationPending(TUint8 aFlag);
 	virtual void AuthenticationComplete(TUint8 aFlag);
 
+	TBool IsAuthenticationRequestPending() const;
+
+	
 	static TInt OverrideLPMTimeoutCallback(TAny* aCPhysicalLink);// async callback
 	static TInt TerminateCallback(TAny* aCPhysicalLink);// async callback
 	TInt Terminate(THCIErrorCode aReason);
@@ -550,7 +557,7 @@ private:
 	TDeltaTimerEntry			iOverrideLPMTimerEntry;
 
 	TLinkPolicy					iLinkPolicy;
-	TUint8 						iPreviousRequestedModeMask;
+	TUint16						iPreviousRequestedModeMask;
 	TBool						iOverrideParkRequests; //for maybe temporary unpark
 	TBool						iOverrideLPMRequests; //for maybe temporary force active
 	TBool						iLPMOverrideTimerQueued;
