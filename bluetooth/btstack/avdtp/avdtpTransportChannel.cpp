@@ -99,6 +99,7 @@ void CTransportChannel::LogicalChannelComplete(TLogicalChannelRecord aLogicalCha
 		// take ownership
 		iLogicalChannel = aLogicalChannelRecord.iLogicalChannelSAP;
 		iLogicalChannel->SetNotify(this);
+		UpdateChannelPriority();
 		// drain any data
 		if (aLogicalChannelRecord.iDataCount)
 			{

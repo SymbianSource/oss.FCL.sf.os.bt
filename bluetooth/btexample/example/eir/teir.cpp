@@ -143,8 +143,13 @@ void CEirApp::NewEirPublisherTestL(TTestEirTag aTag)
 	switch(aTag)
 		{
 	case ETestDeviceName:
-		iResolvers.Append(CActiveInquirer::NewL(iConsole, *this, 0, EFalse, EFalse, EFalse, EFalse));
+		{
+		CActiveInquirer* inquirer = CActiveInquirer::NewL(iConsole, *this, 0, EFalse, EFalse, EFalse, EFalse);
+		CleanupStack::PushL(inquirer);
+		iResolvers.AppendL(inquirer);
+		CleanupStack::Pop(inquirer);
 		iNameRequester->SetLocalNameL();
+		}
 		break;
 
 	case ETestUuid16:
@@ -249,12 +254,18 @@ void CEirApp::CreateSdpRecordL(const TUUID& aUUID,
 
 void CEirApp::NewNameRequesterL(TBool aEirInstead, TBool aIgnoreCache)
 	{
-	iResolvers.Append(CActiveNameRequester::NewL(iConsole, *this, aEirInstead, aIgnoreCache));
+	CActiveNameRequester* requester = CActiveNameRequester::NewL(iConsole, *this, aEirInstead, aIgnoreCache);
+	CleanupStack::PushL(requester);
+	iResolvers.AppendL(requester);
+	CleanupStack::Pop(requester);
 	}
 
 void CEirApp::NewInquirerL(TUint aIAC, TBool aDoNames, TBool aIgnoreCache, TBool aDoEir, TBool forever)
 	{
-	iResolvers.Append(CActiveInquirer::NewL(iConsole, *this, aIAC, aDoNames, aIgnoreCache, aDoEir, forever));
+	CActiveInquirer* inquirer = CActiveInquirer::NewL(iConsole, *this, aIAC, aDoNames, aIgnoreCache, aDoEir, forever);
+	CleanupStack::PushL(inquirer);
+	iResolvers.AppendL(inquirer);
+	CleanupStack::Pop(inquirer);
 	}
 
 void CEirApp::CancelInquirer()
@@ -268,7 +279,10 @@ void CEirApp::CancelInquirer()
 
 void CEirApp::NewNameArrayRequesterL()
 	{
-	iResolvers.Append(CActiveNameArrayRequester::NewL(iConsole, *this, iDevicesFound));
+	CActiveNameArrayRequester* requester = CActiveNameArrayRequester::NewL(iConsole, *this, iDevicesFound);
+	CleanupStack::PushL(requester);
+	iResolvers.AppendL(requester);
+	CleanupStack::Pop(requester);
 	}
 
 void CEirApp::DeviceFound(TBTDevAddr aAddress)
@@ -276,7 +290,7 @@ void CEirApp::DeviceFound(TBTDevAddr aAddress)
 #if USE_SMALL_CONSOLE
 	iConsole.Printf(_L("App: Found device.\n"));
 #endif
-	iDevicesFound.Append(aAddress);
+	(void)iDevicesFound.Append(aAddress);
 	}
 
 void CEirApp::InquiryComplete()

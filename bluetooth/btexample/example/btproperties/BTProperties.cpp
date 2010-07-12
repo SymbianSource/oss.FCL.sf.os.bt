@@ -55,6 +55,56 @@ void ShowAddress()
 		}
 	}
 
+void CreateSubscribersL(RPointerArray<CSubscriber>& aSubscribers)
+	{
+	CSubscriber* subscriber = CSubscriber::NewL(test, KPropertyKeyBluetoothGetPHYCount, KNumLinks);
+	
+	CleanupStack::PushL(subscriber);
+	aSubscribers.AppendL(subscriber);
+	CleanupStack::Pop(subscriber);
+	
+	subscriber = CSubscriber::NewL(test, KPropertyKeyBluetoothGetRegistryTableChange, KRegistry);
+	CleanupStack::PushL(subscriber);
+	aSubscribers.AppendL(subscriber);
+	CleanupStack::Pop(subscriber);
+	
+	subscriber = CSubscriber::NewL(test, KPropertyKeyBluetoothGetConnectingStatus, KConnecting);
+	CleanupStack::PushL(subscriber);
+	aSubscribers.AppendL(subscriber);
+	CleanupStack::Pop(subscriber);
+		
+	subscriber = CSubscriber::NewL(test, KPropertyKeyBluetoothGetScanningStatus, KScanning);
+	CleanupStack::PushL(subscriber);
+	aSubscribers.AppendL(subscriber);
+	CleanupStack::Pop(subscriber);
+
+	subscriber = CSubscriber::NewL(test, KPropertyKeyBluetoothGetLimitedDiscoverableStatus, KLimited);
+	CleanupStack::PushL(subscriber);
+	aSubscribers.AppendL(subscriber);
+	CleanupStack::Pop(subscriber);
+	
+	subscriber = CSubscriber::NewL(test, KPropertyKeyBluetoothGetDeviceClass, KDeviceClass);
+	CleanupStack::PushL(subscriber);
+	aSubscribers.AppendL(subscriber);
+	CleanupStack::Pop(subscriber);
+	
+	subscriber = CSubscriber::NewL(test, KPropertyKeyBluetoothGetCorruptRegistryResetIndication, KCorruptRegistry);
+	CleanupStack::PushL(subscriber);
+	aSubscribers.AppendL(subscriber);
+	CleanupStack::Pop(subscriber);
+	
+	subscriber = CDeviceNameSubscriber::NewL(test, KPropertyKeyBluetoothGetDeviceName, KDeviceName);
+	CleanupStack::PushL(subscriber);
+	aSubscribers.AppendL(subscriber);
+	CleanupStack::Pop(subscriber);
+	
+	subscriber = CSubscriber::NewL(test, KPropertyKeyBluetoothHostResolverActive, KDiscovering);
+	CleanupStack::PushL(subscriber);
+	aSubscribers.AppendL(subscriber);
+	CleanupStack::Pop(subscriber);
+	}
+
+
 void TestL()
 	{
 	// first do a sync test
@@ -62,26 +112,21 @@ void TestL()
 
 	RPointerArray<CSubscriber> subscribers;
 
-	//ignoring errors!
-	subscribers.Append(CSubscriber::NewL(test, KPropertyKeyBluetoothGetPHYCount, KNumLinks));
-	subscribers.Append(CSubscriber::NewL(test, KPropertyKeyBluetoothGetRegistryTableChange, KRegistry));
-	subscribers.Append(CSubscriber::NewL(test, KPropertyKeyBluetoothGetConnectingStatus, KConnecting));
-	subscribers.Append(CSubscriber::NewL(test, KPropertyKeyBluetoothGetScanningStatus, KScanning));
-	subscribers.Append(CSubscriber::NewL(test, KPropertyKeyBluetoothGetLimitedDiscoverableStatus, KLimited));
-	subscribers.Append(CSubscriber::NewL(test, KPropertyKeyBluetoothGetDeviceClass, KDeviceClass));
-	subscribers.Append(CSubscriber::NewL(test, KPropertyKeyBluetoothGetCorruptRegistryResetIndication, KCorruptRegistry));
-	subscribers.Append(CDeviceNameSubscriber::NewL(test, KPropertyKeyBluetoothGetDeviceName, KDeviceName));
- 	subscribers.Append(CSubscriber::NewL(test, KPropertyKeyBluetoothHostResolverActive, KDiscovering));
+	TRAPD(err, CreateSubscribersL(subscribers));
 
 	test.Printf(_L("%d Subscribers\n"), subscribers.Count());
 
-	for (TInt i=0; i<subscribers.Count(); i++)
-		subscribers[i]->Start();
-
-	CActiveScheduler::Start();
+	if (err == KErrNone)
+		{
+		// Only start if no errors when creating the subscribers
+		for (TInt i=0; i<subscribers.Count(); i++)
+			{
+			subscribers[i]->Start();
+			}
+		CActiveScheduler::Start();
+		}
 	subscribers.ResetAndDestroy();
 	}
-
 
 CSubscriber* CSubscriber::NewL(RTest& aTest, TUint aKey, const TDesC& aString)
 	{

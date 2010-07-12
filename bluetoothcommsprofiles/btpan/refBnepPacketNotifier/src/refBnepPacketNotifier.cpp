@@ -82,7 +82,7 @@ void CRefBnepPacketNotifier::MbpnDeviceAdded(const TBTDevAddr& aAddr)
 	devByteCount.iByteCount=0;
 	devByteCount.iTickCount=0;
 	devByteCount.iAddr=aAddr;
-	iCounter.Append(devByteCount);
+	(void)iCounter.Append(devByteCount);
 	}
 
 void CRefBnepPacketNotifier::MbpnDeviceRemoved(const TBTDevAddr& aAddr)

@@ -559,7 +559,7 @@ void CHCIFacade::WriteIACLAPL(TUint8 aNumCurrentIAC, TUint aIAC_LAP[])
 	
 	for (TInt count = 0; count < aNumCurrentIAC; count++)
 		{
-		iacLap.Append(aIAC_LAP[count]);
+		iacLap.AppendL(aIAC_LAP[count]);
 		}
 		
 	CWriteCurrentIACLAPCommand* cmd = CWriteCurrentIACLAPCommand::NewL(aNumCurrentIAC, iacLap);

@@ -113,6 +113,8 @@ public:
 	
 	TInt ExitMode(TBTLinkMode aMode, THCIConnHandle aHandle);
 	TInt ChangeMode(TBTLinkMode aMode, THCIConnHandle aHandle);
+	
+	TInt ExecuteModeChange(TBTLinkMode aTargetMode);
 
 private:	// events from MHCICommandQueueClient
 	virtual void MhcqcCommandEventReceived(const THCIEventBase& aEvent, const CHCICommandBase* aRelatedCommand);
@@ -127,11 +129,12 @@ private:
 	void HoldL(THCIConnHandle aHandle);
 	void ParkL(THCIConnHandle aHandleToRemote);
 	void ExitParkL(THCIConnHandle aHandleToRemote);
-
+	
 private:
 	CPhysicalLink&		iParent;
 	MHCICommandQueue&	iCmdController;
 	TBool				iOutstandingCmd;
+	TBTLinkMode			iTargetMode;
 	};
 
 /**
@@ -332,11 +335,7 @@ public:
 
 	TInt ChangeConnectionPacketType(TUint16 aType);
 
-	TInt ExitMode(TBTLinkMode aMode);
 	TInt RequestHold();
-	TInt RequestSniff();
-	TInt RequestPark();
-	TInt RequestActive();
 	TInt RequestChangeRole(TBTBasebandRole aRole);
 
 	void ReadNewPhysicalLinkMetricValue(TUint aIoctlName, CBTProxySAP& aSAP, TInt aCurrentValue);
@@ -490,7 +489,6 @@ private:
 	void NotifyStateChange(TBTBasebandEventNotification & aEvent);
 
 	TBool IsPhysicalLinkIdle() const;
-	TInt RequestMode(TBTLinkMode aMode);
 	TBasebandTime CalculatePageTimeout(TBasebandPageTimePolicy aPolicy, TUint8 aRepMode, TBool aValidClockOffset);
 	TBool IsPasskeyMinLengthOK();
 	TBool PeerSupportsLinkKeyRegeneration() const;

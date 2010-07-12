@@ -254,7 +254,8 @@ void TAVStreamState::SuspendConfirm(CAVStream& /*aStream*/, TInt /*aResult*/, TS
 TInt TAVStreamState::AddSession(CAVStream& /*aStream*/, 
 							TAvdtpTransportSessionType /*aType*/,
 							CUserPlaneTransportSession& /*aSession*/,
-							CTransportChannel*& /*aTransportChannel*/) const
+							CTransportChannel*& /*aTransportChannel*/,
+							TL2CapConfig::TChannelPriority /*aPriority*/) const
 	{
 	LOG_FUNC
 	DEBUGPANICINSTATE(EAvdtpUnexpectedAddSessionEvent);
@@ -490,7 +491,8 @@ Once all the required sessions are added the stream tries to open the remote
 TInt TAVStreamStateINTConfigured::AddSession(CAVStream& aStream,
 									TAvdtpTransportSessionType aType,
 						   			CUserPlaneTransportSession& aSession,
-						   			CTransportChannel*& aChannel) const
+						   			CTransportChannel*& aChannel,
+						   			TL2CapConfig::TChannelPriority aPriority) const
 	{
 	LOG_FUNC
 	TInt ret = KErrNone;
@@ -513,7 +515,7 @@ TInt TAVStreamStateINTConfigured::AddSession(CAVStream& aStream,
 		if (aChannel)
 			{
 			// bind session to channel
-			ret = aChannel->AttachTransportSession(aSession, aType);
+			ret = aChannel->AttachTransportSession(aSession, aType, aPriority);
 			if (ret==KErrNone)
 				{
 				// keep a copy of this binding
@@ -774,7 +776,8 @@ void TAVStreamStateACPConfigured::DoAwaitDirectChannelsL(CAVStream& aStream,
 TInt TAVStreamStateACPConfigured::AddSession(CAVStream& /*aStream*/, 
 							TAvdtpTransportSessionType /*aType*/,
 							CUserPlaneTransportSession& /*aSession*/,
-							CTransportChannel*& /*aTransportChannel*/) const
+							CTransportChannel*& /*aTransportChannel*/,
+							TL2CapConfig::TChannelPriority /*aPriority*/) const
 	{
 	LOG_FUNC
 	return KErrNotReady;
@@ -828,7 +831,8 @@ void TAVStreamStateOpen::Enter(CAVStream& __DEBUG_ONLY(aStream)) const
 TInt TAVStreamStateReady::AddSession(CAVStream& /*aStream*/, 
 		TAvdtpTransportSessionType /*aType*/,
 		CUserPlaneTransportSession& /*aSession*/,
-		CTransportChannel*& /*aTransportChannel*/) const
+		CTransportChannel*& /*aTransportChannel*/,
+		TL2CapConfig::TChannelPriority /*aPriority*/) const
 {
 LOG_FUNC
 #ifdef _DEBUG
@@ -918,8 +922,7 @@ void TAVStreamStateOpening::OpenConfirm(CAVStream& aStream, TInt aResult, TSEID 
 			{
 			sigch->SendAbort(aStream, aStream.RemoteSEID());
 			}
-
-       		// no need to tell signalling session as Opening is not available to RGavdp
+	
 		// Opening is performed when the necessary sockets are created and connected in a stream
 		aStream.NotifyUserPlaneTransportSessionsError(NULL, aResult);
 		}
@@ -1194,7 +1197,8 @@ to come in and connect to the TCs.  The sessions do so at the behest of GAVDP
 TInt TAVStreamStateWaitForSessions::AddSession(CAVStream& aStream,
 									TAvdtpTransportSessionType aType,
 						   			CUserPlaneTransportSession& aSession,
-						   			CTransportChannel*& aChannel) const
+						   			CTransportChannel*& aChannel,
+						   			TL2CapConfig::TChannelPriority aPriority) const
 	{
 	LOG_FUNC
 	TInt ret = KErrNone;
@@ -1237,7 +1241,7 @@ TInt TAVStreamStateWaitForSessions::AddSession(CAVStream& aStream,
 	
 	if (ret == KErrNone)
 		{
-		ret = b->iChannel->AttachTransportSession(aSession, aType);
+		ret = b->iChannel->AttachTransportSession(aSession, aType, aPriority);
 		if (ret==KErrNone)
 			{
 			// stream needs to remember binding
@@ -1277,11 +1281,12 @@ stored in the CAVStream object will be used to pass a start indication to GAVDP.
 TInt TAVStreamStateWaitForSessionsStartReceived::AddSession(CAVStream& aStream,
 												TAvdtpTransportSessionType aType,
 						   						CUserPlaneTransportSession& aSession,
-						   						CTransportChannel*& aChannel) const
+						   						CTransportChannel*& aChannel,
+						   						TL2CapConfig::TChannelPriority aPriority) const
 	{
 	LOG_FUNC
 	// Call the function from the parent class to bind the session
-	TInt ret = TAVStreamStateWaitForSessions::AddSession(aStream,aType,aSession,aChannel);
+	TInt ret = TAVStreamStateWaitForSessions::AddSession(aStream,aType,aSession,aChannel, aPriority);
 	
 	// if that worked, and all the channels are bound, we can now issue the delayed start
 	if((ret == KErrNone) && (!aStream.iNumSessionsRequired))

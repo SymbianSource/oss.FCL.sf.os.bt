@@ -45,15 +45,28 @@ CDirectChannel::CDirectChannel(CAvdtpProtocol& aProtocol,
 	LOG_FUNC
 	}
 		
-TInt CDirectChannel::AttachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType /*aType*/)
+TInt CDirectChannel::AttachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType /*aType*/, TL2CapConfig::TChannelPriority aPriority)
 	{
 	LOG_FUNC
 	__ASSERT_DEBUG(!iTransportSession, Panic(EAVDTPBadSessionAttachToTransportChannel));
-	// don't care about session type for direct channels
 	iTransportSession = &aSession;
+	iChannelPriority = aPriority;
+	UpdateChannelPriority();
 	return KErrNone;
 	}
 	
+void CDirectChannel::UpdateChannelPriority()
+	{
+	LOG_FUNC
+	
+	if(iLogicalChannel)
+		{
+		TPckgBuf<TL2CapConfig> configBuf;
+		configBuf().ConfigureChannelPriority(iChannelPriority);
+		(void)iLogicalChannel->SetOption(KSolBtL2CAP, KL2CAPUpdateChannelConfig, configBuf);
+		}
+	}
+
 TBool CDirectChannel::CouldAttachSession(const TAvdtpSockAddr& /*aAddr*/)
 	{
 	LOG_FUNC
@@ -136,6 +149,10 @@ void CDirectChannel::DetachTransportSession(CUserPlaneTransportSession& /*aSessi
 	LOG_FUNC
 	__ASSERT_DEBUG(&aSession == iTransportSession, Panic(EAVDTPBadSessionDetachFromTransportChannel));
 	iTransportSession = NULL;
+	iChannelPriority = TL2CapConfig::ELow;
+	
+	UpdateChannelPriority();
+	
 	// closing logical channel is async - we die on CanClose
 	// but we're invalid, so tell protocol
 	Protocol().TransportChannelClosing(*this);
