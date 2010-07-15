@@ -1,4 +1,4 @@
-// Copyright (c) 2004-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2004-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -66,14 +66,15 @@ void CHCILoggerBtSnoop::ConstructL()
 	for (TInt i = 0; i <= TInt(KHCILoggerControllerToHost | KHCILoggerCommandOrEvent); i++)
 		{
 		CHCILoggerBufferedFrame* temp = new(ELeave) CHCILoggerBufferedFrame;
-		iBuffers.Append(temp); // array now "owns" temp
+		CleanupStack::PushL(temp);
+		iBuffers.AppendL(temp); // array now "owns" temp
+		CleanupStack::Pop(temp);
 		}
 	}
 
 void CHCILoggerBtSnoop::DoInitialise(TInt aType)
 	{
 	iDatalinkType = aType;
-	iFs.Connect();
 	OpenFile(); // if it fails, just ignore it - try later when writing
 	}
 
@@ -149,7 +150,18 @@ TInt CHCILoggerBtSnoop::OpenFile()
 		break;
 		};
 
-	TInt err = iLogFile.Open(iFs, fileName, EFileWrite | EFileShareAny);
+	TInt err = KErrNone;
+
+	if (!iFs.Handle())
+	    {
+        err = iFs.Connect();
+        if (err)
+            {
+            return err;
+            }
+	    }
+
+	err = iLogFile.Open(iFs, fileName, EFileWrite | EFileShareAny);
 	if (err == KErrNotFound)
 		{ // if it doesn't already exist, create it
 		//Note that the potential KErrPathNotFound error is deliberately not handled, 

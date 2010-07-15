@@ -1,4 +1,4 @@
-// Copyright (c) 2004-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2004-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -93,7 +93,7 @@ Connect a new socket and create a BNEP channel to use it.
 	{
 	iRemSockAddr.SetBTAddr(aRemDevAddr);
 	iRemSockAddr.SetPort(KBnepPsm);
-	iSockServ.Connect();
+	User::LeaveIfError(iSockServ.Connect());
 	
 #ifdef __FLOG_ACTIVE
 	TBuf<KMaxBtAddrSize> tempDevAddrBuf;
@@ -138,7 +138,7 @@ Take a preconnected socket and create a BNEP channel to use it.
 
 	// make a note of the remote device address
 	iSocket.RemoteName(iRemSockAddr);
-	iSockServ.Connect();
+	User::LeaveIfError(iSockServ.Connect());
 
 #ifdef __FLOG_ACTIVE
 	TBuf<KMaxBtAddrSize> tempDevAddrBuf;

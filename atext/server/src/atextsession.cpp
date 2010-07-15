@@ -898,6 +898,7 @@ void CATExtSession::Destruct( TBool aSyncClose )
     if ( iEComSession )
         {
         iEComSession->Close();
+        iEComSession = NULL; 
         }
     if ( !aSyncClose )
         {
