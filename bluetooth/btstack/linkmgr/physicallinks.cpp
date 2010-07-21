@@ -58,7 +58,7 @@ PANICCATEGORY("plink");
 static const THCIErrorCode KDefaultRejectReason = EHostSecurityRejection; // see spec Error Codes
 
 #ifdef _DEBUG
-#define __CHECK_CONNECTION_HANDLE(aHandle) __ASSERT_DEBUG(aHandle==iHandle, Panic(EBTLinkMgrConnectionEventInWrongSAP));
+#define __CHECK_CONNECTION_HANDLE(aHandle) __ASSERT_DEBUG(HasHandle(aHandle), Panic(EBTLinkMgrConnectionEventInWrongSAP));
 #else
 #define __CHECK_CONNECTION_HANDLE(aHandle) aHandle=aHandle; // to suppress warnings
 #endif

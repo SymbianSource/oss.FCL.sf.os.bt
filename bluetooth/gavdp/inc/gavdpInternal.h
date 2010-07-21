@@ -1,4 +1,4 @@
-// Copyright (c) 2004-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2004-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -301,16 +301,17 @@ private:
 NONSHARABLE_CLASS(CGavdpConnector) : public CGavdpHelper
 	{
 public:
-	static CGavdpConnector* NewL(CGavdp& aGavdp, MGavdpUser& aUser, const TBTDevAddr& aAddr);
+	static CGavdpConnector* NewL(CGavdp& aGavdp, MGavdpUser& aUser, const TBTDevAddr& aAddr, TBool aPassive = EFalse);
 	
 	virtual void Begin();
 	~CGavdpConnector();
 private:
-	CGavdpConnector(CGavdp& aGavdp, MGavdpUser& aUser, const TBTDevAddr& aAddr);
+	CGavdpConnector(CGavdp& aGavdp, MGavdpUser& aUser, const TBTDevAddr& aAddr, TBool aPassive);
 	void RunL();
 	void DoCancel();
 private:
 	TAvdtpSockAddr	iSocketAddress;
+	TBool			iIsPassiveConnector;	//true when listening
 	};
 
 class CGavdpUPlaneConnector;

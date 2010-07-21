@@ -1424,6 +1424,8 @@ private:
 	void UpdateLinkParams(TSCOType aSCOType);
 	TInt LinkUp(TBTDevAddr aAddr);
 	void LinkDown();
+	void AcceptConnectionL(const TBTSyncPackets& aPacketTypes);
+	static void StaticResetScoTypes(TAny* aThis);
 
 private:
 	CBTSynchronousLinkSender*			iBTSynchronousLinkSenderSCO;

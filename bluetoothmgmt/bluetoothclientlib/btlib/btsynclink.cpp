@@ -160,7 +160,6 @@ EXPORT_C TInt CBluetoothSynchronousLink::SetupConnection(const TBTDevAddr& aBDAd
 
 // This needs to be a macro or the 'return' won't return properly
 #define CLOSE_RETURN_IF_ERROR(error) if (error) { LinkDown(); SCOSocket().Close(); ESCOSocket().Close(); return error; }
-#define CLOSE_LISTENER_RETURN_IF_ERROR(error) if (error) { ListeningSCOSocket().Close(); ListeningESCOSocket().Close(); return error; }
 
 EXPORT_C TInt CBluetoothSynchronousLink::SetupConnection(const TBTDevAddr& aBDAddr, const TBTSyncPackets& aPacketTypes)
 	{
@@ -191,23 +190,17 @@ EXPORT_C TInt CBluetoothSynchronousLink::SetupConnection(const TBTDevAddr& aBDAd
 	if (packetsESCO) 
 		{
 		iSCOTypes |= EeSCO;
-		openESCO = ETrue;	
+		openESCO = ETrue;
 		}
 		
 	// but must be one		
 	__ASSERT_ALWAYS(packetsSCO || packetsESCO, Panic(EBadSyncPacketTypes));
 
-	if (iBTSynchronousLinkAttacherSCO->IsActive())
+	if (iBTSynchronousLinkAttacherSCO->IsActive() || iBTSynchronousLinkAttacherESCO->IsActive())
 		{
 		FLOG(_L("Link attacher already active"));
 		return KErrInUse;
 		}
-	
-	if (iBTSynchronousLinkAttacherESCO->IsActive())
-		{
-		FLOG(_L("Link attacher already active"));
-		return KErrInUse;
-		}	
 		
 	TInt linkState = LinkUp(aBDAddr);
 	if (linkState != KErrNone)
@@ -337,16 +330,12 @@ The physical link will remain unless no other services are running on it.
 */
 EXPORT_C TInt CBluetoothSynchronousLink::Disconnect()
 	{
-	if (!SCOSocket().SubSessionHandle())
+	if (!SCOSocket().SubSessionHandle() && !ESCOSocket().SubSessionHandle())
 		{
-		if(!ESCOSocket().SubSessionHandle())
-			{
-			return KErrDisconnected;
-			}
+		return KErrDisconnected;
 		}
 
-	if (iBTSynchronousLinkDetacherSCO->IsActive() ||
-	    iBTSynchronousLinkDetacherESCO->IsActive())
+	if (iBTSynchronousLinkDetacherSCO->IsActive() || iBTSynchronousLinkDetacherESCO->IsActive())
 		{
 		return KErrInUse;
 		}
@@ -499,6 +488,12 @@ This object will represent that synchronous link locally when/if it does come up
 */
 EXPORT_C TInt CBluetoothSynchronousLink::AcceptConnection(const TBTSyncPackets& aPacketTypes)
 	{
+	TRAPD(err, AcceptConnectionL(aPacketTypes));
+	return err;
+	}
+	
+void CBluetoothSynchronousLink::AcceptConnectionL(const TBTSyncPackets& aPacketTypes)
+	{
 	TBool listenForSCO = EFalse;
 	TBool listenForESCO = EFalse;
 
@@ -506,41 +501,30 @@ EXPORT_C TInt CBluetoothSynchronousLink::AcceptConnection(const TBTSyncPackets& 
 	
 	TBTSyncPacketTypes packets = aPacketTypes();
 	
-	
 	__ASSERT_ALWAYS(packets, Panic(EBadSyncPacketTypes));
 	packets &= (TBTSyncPackets::ESyncAnySCOPacket | TBTSyncPackets::ESyncAnyESCOPacket);
 	if (!packets)
 		{
-		return KErrNotSupported;
+		User::Leave(KErrNotSupported);
 		}
 
-	if (iBTSynchronousLinkAccepterSCO->IsActive())
+	if (iBTSynchronousLinkAccepterSCO->IsActive() || iBTSynchronousLinkAccepterESCO->IsActive())
 		{
-		return KErrInUse;
-		}
-		
-	if (iBTSynchronousLinkAccepterESCO->IsActive())
-		{
-		return KErrInUse;
+		User::Leave(KErrInUse);
 		}
 	
-	TInt err = ListeningSCOSocket().Open(iSockServer, KBTAddrFamily, KSockBluetoothTypeSCO, KBTLinkManager);
-	if(err)
-		{
-		return err;
-		}
+	User::LeaveIfError(ListeningSCOSocket().Open(iSockServer, KBTAddrFamily, KSockBluetoothTypeSCO, KBTLinkManager));
+	CleanupClosePushL(ListeningSCOSocket());
 		
-	err = ListeningESCOSocket().Open(iSockServer, KBTAddrFamily, KSockBluetoothTypeESCO, KBTLinkManager);
-	if(err)
-		{
-		ListeningSCOSocket().Close();
-		return err;
-		}
+	User::LeaveIfError(ListeningESCOSocket().Open(iSockServer, KBTAddrFamily, KSockBluetoothTypeESCO, KBTLinkManager));
+	CleanupClosePushL(ListeningESCOSocket());
+	
+	CleanupStack::PushL(TCleanupItem(StaticResetScoTypes, this)); // we want to clear any setting of SCO types upon leaving
 	
 	TBTSyncPacketTypes packetsSCO = packets & TBTSyncPackets::ESyncAnySCOPacket;
 	if (packetsSCO)
 		{
-		err = ListeningSCOSocket().SetOpt(ESyncUserPacketTypes, KSolBtSCO, packetsSCO);
+		TInt err = ListeningSCOSocket().SetOpt(ESyncUserPacketTypes, KSolBtSCO, packetsSCO);
 		if(!err)
 			{
 			iSCOTypes |= ESCO;
@@ -551,17 +535,15 @@ EXPORT_C TInt CBluetoothSynchronousLink::AcceptConnection(const TBTSyncPackets& 
 	TBTSyncPacketTypes packetsESCO = packets & TBTSyncPackets::ESyncAnyESCOPacket;
 	if (packetsESCO) 
 		{
-		err = ListeningESCOSocket().SetOpt(ESyncUserPacketTypes, KSolBtSCO, packetsESCO);
+		TInt err = ListeningESCOSocket().SetOpt(ESyncUserPacketTypes, KSolBtSCO, packetsESCO);
 		if (!err)
 			{
 			iSCOTypes |= EeSCO;
 			listenForESCO = ETrue;
-			}
 			
-		TPckgBuf<TBTeSCOLinkParams> options;
-		options() = iRequestedLink;
-		err = ListeningESCOSocket().SetOpt(EeSCOExtOptions, KSolBtESCO, options);
-		CLOSE_LISTENER_RETURN_IF_ERROR(err);	
+			TPckgC<TBTeSCOLinkParams> options(iRequestedLink);
+			User::LeaveIfError(ListeningESCOSocket().SetOpt(EeSCOExtOptions, KSolBtESCO, options));
+			}
 		}
 
 	__ASSERT_ALWAYS(listenForSCO || listenForESCO, Panic(EBadSyncPacketTypes));
@@ -580,62 +562,57 @@ EXPORT_C TInt CBluetoothSynchronousLink::AcceptConnection(const TBTSyncPackets& 
 	
 	if (listenForSCO)
 		{
-		err = ListeningSCOSocket().Bind(sa);
-		CLOSE_LISTENER_RETURN_IF_ERROR(err);
-		
-		err = ListeningSCOSocket().Listen(KSCOListenQueSize);
-		CLOSE_LISTENER_RETURN_IF_ERROR(err);
-		
-		err = SCOSocket().Open(SocketServer());							    
-		if(err)
-			{
-			return err;
-			}
+		User::LeaveIfError(ListeningSCOSocket().Bind(sa));
+		User::LeaveIfError(ListeningSCOSocket().Listen(KSCOListenQueSize));
+		User::LeaveIfError(SCOSocket().Open(SocketServer()));
+		CleanupClosePushL(SCOSocket());
 		}
 	
 	if(listenForESCO)
 		{
-		err = ListeningESCOSocket().Bind(sa);
-		CLOSE_LISTENER_RETURN_IF_ERROR(err);
-	
-		err = ListeningESCOSocket().Listen(KSCOListenQueSize);
-		CLOSE_LISTENER_RETURN_IF_ERROR(err);
-		
-		err = ESCOSocket().Open(SocketServer());	
-		if(err)
-			{
-			return err;
-			}
-		}	
+		User::LeaveIfError(ListeningESCOSocket().Bind(sa));
+		User::LeaveIfError(ListeningESCOSocket().Listen(KSCOListenQueSize));
+		User::LeaveIfError(ESCOSocket().Open(SocketServer()));
+		}
 
+	// Now we can't fail synchronously, so we're ready to begin the accept.
+	if(listenForESCO)
+		{
+		iBTSynchronousLinkAccepterESCO->Accept();
+		}
+		
 	if (listenForSCO)
 		{
-		iBTSynchronousLinkAccepterSCO->Accept(ListeningSCOSocket());
+		CleanupStack::Pop(&SCOSocket());
+		iBTSynchronousLinkAccepterSCO->Accept();
 		}
 	
-	if(listenForESCO)
-		{
-		iBTSynchronousLinkAccepterESCO->Accept(ListeningESCOSocket());
-		}
+	CleanupStack::Pop(3); // StaticResetScoTypes, ListeningESCOSocket(), ListeningSCOSocket()
+	}
 	
-	return err;
+void CBluetoothSynchronousLink::StaticResetScoTypes(TAny* aThis)
+	{
+	static_cast<CBluetoothSynchronousLink*>(aThis)->iSCOTypes = 0;
 	}
 
 
 /**
 Cancel ability to respond to a remote request to set up a synchronous link.
-It is possible for a race condition to mean that a connection has been established,
-but as this call consumes the callback, for this fact not to reach the caller.
-For this reason, it may be desirable to follow a call to CancelAccept with a call
-to Disconnect.
-@see CBluetoothSynchronousLink::Disconnect
+
+It is possible for a race condition to mean that a connection has been established
+but the notifier has not yet received the call-back.  In this case no call-back will
+be received and the link (if established) will be immediately shutdown.
 */
 EXPORT_C void CBluetoothSynchronousLink::CancelAccept()
 	{
 	iBTSynchronousLinkAccepterSCO->Cancel();
 	iBTSynchronousLinkAccepterESCO->Cancel();
 	iBTSynchronousLinkBaseband->StopAll();
-
+	
+	iSCOTypes = 0;
+	
+	LinkDown();
+	
 	ListeningSCOSocket().Close();
 	ListeningESCOSocket().Close();
 	SCOSocket().Close();
@@ -896,36 +873,48 @@ void CBluetoothSynchronousLink::HandleAcceptConnectionCompleteL(TInt aErr, TSCOT
 		if (aSCOType & ESCO)
 			{
 			iBTSynchronousLinkAccepterESCO->Cancel();
+			ListeningESCOSocket().Close();
+			ESCOSocket().Close();
+			
 			SCOSocket().RemoteName(sockAddr);
 			}
 		else
 			{
 			iBTSynchronousLinkAccepterSCO->Cancel();
+			ListeningSCOSocket().Close();
+			SCOSocket().Close();
+			
 			ESCOSocket().RemoteName(sockAddr);
 			}
 		
 		if(sockAddr.Family() == KBTAddrFamily)
 			{
-			TBTSockAddr& btSockAddr = static_cast<TBTSockAddr&>(sockAddr);	// subclasses of TSockAddr are forbidden to add members
+			TBTSockAddr& btSockAddr = static_cast<TBTSockAddr&>(sockAddr);
 			TBTDevAddr da = btSockAddr.BTAddr();
-			TInt linkState = LinkUp(da);
-				
-			__ASSERT_ALWAYS((linkState == KErrNone), Panic(EBasebandFailedConnect));
-			
-			iBTSynchronousLinkBaseband->PreventPark();
-			iBTSynchronousLinkBaseband->CatchEvents();
-			UpdateLinkParams(aSCOType);
+			aErr = LinkUp(da);
+			if(aErr == KErrNone)
+				{
+				iBTSynchronousLinkBaseband->PreventPark();
+				iBTSynchronousLinkBaseband->CatchEvents();
+				UpdateLinkParams(aSCOType);
+				}
+			else
+				{
+				FTRACE(FPrint(_L("Failed to \"LinkUp\" the synchronous link (aErr %d)"), aErr));
+				}
 			}
 		else
 			{
 			// reading RemoteName has failed, probably socket state is already closed
 			// for example after quick disconnection initiated from remote side
-			aErr = KErrDisconnected;			
+			aErr = KErrDisconnected;
 			}
 		}
-	else
+	
+	if(aErr != KErrNone)
 		{
 		iNegotiatedLink = TBTeSCOLinkParams(0, 0, 0, 0);
+		CancelAccept(); // makes sure everything is cleaned up.
 		}
 
 #ifdef __FLOGGING__
@@ -935,9 +924,6 @@ void CBluetoothSynchronousLink::HandleAcceptConnectionCompleteL(TInt aErr, TSCOT
 #else
 	Notifier().HandleAcceptConnectionCompleteL(aErr);
 #endif
-	
-	ListeningSCOSocket().Close();
-	ListeningESCOSocket().Close();
 	}
 
 
@@ -1034,23 +1020,15 @@ void CBluetoothSynchronousLink::LinkDown()
 CBTSynchronousLinkBaseband* CBTSynchronousLinkBaseband::NewL(CBluetoothSynchronousLink& aParent)
 	{
 	CBTSynchronousLinkBaseband* self = new(ELeave) CBTSynchronousLinkBaseband(aParent);
-	CleanupStack::PushL(self);
-	self->ConstructL();
-	CleanupStack::Pop(self);
 	return self;
 	}
 
 
 CBTSynchronousLinkBaseband::CBTSynchronousLinkBaseband(CBluetoothSynchronousLink& aParent)
 	: CActive(CActive::EPriorityStandard), iParent(aParent)
-	{}
-
-
-void CBTSynchronousLinkBaseband::ConstructL()
 	{
 	CActiveScheduler::Add(this);
 	}
-
 
 CBTSynchronousLinkBaseband::~CBTSynchronousLinkBaseband()
 	{
@@ -1093,7 +1071,7 @@ void CBTSynchronousLinkBaseband::StopAll()
 	Cancel();
 	}
 
-
+	
 void CBTSynchronousLinkBaseband::DoCancel()
 	{
 	iParent.Baseband().CancelNextBasebandChangeEventNotifier();
@@ -1104,19 +1082,11 @@ void CBTSynchronousLinkBaseband::DoCancel()
 CBTSynchronousLinkAttacher* CBTSynchronousLinkAttacher::NewL(CBluetoothSynchronousLink& aParent, TSCOType aSCOType)
 	{
 	CBTSynchronousLinkAttacher* self = new (ELeave) CBTSynchronousLinkAttacher(aParent, aSCOType);
-	CleanupStack::PushL(self);
-	self->ConstructL();
-	CleanupStack::Pop(self);
 	return self;
 	}
 
-
 CBTSynchronousLinkAttacher::CBTSynchronousLinkAttacher(CBluetoothSynchronousLink& aParent, TSCOType aSCOType)
 	: CActive(CActive::EPriorityStandard), iParent(aParent), iSCOType(aSCOType)
-	{
-	}
-
-void CBTSynchronousLinkAttacher::ConstructL()
 	{
 	CActiveScheduler::Add(this);
 	}
@@ -1155,7 +1125,6 @@ TInt CBTSynchronousLinkAttacher::RunError(TInt /*aError*/)
 	return KErrNone;
 	}
 
-
 void CBTSynchronousLinkAttacher::DoCancel()
 	{
 	FLOG(_L("CBTSynchronousLinkAttacher cancel attach sync link"));
@@ -1174,19 +1143,11 @@ void CBTSynchronousLinkAttacher::DoCancel()
 CBTSynchronousLinkDetacher* CBTSynchronousLinkDetacher::NewL(CBluetoothSynchronousLink& aParent, TSCOType aSCOType)
 	{
 	CBTSynchronousLinkDetacher* self = new (ELeave) CBTSynchronousLinkDetacher(aParent, aSCOType);
-	CleanupStack::PushL(self);
-	self->ConstructL();
-	CleanupStack::Pop(self);
 	return self;
 	}
 
-
 CBTSynchronousLinkDetacher::CBTSynchronousLinkDetacher(CBluetoothSynchronousLink& aParent, TSCOType aSCOType)
 	: CActive(CActive::EPriorityStandard), iParent(aParent), iSCOType(aSCOType)
-	{
-	}
-
-void CBTSynchronousLinkDetacher::ConstructL()
 	{
 	CActiveScheduler::Add(this);
 	}
@@ -1240,19 +1201,12 @@ void CBTSynchronousLinkDetacher::DoCancel()
 CBTSynchronousLinkAccepter* CBTSynchronousLinkAccepter::NewL(CBluetoothSynchronousLink& aParent, TSCOType aSCOType)
 	{
 	CBTSynchronousLinkAccepter* self = new (ELeave) CBTSynchronousLinkAccepter(aParent, aSCOType);
-	CleanupStack::PushL(self);
-	self->ConstructL();
-	CleanupStack::Pop(self);
 	return self;
 	}
 
 
 CBTSynchronousLinkAccepter::CBTSynchronousLinkAccepter(CBluetoothSynchronousLink& aParent, TSCOType aSCOType)
 	: CActive(CActive::EPriorityStandard), iParent(aParent), iSCOType(aSCOType)
-	{
-	}
-
-void CBTSynchronousLinkAccepter::ConstructL()
 	{
 	CActiveScheduler::Add(this);
 	}
@@ -1262,7 +1216,7 @@ CBTSynchronousLinkAccepter::~CBTSynchronousLinkAccepter()
 	Cancel();
 	}
 
-void CBTSynchronousLinkAccepter::Accept(RSocket& aSocket)
+void CBTSynchronousLinkAccepter::Accept()
 
 	{
 	__ASSERT_ALWAYS(!IsActive(), Panic(EUnfinishedBusiness));
@@ -1270,11 +1224,11 @@ void CBTSynchronousLinkAccepter::Accept(RSocket& aSocket)
 	FLOG(_L("CBTSynchronousLinkAccepter accept sync link"));
 	if (iSCOType == ESCO)
 		{
-		aSocket.Accept(iParent.SCOSocket(), iStatus);
+		iParent.ListeningSCOSocket().Accept(iParent.SCOSocket(), iStatus);
 		}
 	else
 		{
-		aSocket.Accept(iParent.ESCOSocket(), iStatus);
+		iParent.ListeningESCOSocket().Accept(iParent.ESCOSocket(), iStatus);
 		}
 	SetActive();
 	}
@@ -1315,19 +1269,12 @@ void CBTSynchronousLinkAccepter::DoCancel()
 CBTSynchronousLinkSender* CBTSynchronousLinkSender::NewL(CBluetoothSynchronousLink& aParent, TSCOType aSCOType)
 	{
 	CBTSynchronousLinkSender* self = new (ELeave) CBTSynchronousLinkSender(aParent, aSCOType);
-	CleanupStack::PushL(self);
-	self->ConstructL();
-	CleanupStack::Pop(self);
 	return self;
 	}
 
 
 CBTSynchronousLinkSender::CBTSynchronousLinkSender(CBluetoothSynchronousLink& aParent, TSCOType aSCOType)
 	: CActive(CActive::EPriorityStandard), iParent(aParent), iSCOType(aSCOType)
-	{
-	}
-
-void CBTSynchronousLinkSender::ConstructL()
 	{
 	CActiveScheduler::Add(this);
 	}
@@ -1403,19 +1350,12 @@ void CBTSynchronousLinkSender::DoCancel()
 CBTSynchronousLinkReceiver* CBTSynchronousLinkReceiver::NewL(CBluetoothSynchronousLink& aParent, TSCOType aSCOType)
 	{
 	CBTSynchronousLinkReceiver* self = new (ELeave) CBTSynchronousLinkReceiver(aParent, aSCOType);
-	CleanupStack::PushL(self);
-	self->ConstructL();
-	CleanupStack::Pop(self);
 	return self;
 	}
 
 
 CBTSynchronousLinkReceiver::CBTSynchronousLinkReceiver(CBluetoothSynchronousLink& aParent, TSCOType aSCOType)
 	: CActive(CActive::EPriorityStandard), iParent(aParent), iSCOType(aSCOType)
-	{
-	}
-
-void CBTSynchronousLinkReceiver::ConstructL()
 	{
 	CActiveScheduler::Add(this);
 	}
