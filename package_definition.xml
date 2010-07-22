@@ -1,6 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <SystemDefinition schema="3.0.0">
   <package id="bt" name="Bluetooth" levels="adaptation hw-if plugin framework server app-if">
+  <collection id="bt_plat" name="Bluetooth Platform Interfaces" level="app-if">
+      <component id="bluetooth_audio_adaptation_api" name="Bluetooth Audio Adaptation API" class="api" filter="s60">
+        <meta rel="Api" href="bt_plat/bluetooth_audio_adaptation_api/bluetooth_audio_adaptation_api.metaxml"/>
+        <unit bldFile="bt_plat/bluetooth_audio_adaptation_api/group"/>
+      </component>
+      <component id="bluetooth_power_management_api" name="Bluetooth Power Management API" class="api" filter="s60">
+        <meta rel="Api" href="bt_plat/bluetooth_power_management_api/bluetooth_power_management_api.metaxml"/>
+        <unit bldFile="bt_plat/bluetooth_power_management_api/group"/>
+      </component>
+      <component id="at_command_handler_plugin_api" name="AT Command Handler Plugin API" class="api" filter="s60">
+        <meta rel="Api" href="bt_plat/at_command_handler_plugin_api/at_command_handler_plugin_api.metaxml"/>
+        <unit bldFile="bt_plat/at_command_handler_plugin_api/group"/>
+      </component>
+  </collection>
     <collection id="bluetooth" name="Bluetooth Core" level="framework">
       <component id="btstack" name="Bluetooth Stack" introduced="6.0" purpose="optional">
         <unit bldFile="bluetooth/btstack" mrp="bluetooth/btstack/bluetooth_stack.mrp"/>
@@ -76,11 +90,13 @@
       </component>
     </collection>
     <collection id="bt_info" name="Bluetooth Info" level="app-if">
-      <component id="bt_plat" filter="s60" class="api">
-        <unit bldFile="bt_plat/group"/>
-      </component>
       <component id="bt_metadata" name="Bluetooth Metadata" class="config" introduced="^3" purpose="development" target="desktop">
         <unit mrp="bt_info/bt_metadata/bt_metadata.mrp"/>
+      </component>
+    </collection>
+    <collection id="btsimulator" name="Bluetooth Simulator" level="internal-utils">
+      <component id="btaudioadaptation_stub" name="Bluetooth Audio Adaption Stub" introduced="^3" purpose="optional" filter="s60">
+        <unit bldFile="btsimulator/btaudioadaptation_stub/group"/>
       </component>
     </collection>
   </package>

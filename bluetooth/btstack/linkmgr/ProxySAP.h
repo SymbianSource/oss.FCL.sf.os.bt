@@ -80,6 +80,7 @@ friend class CACLRawConduit;
 public:
 	static CBTProxySAP* NewLC(CPhysicalLinksManager& aConnectionMan, CPhysicalLink*);
 	static CBTProxySAP* NewL(CPhysicalLinksManager& aConnectionMan, CPhysicalLink*);
+	~CBTProxySAP();
 
 // from SAP - the proxy will not do all of these
 	virtual void Start();
@@ -122,8 +123,7 @@ public:
 
 	void Error(TInt aError);
 	void Disconnect();
-
-	~CBTProxySAP();
+	
 public:
 	TSglQueLink			iQueueLink;	
 	TBTDblQueLink		iPLMLink;	

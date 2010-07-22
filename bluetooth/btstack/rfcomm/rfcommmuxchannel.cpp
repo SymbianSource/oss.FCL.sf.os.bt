@@ -210,6 +210,11 @@ TBool TMuxChannelState::IsOpen(CRfcommMuxChannel& /*aContext*/)
 	{
 	return EFalse;
 	}
+	
+TBool TMuxChannelState::IsErrored(CRfcommMuxChannel& /*aContext*/)
+	{
+	return EFalse;
+	}	
 
 void TMuxChannelState::UA(CRfcommMuxChannel& /*aContext*/)
 	/**
@@ -461,6 +466,11 @@ void TMuxChannelStateError::Close(CRfcommMuxChannel& aContext)
 TBool TMuxChannelStateError::CanAttachSAP()
 	{
 	return EFalse;
+	}
+
+TBool TMuxChannelStateError::IsErrored(CRfcommMuxChannel& /*aContext*/)
+	{
+	return ETrue;
 	}
 
 /*

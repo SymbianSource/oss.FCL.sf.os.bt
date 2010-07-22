@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -743,6 +743,20 @@ const TUint KGIAC=0x9e8b33;
 Limited Inquiry Access Code
 */
 const TUint KLIAC=0x9e8b00;
+
+/**
+@publishedAll
+@released
+
+HCI Scan enable mask
+*/
+enum THCIScanEnable 
+	{
+	ENoScansEnabled = 0x00, /*!< No scans enabled */
+	EInquiryScanOnly = 0x01, /*!< Inquiry scan enabled */
+	EPageScanOnly = 0x02, /*!< Page scan enabled */
+	EInquiryAndPageScan = 0x03 /*!< Inquiry and page scan enabled */
+	};
 
 /**
 L2CAP channel modes

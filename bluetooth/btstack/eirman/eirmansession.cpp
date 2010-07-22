@@ -1,4 +1,4 @@
-// Copyright (c) 2007-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2007-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -32,19 +32,21 @@
 _LIT8(KLogComponent, LOG_COMPONENT_EIRMANAGER);
 #endif
 
-CEirManSession* CEirManSession::NewL(CEirManServer& aServer)
+CEirManSession* CEirManSession::NewL(CEirManServer& aServer, MEirSessionNotifier& aParent, TBool aInternalSession)
 	{
 	LOG_STATIC_FUNC
-	CEirManSession* self = new(ELeave) CEirManSession(aServer);
+	CEirManSession* self = new(ELeave) CEirManSession(aServer, aParent, aInternalSession);
 	CleanupStack::PushL(self);
 	self->ConstructL();
 	CleanupStack::Pop(self);
 	return self;
 	}
 
-CEirManSession::CEirManSession(CEirManServer& aServer)
+CEirManSession::CEirManSession(CEirManServer& aServer, MEirSessionNotifier& aParent, TBool aInternalSession)
 	: iEirManServer(aServer)
+	, iParent(aParent)
 	, iEirTag(EEirTagRESERVED)
+	, iInternalSession(aInternalSession)
 	{
 	LOG_FUNC
 	}
@@ -52,7 +54,7 @@ CEirManSession::CEirManSession(CEirManServer& aServer)
 void CEirManSession::ConstructL()
 	{
 	LOG_FUNC
-	iEirManServer.AddSession();
+	iEirManServer.AddSession(*this, iInternalSession);
 	}
 
 CEirManSession::~CEirManSession()
@@ -60,70 +62,24 @@ CEirManSession::~CEirManSession()
 	LOG_FUNC
 	// deregister any registered tag that may be registered
 	DeregisterTag();
-	if(!iDataAvailableListenerMessage.IsNull())
-		{
-		// complete any outstanding messages.
-		iDataAvailableListenerMessage.Complete(KErrCancel);
-		}
-	iEirManServer.DropSession();
+	iLink.Deque();
+	iEirManServer.DropSession(iInternalSession);
 	}
 
-void CEirManSession::ServiceL(const RMessage2& aMessage)
-	{
-	LOG_FUNC
-	LOG1(_L("CEirManSession::ServiceL aMessage.Function() = %d"), aMessage.Function());
-	TBool complete = ETrue;
-	TInt ret = KErrNone;
-
-	switch (aMessage.Function())
-		{
-	case EEirManRegisterTag:
-		complete = EFalse; // always async.
-		RegisterTag(aMessage);
-		break;
-
-	case EEirManSpaceAvailableNotification:
-		ret = RegisterSpaceAvailableListener(aMessage, complete);
-		break;
-
-	case EEirManCancelSpaceAvailableNotification:
-		ret = CancelSpaceAvailableListener();
-		break;
-
-	case EEirManSetData:
-		ret = SetData(aMessage);
-		break;
-		
-	case EEirManNewData:
-		ret = NewData(aMessage);
-		break;
-
-	default:
-		aMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidIPC);
-		break;
-		}
-
-	if (complete)
-		{
-		aMessage.Complete(ret);
-		}
-	}
-
-void CEirManSession::RegisterTag(const RMessage2& aMessage)
+void CEirManSession::RegisterTag(TEirTag aTag)
 	{
 	LOG_FUNC
 
-	TEirTag tag = static_cast<TEirTag>(aMessage.Int0());
-	LOG1(_L("CEirManSession::RegisterTag tag = %d"), tag);
+	LOG1(_L("CEirManSession::RegisterTag tag = %d"), aTag);
 
-	if(!(tag >= EEirTagName && tag < EEirTagRESERVED))
+	if(!(aTag >= EEirTagName && aTag < EEirTagRESERVED))
 		{
-		__ASSERT_ALWAYS(EFalse, aMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidTag));
+		iParent.MesnRegisterComplete(KErrArgument);
 		}
 	else if(iEirTag != EEirTagRESERVED)
 		{
 		LOG1(_L("CEirManSession::RegisterTag ERROR, Tag in use: %d"), iEirTag);
-		aMessage.Complete(KErrInUse);
+		iParent.MesnRegisterComplete(KErrInUse);
 		}
 	else
 		{
@@ -131,23 +87,23 @@ void CEirManSession::RegisterTag(const RMessage2& aMessage)
 		if(iEirManServer.EirFeatureState() == EEirFeatureReady)
 			{
 			// Eir is supported
-			TInt result = iEirManServer.EirManager().RegisterTag(tag, *this);
+			TInt result = iEirManServer.EirManager().RegisterTag(aTag, *this);
 			if(result == KErrNone)
 				{
-				iEirTag = tag;
+				iEirTag = aTag;
 				}
-			aMessage.Complete(result);
+			iParent.MesnRegisterComplete(result);
 			}
 		else if(iEirManServer.EirFeatureState() == EEirFeaturePending)
 			{
 			// We don't know if eir is supported or not at this moment
-			iPendingEirTag = tag;
-			iRegisterMessage = aMessage;
+			iRegisterPending = ETrue;
+			iPendingEirTag = aTag;
 			}
 		else
 			{
 			// Eir is not supported
-			aMessage.Complete(KErrNotSupported);
+			iParent.MesnRegisterComplete(KErrNotSupported);
 			}
 		}
 	}
@@ -169,7 +125,7 @@ void CEirManSession::DeregisterTag()
 void CEirManSession::NotifyEirFeatureState(TInt aResult)
 	{
 	LOG1(_L("Eir Server has been notified feature ready, result: %d"), aResult);
-	if(aResult == KErrNone && !iRegisterMessage.IsNull())
+	if(aResult == KErrNone && iRegisterPending)
 		{
 		__ASSERT_DEBUG(iEirManServer.EirFeatureState() == EEirFeatureReady, EIR_SESSION_PANIC(EEirSessionEirFeatureNotSupported));
 		TInt result = iEirManServer.EirManager().RegisterTag(iPendingEirTag, *this);
@@ -177,80 +133,28 @@ void CEirManSession::NotifyEirFeatureState(TInt aResult)
 			{
 			iEirTag = iPendingEirTag;
 			}
-		iRegisterMessage.Complete(result);
+		iRegisterPending = EFalse;
+		iParent.MesnRegisterComplete(result);
 		}
-	else if(!iRegisterMessage.IsNull())
+	else if(iRegisterPending)
 		{
-		iRegisterMessage.Complete(aResult);
+		iRegisterPending = EFalse;
+		iParent.MesnRegisterComplete(aResult);
 		}
 	}
 
-TInt CEirManSession::RegisterSpaceAvailableListener(const RMessage2& aMessage, TBool& aComplete)
+
+TInt CEirManSession::NewData(TInt aRequiredLength)
 	{
 	LOG_FUNC
-
-	if(iDataAvailableListenerMessage.Handle())
-		{
-		LOG(_L("CEirManSession:::RegisterSpaceAvailableListener ERROR IN USE"));
-		return KErrInUse;
-		}
-
-	iDataAvailableListenerMessage = aMessage;
-
-	aComplete = EFalse;
-
-	if(iLastSpaceOffered != 0)
-		{
-		LOG(_L("cached space present, completing immediately"));
-		CompleteSpaceAvailableRequest(iLastSpaceOffered);
-		iLastSpaceOffered = 0;
-		return KErrNone;
-		}
-	
-	LOG(_L("waiting for callback..."));
-	return KErrNone;
-	}
-	
-TInt CEirManSession::NewData(const RMessage2& aMessage)
-	{
-	LOG_FUNC
-	__ASSERT_ALWAYS(iEirTag != EEirTagRESERVED, aMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidTag));
-	TInt requiredLength = static_cast<TInt>(aMessage.Int0());
-
-	return iEirManServer.EirManager().NewData(iEirTag, requiredLength);
+	return iEirManServer.EirManager().NewData(iEirTag, aRequiredLength);
 	}
 
-TInt CEirManSession::CancelSpaceAvailableListener()
+
+TInt CEirManSession::SetData(const TDesC8& aData, TEirDataMode aMode)
 	{
 	LOG_FUNC
-
-	if(!iDataAvailableListenerMessage.Handle())
-		{
-		return KErrNotFound;
-		}
-
-	iDataAvailableListenerMessage.Complete(KErrCancel);
-
-	return KErrNone;
-	}
-
-TInt CEirManSession::SetData(const RMessage2& aMessage)
-	{
-	LOG_FUNC
-	__ASSERT_ALWAYS(iEirTag != EEirTagRESERVED, aMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidTag));
-	TEirDataMode eirDataMode = static_cast<TEirDataMode>(aMessage.Int1());
-	LOG2(_L("Tag: %d EirDataMode: %d"), iEirTag, eirDataMode);
-
-	// No need to allocate memory with an expensive malloc() call (via HBuf8::NewL or whatever), 
-	// since the EIR contents fit in the stack, and the EIR Manager will cache the data anyway
-	TBuf8<KHCIExtendedInquiryResponseMaxLength> data;
-	TInt err = aMessage.Read(0, data);
-	
-	if(err == KErrNone)
-		{
-		err = iEirManServer.EirManager().SetData(iEirTag, data, eirDataMode);
-		}
-	return err;
+	return iEirManServer.EirManager().SetData(iEirTag, aData, aMode);
 	}
 
 // Callback from the EIR Manager
@@ -267,6 +171,181 @@ void CEirManSession::MemnEirBlockAvailable(TEirTag aTag, TUint aSpaceForTag)
 		return;
 		}
 
+	iParent.MesnSpaceAvailable(aSpaceForTag);
+
+	}
+
+TEirTag CEirManSession::EirTag() const
+	{
+	return iEirTag;
+	}
+
+CEirManExternalSession* CEirManExternalSession::NewL(CEirManServer& aServer)
+	{
+	CEirManExternalSession* self = new(ELeave) CEirManExternalSession();
+	CleanupStack::PushL(self);
+	self->ConstructL(aServer);
+	CleanupStack::Pop(self);
+	return self;
+	}
+
+CEirManExternalSession::CEirManExternalSession()
+	{
+	
+	}
+
+void CEirManExternalSession::ConstructL(CEirManServer& aServer)
+	{
+	iSession = CEirManSession::NewL(aServer, *this, EFalse);
+	}
+
+CEirManExternalSession::~CEirManExternalSession()
+	{
+	if(!iDataAvailableListenerMessage.IsNull())
+		{
+		// complete any outstanding messages.
+		iDataAvailableListenerMessage.Complete(KErrCancel);
+		}
+	delete iSession;
+	}
+/*
+ * Each of the individual methods is responsible for completing the message.
+ * All 'leaves' are processed in CSession2::ServiceError() resulting in message completion
+ * with the appropriate error code.
+ * RegisterTagL() and RegisterSpaceAvailableListenerL() store aMessage parameter for the future use
+ * when the callbacks are called.
+ */
+void CEirManExternalSession::ServiceL(const RMessage2& aMessage)
+	{
+	LOG_FUNC
+	LOG1(_L("CEirManSession::ServiceL aMessage.Function() = %d"), aMessage.Function());
+
+	switch (aMessage.Function())
+		{
+	case EEirManRegisterTag:
+		RegisterTagL(aMessage);
+		break;
+
+	case EEirManSpaceAvailableNotification:
+		RegisterSpaceAvailableListenerL(aMessage);
+		break;
+
+	case EEirManCancelSpaceAvailableNotification:
+		CancelSpaceAvailableListenerL(aMessage);
+		break;
+
+	case EEirManSetData:
+		SetDataL(aMessage);
+		break;
+		
+	case EEirManNewData:
+		NewDataL(aMessage);
+		break;
+
+	default:
+		aMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidIPC);
+		break;
+		}
+	}
+
+void CEirManExternalSession::RegisterTagL(const RMessage2& aMessage)
+	{
+	LOG_FUNC
+	TEirTag tag = static_cast<TEirTag>(aMessage.Int0());
+	LOG1(_L("CEirManSession::RegisterTag tag = %d"), tag);
+
+	iRegisterMessage = aMessage;
+	
+	iSession->RegisterTag(tag);
+	}
+
+void CEirManExternalSession::MesnRegisterComplete(TInt aResult)
+	{
+	if (aResult == KErrArgument)
+		{
+		iRegisterMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidTag);
+		}
+	else
+		{
+		iRegisterMessage.Complete(aResult);
+		}
+	}
+
+void CEirManExternalSession::RegisterSpaceAvailableListenerL(const RMessage2& aMessage)
+	{
+	LOG_FUNC
+
+	if(iDataAvailableListenerMessage.Handle())
+		{
+		LOG(_L("CEirManSession:::RegisterSpaceAvailableListener ERROR IN USE"));
+		LEAVEL(KErrInUse);
+		}
+
+	iDataAvailableListenerMessage = aMessage;
+
+	if(iLastSpaceOffered != 0)
+		{
+		LOG(_L("cached space present, completing immediately"));
+		CompleteSpaceAvailableRequest(iLastSpaceOffered);
+		iLastSpaceOffered = 0;
+		return;
+		}
+	
+	LOG(_L("waiting for callback..."));
+	}
+	
+void CEirManExternalSession::NewDataL(const RMessage2& aMessage)
+	{
+	LOG_FUNC
+
+	if (iSession->EirTag() == EEirTagRESERVED)
+		{
+		aMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidTag);
+		return;
+		}
+
+	TInt requiredLength = static_cast<TInt>(aMessage.Int0());
+
+	LEAVEIFERRORL(iSession->NewData(requiredLength));
+	aMessage.Complete(KErrNone);
+	}
+
+void CEirManExternalSession::CancelSpaceAvailableListenerL(const RMessage2& aMessage)
+	{
+	LOG_FUNC
+
+	if(!iDataAvailableListenerMessage.Handle())
+		{
+		LEAVEL(KErrNotFound);
+		}
+
+	iDataAvailableListenerMessage.Complete(KErrCancel);
+	aMessage.Complete(KErrNone);
+	}
+
+void CEirManExternalSession::SetDataL(const RMessage2& aMessage)
+	{
+	LOG_FUNC
+	if (iSession->EirTag() == EEirTagRESERVED)
+		{
+		aMessage.Panic(KEirManCliPncCat, EEirManPanicInvalidTag);
+		return;
+		}
+
+	TEirDataMode eirDataMode = static_cast<TEirDataMode>(aMessage.Int1());
+	LOG1(_L("EirDataMode: %d"),  eirDataMode);
+
+	// No need to allocate memory with an expensive malloc() call (via HBuf8::NewL or whatever), 
+	// since the EIR contents fit in the stack, and the EIR Manager will cache the data anyway
+	TBuf8<KHCIExtendedInquiryResponseMaxLength> data;
+	LEAVEIFERRORL(aMessage.Read(0, data));
+	
+	LEAVEIFERRORL(iSession->SetData(data, eirDataMode));
+	aMessage.Complete(KErrNone);
+	}
+
+void CEirManExternalSession::MesnSpaceAvailable(TUint aSpaceForTag)
+	{
 	if(iDataAvailableListenerMessage.Handle())
 		{
 		LOG(_L("Listener outstanding, completing request"));
@@ -282,14 +361,92 @@ void CEirManSession::MemnEirBlockAvailable(TEirTag aTag, TUint aSpaceForTag)
 		}
 	}
 
-void CEirManSession::CompleteSpaceAvailableRequest(TUint aBytesAvailable)
+void CEirManExternalSession::CompleteSpaceAvailableRequest(TUint aBytesAvailable)
 	{
 	LOG_FUNC
 	LOG1(_L("CEirManSession::CompleteSpaceAvailableRequest bytes: %d"), aBytesAvailable);
 	// Offer the space to the client
-	TPckg<TUint32> pckg(aBytesAvailable);
+	TPckgC<TUint32> pckg(aBytesAvailable);
 
 	TInt err = iDataAvailableListenerMessage.Write(0, pckg);
 	iDataAvailableListenerMessage.Complete(err);
 	}
 
+CEirManInternalSession* CEirManInternalSession::NewL(CEirManServer& aServer, MEirInternalSessionNotifier& aParent)
+	{
+	LOG_STATIC_FUNC
+	CEirManInternalSession* self = new(ELeave) CEirManInternalSession(aParent);
+	CleanupStack::PushL(self);
+	self->ConstructL(aServer);
+	CleanupStack::Pop(self);
+	return self;
+	}
+
+CEirManInternalSession::CEirManInternalSession(MEirInternalSessionNotifier& aParent)
+	: iParent(aParent)
+	{
+	
+	}
+
+void CEirManInternalSession::ConstructL(CEirManServer& aServer)
+	{
+	iSession = CEirManSession::NewL(aServer, *this, ETrue);
+	iSetDataCb = new (ELeave) CAsyncCallBack(CActive::EPriorityHigh);
+	TCallBack cb(&SetDataCb, this);
+	iSetDataCb->Set(cb);
+	}
+
+CEirManInternalSession::~CEirManInternalSession()
+	{
+	delete iSetDataCb;
+	delete iSession;
+	}
+	
+void CEirManInternalSession::RegisterTag(TEirTag aTag)
+	{
+	iSession->RegisterTag(aTag);
+	}
+
+void CEirManInternalSession::SetData(const TDesC8& aData, TEirDataMode aMode)
+	{
+	delete iPendingData;
+	iPendingData = NULL;
+	iSetDataCb->Cancel();
+	iPendingData = aData.Alloc();
+	iPendingMode = aMode;
+	if (iPendingData)
+		{
+		iSetDataCb->CallBack();
+		}
+	}
+
+TInt CEirManInternalSession::SetDataCb(TAny* aThis)
+	{
+	static_cast<CEirManInternalSession*>(aThis)->DoSetData();
+	return KErrNone;
+	}
+
+void CEirManInternalSession::DoSetData()
+	{
+	TInt err = iSession->SetData(*iPendingData, iPendingMode);
+	if (err != KErrNone)
+		{
+		iParent.MeisnSetDataError(err);
+		}
+	}
+
+TInt CEirManInternalSession::NewData(TInt aRequiredLength)
+	{
+	return iSession->NewData(aRequiredLength);
+	}
+
+
+void CEirManInternalSession::MesnRegisterComplete(TInt aResult)
+	{
+	iParent.MeisnRegisterComplete(aResult);
+	}
+
+void CEirManInternalSession::MesnSpaceAvailable(TUint aSpaceForTag)
+	{
+	iParent.MeisnSpaceAvailable(aSpaceForTag - KEirLengthTagLength);
+	}

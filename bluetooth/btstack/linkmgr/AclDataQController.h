@@ -1,4 +1,4 @@
-// Copyright (c) 2001-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2001-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -18,6 +18,7 @@
 
 #include <e32base.h>
 #include <bttypes.h>
+#include <es_mbuf.h>
 
 class CAclDataQ;
 struct TDataQConnectionInfo;
@@ -25,6 +26,7 @@ class CACLDataItem;
 class CLinkMgrProtocol;
 class CLinkMuxer;
 class CHCIFacade;
+class CHostMBufPool;
 
 /**
 	Controller of the ACL data Q and of the pending packet list.
@@ -43,6 +45,7 @@ public:
 	~CACLDataQController();
 
 public:
+	// Outbound aspects
 	void InitialDataCredits(TUint16 aCredits);
 	void AddItem(CACLDataItem& aACLFrame);
 	TBool IssueNextACLDataFragment();
@@ -57,6 +60,11 @@ public:
 	void ACLLogicalLinkDown(THCIConnHandle aConnH);
 	void SetParked(THCIConnHandle aConnH, TBool aParked);
 	void CompletedPackets(THCIConnHandle aConnH, TUint16 aNo);
+	
+	// Inbound buffer related aspects
+	RMBufChain PopulateInboundBufferL(THCIConnHandle aConnH, TUint8 aFlag, const TDesC8& aData);
+	void NoExplicitInboundPoolNeeded();
+	
 
 private:
 	CACLDataQController(CHCIFacade& aHCIFacade, CLinkMuxer& aMuxer);
@@ -84,6 +92,10 @@ private: // owned
 	TUint iIndexOfLastSendingConn;
 
 	TUint16     iNumControllerBufs;
+	
+#ifdef HOSTCONTROLLER_TO_HOST_FLOW_CONTROL
+	CHostMBufPool* iMBufPool;
+#endif
 
 private: // unowned
 	CLinkMuxer&	iLinkMuxer;

@@ -47,7 +47,7 @@ UID                     0x1000008d 0x2001CBEB
 EPOCSTACKSIZE           0x5000 // Hack for plugins using RCmManager; remove this line when RCmManager becomes client-server
 EPOCHEAPSIZE            0x1000 0x2000000  // Use same as MCE
 
-CAPABILITY              CAP_SERVER NetworkControl CommDD
+CAPABILITY              CAP_SERVER NetworkControl CommDD PowerMgmt
 VENDORID                VID_DEFAULT
 
 SOURCEPATH              ../src

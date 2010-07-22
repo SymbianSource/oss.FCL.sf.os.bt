@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -100,6 +100,7 @@
 
 #include <bluetooth/hci/readremoteextendedfeaturescommand.h>
 #include <bluetooth/hci/readinquiryresponsetransmitpowerlevelcommand.h>
+#include <bluetooth/hci/hostbuffersizecommand.h>
 
 #ifdef __FLOG_ACTIVE
 _LIT8(KLogComponent, LOG_COMPONENT_HCI_FACADE);
@@ -215,8 +216,47 @@ void CHCIFacade::WriteClassOfDeviceOpcode(THCIErrorCode aHciErr, const THCIEvent
 void CHCIFacade::SetControllerToHostFlowControlOpcode(THCIErrorCode aHciErr, const THCIEventBase* /*aEvent*/, const CHCICommandBase* /*aRelatedCommand*/)
 	{
 	LOG_FUNC
-	LOG(_L("HCIFacade: SetControllerToHostFlowControl Command Complete Event"));
-	iLinkMuxer->RecordHostControllerToHostFlowControl(aHciErr == EOK ? ETrue:EFalse);
+	LOG1(_L8("HCIFacade: SetControllerToHostFlowControl Command Complete Event (result = 0x%02x)"), aHciErr);
+	if(aHciErr == EOK)
+		{
+		// flow control mode set - so provide the host buffer settings
+		CHCICommandBase* command = NULL;
+		TRAPD(err, command = CHostBufferSizeCommand::NewL(KStackACLBuffersSize, KStackSCOBuffersSize, 
+											KStackACLBuffersNum, KStackSCOBuffersNum));
+		if(err == KErrNone)
+			{
+			err = SendInitialisationCommand(command);
+			}
+		if(err != KErrNone)
+			{
+			// unfortunately at this stage we are stuck since we need to inform
+			// the controller of our buffers.  We've failed to initialise.
+			LOG1(_L8("Failed to send HostBufferSize command(%d) - initialisation failed"), err);
+			iInitialisationError = ETrue;
+			}
+		}
+	else // we'll drop back to no flow control to the host
+		{
+		iLinkMuxer->RecordHostControllerToHostFlowControl(EFalse);
+		}
+	}
+
+void CHCIFacade::HostBufferSizeOpcode(THCIErrorCode aHciErr, const THCIEventBase* /*aEvent*/, const CHCICommandBase* /*aRelatedCommand*/)
+	{
+	LOG_FUNC
+	LOG1(_L8("HCIFacade: HostBufferSizeOpcode Command Complete Event (result = 0x%02x)"), aHciErr);
+	if(aHciErr == EOK)
+		{
+		// all set-up for controller to host flow-control
+		iLinkMuxer->RecordHostControllerToHostFlowControl(ETrue);
+		}
+	else
+		{
+		// If we've failed to perform this command then the stack is stuck
+		// half initialised to perform controller to host flow control.
+		LOG(_L8("Failed to set the host buffer size in controller - initialisation failed"));
+		iInitialisationError = ETrue;
+		}
 	}
 
 void CHCIFacade::WriteScanEnableOpcode(THCIErrorCode aHciErr, const THCIEventBase* /*aEvent*/, const CHCICommandBase* /*aRelatedCommand*/)
@@ -351,9 +391,16 @@ void CHCIFacade::ReadLocalSupportedFeaturesOpcode(THCIErrorCode aHciErr, const T
 		if(iLinkMgrProtocol.IsSecureSimplePairingSupportedLocally())
 			{
 			CWriteSimplePairingModeCommand* cmd = NULL;
-			TRAP_IGNORE(cmd = CWriteSimplePairingModeCommand::NewL(ESimplePairingEnabled));
-			static_cast<void>(SendInitialisationCommand(cmd));
-			iLinksMgr->SecMan().SetLocalSimplePairingMode(ETrue); //probably unnecessary
+			TRAPD(err, cmd = CWriteSimplePairingModeCommand::NewL(ESimplePairingEnabled));
+			if(err == KErrNone)
+			    {
+                err = SendInitialisationCommand(cmd);
+			    }
+			if(err != KErrNone)
+			    {
+                LOG(_L("HCIFacade: ReadLocalSupportedFeaturesOpcode Error"));
+                iInitialisationError = ETrue;
+			    }
 			}
 		else
 			{
@@ -363,6 +410,7 @@ void CHCIFacade::ReadLocalSupportedFeaturesOpcode(THCIErrorCode aHciErr, const T
 	else
 		{
 		iLinkMgrProtocol.SetLocalFeatures(aHciErr, TBTFeatures(0));
+		iLinksMgr->SecMan().SetLocalSimplePairingMode(EFalse); // for want of a better solution
 		}
 
 	iReadLocalSupportedFeaturesComplete = ETrue;
@@ -566,6 +614,10 @@ void CHCIFacade::CommandCompleteEvent(THCIOpcode aOpcode, THCIErrorCode aHciErr,
 		SetControllerToHostFlowControlOpcode(aHciErr, aEvent, aRelatedCommand);
 		break;
 		
+	case KHostBufferSizeOpcode:
+		HostBufferSizeOpcode(aHciErr, aEvent, aRelatedCommand);
+		break;
+		
 	case KWriteScanEnableOpcode:
 		WriteScanEnableOpcode(aHciErr, aEvent, aRelatedCommand);
 		break;
@@ -622,8 +674,13 @@ void CHCIFacade::CommandCompleteEvent(THCIOpcode aOpcode, THCIErrorCode aHciErr,
 		__ASSERT_DEBUG(EFalse, Panic(EHCIUnmatchedInquiryEvent));
 		break;
 
+    case KWriteSimplePairingModeOpcode:
+        {
+        WriteSimplePairingModeOpcode(aHciErr, aEvent, aRelatedCommand);
+        break;
+        }
+        
 	// Security related events that are sent from the facade.
-	case KWriteSimplePairingModeOpcode:
 	case KReadLocalOOBDataOpcode:
 	case KRemoteOOBDataRequestReplyOpcode:
 	case KRemoteOOBDataRequestNegativeReplyOpcode:
@@ -659,13 +716,11 @@ void CHCIFacade::CommandCompleteEvent(THCIOpcode aOpcode, THCIErrorCode aHciErr,
 	case KSetEventFilterOpcode:
 	case KCreateNewUnitKeyOpcode:
 	case KWriteAuthenticationEnableOpcode:
-	case KHostNumberOfCompletedPacketsOpcode:
 	case KWriteEncryptionModeOpcode:
 	case KWritePageTimeoutOpcode:
 	case KReadConnectionAcceptTimeoutOpcode:
 	case KWriteConnectionAcceptTimeoutOpcode:
 	case KWriteVoiceSettingOpcode:
-	case KHostBufferSizeOpcode:
 	case KReadAFHChannelMapOpcode:
 	case KReadAFHChannelAssessmentModeOpcode:
 	case KReadPageTimeoutOpcode:
@@ -714,6 +769,10 @@ void CHCIFacade::CommandCompleteEvent(THCIOpcode aOpcode, THCIErrorCode aHciErr,
 	case KSendKeypressNotificationOpcode:
 
 	case KWriteSimplePairingDebugModeOpcode:
+	
+	// below here are command complete events we definitely shouldn't receive
+	// but have been left for safety until a complete analysis is done.
+	case KHostNumberOfCompletedPacketsOpcode:
 		
 		// Catch all the events we do not handle
 		LOG1(_L("Warning!! Unhandled Command Complete Event (opcode:%d)"), aOpcode);
@@ -794,6 +853,19 @@ void CHCIFacade::CommandCompleteEvent(THCIOpcode aOpcode, THCIErrorCode aHciErr,
 		__ASSERT_ALWAYS(iOutstandingCommands.Count()==0, Panic(EHCICtrlrInitFailedToRemoveCmd));
 		}
 	}
+
+void CHCIFacade::WriteSimplePairingModeOpcode(THCIErrorCode aHciErr, const THCIEventBase* /*aEvent*/, const CHCICommandBase* /*aRelatedCommand*/)
+    {
+    LOG_FUNC
+    if(aHciErr == EOK)
+        {
+        iLinksMgr->SecMan().SetLocalSimplePairingMode(ETrue);
+        }
+    else
+        {
+        iInitialisationError = ETrue;
+        }
+    }
 
 void CHCIFacade::CommandStatusEvent(const THCIEventBase& aEvent, const CHCICommandBase* aRelatedCommand)
 	{
@@ -877,12 +949,6 @@ void CHCIFacade::CommandStatusEvent(const THCIEventBase& aEvent, const CHCIComma
 
 			iLinksMgr->SynchronousConnectionComplete(hciErr, conn, syncOpts);
 			break;
-			}				
-
-		case KHostNumberOfCompletedPacketsOpcode:
-			{
-			iLinksMgr->CompletedPackets(KInvalidConnectionHandle, 0); //no packets
-			break;
 			}
 		
 		case KReadRemoteExtendedFeaturesOpcode:
@@ -915,7 +981,13 @@ void CHCIFacade::CommandStatusEvent(const THCIEventBase& aEvent, const CHCIComma
 			iLinksMgr->PacketTypeChange(hciErr, KInvalidConnectionHandle,0);
 			break;
 			}
-		
+        
+        case KWriteSimplePairingModeOpcode:
+            {
+            WriteSimplePairingModeOpcode(hciErr, &commandStatusEvent, aRelatedCommand);
+            break;
+            }
+	
 		default:
 			// Complete any other commands with an error
 			CommandCompleteEvent(opcode, hciErr, NULL, NULL);

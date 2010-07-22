@@ -172,7 +172,8 @@ enum TL2CAPPanic
 	EL2CAPNullOwnerSupplied = 148,
 	EL2CAPTryingToStealOwnedPdu = 149,
 	EL2CapConstructingPositiveConfigResponseWithUnresolvedOptionStatus = 200,
-	EL2CapReferencingUnackedIFrameWhenNoRetransmissionGoing = 274, 
+	EL2CapReferencingUnackedIFrameWhenNoRetransmissionGoing = 274,
+	EL2CapAttemptToStartConfigTimerWhenItIsRunning = 275,
 	};
 
 /**
