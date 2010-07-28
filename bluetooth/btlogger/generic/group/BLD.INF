@@ -21,7 +21,9 @@
 
 PRJ_EXPORTS
 ../public/logger.h			SYMBIAN_OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/logger.h)
-../public/components.h		SYMBIAN_OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/logger/components.h)
+//../public/components.h		SYMBIAN_OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/logger/components.h)
+../public/components.h		/epoc32/include/bluetooth/logger/components.h
+
 btlogger.mmh				SYMBIAN_OS_LAYER_PUBLIC_EXPORT_PATH(bluetooth/btlogger.mmh)
 
 btlogger.iby        /epoc32/rom/include/btlogger.iby

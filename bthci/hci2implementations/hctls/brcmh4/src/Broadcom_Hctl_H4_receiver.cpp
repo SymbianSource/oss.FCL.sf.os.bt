@@ -18,10 +18,10 @@
  @internalComponent
 */
 
-#include "hctluartoriginalreceiver.h"
+#include "Broadcom_Hctl_H4_receiver.h"
 
-#include "hctluartoriginal.h"
-#include "uartoriginalutils.h"
+#include "Broadcom_Hctl_H4.h"
+#include "Broadcom_Hctl_H4_utils.h"
 
 #include <d32comm.h>
 #include <es_prot.h> // For GetLittleEndian methods
@@ -34,13 +34,13 @@
 
 
 #ifdef __FLOG_ACTIVE
-_LIT8(KLogComponent, LOG_COMPONENT_HCTL_UART_ORIGINAL);
+_LIT8(KLogComponent, LOG_COMPONENT_HCTL_BCM_H4);
 #endif
 
 
-CHCTLUartOriginalReceiver::CHCTLUartOriginalReceiver(CHCTLUartOriginal& aHCTLUartOriginal,RBusDevComm& aPort)
+CHCTLBcmH4Receiver::CHCTLBcmH4Receiver(CHCTLBcmH4& aHCTLBcmH4,RBusDevComm& aPort)
   : CActive(EPriorityStandard), 
-	iHCTLUartOriginal(aHCTLUartOriginal), 
+    iHCTLBcmH4(aHCTLBcmH4), 
 	iState(EWaitingForHctlHeaderByte),
 	iReceiveBufPtr(NULL,0),
     iPort(aPort)
@@ -49,7 +49,7 @@ CHCTLUartOriginalReceiver::CHCTLUartOriginalReceiver(CHCTLUartOriginal& aHCTLUar
 	CActiveScheduler::Add(this);
     }
 
-CHCTLUartOriginalReceiver::~CHCTLUartOriginalReceiver()
+CHCTLBcmH4Receiver::~CHCTLBcmH4Receiver()
     {
 	LOG_FUNC
 
@@ -59,18 +59,18 @@ CHCTLUartOriginalReceiver::~CHCTLUartOriginalReceiver()
 	HCI_LOG_UNLOAD(this);
     }
 
-CHCTLUartOriginalReceiver* CHCTLUartOriginalReceiver::NewL(CHCTLUartOriginal& aHCTLUartOriginal, RBusDevComm& aPort) 
+CHCTLBcmH4Receiver* CHCTLBcmH4Receiver::NewL(CHCTLBcmH4& aHCTLBcmH4, RBusDevComm& aPort) 
     {
 	LOG_STATIC_FUNC
 
-    CHCTLUartOriginalReceiver* self=new(ELeave)CHCTLUartOriginalReceiver(aHCTLUartOriginal, aPort);
+	CHCTLBcmH4Receiver* self=new(ELeave)CHCTLBcmH4Receiver(aHCTLBcmH4, aPort);
     CleanupStack::PushL(self);
     self->ConstructL();
     CleanupStack::Pop();
     return self;
     }
 
-void CHCTLUartOriginalReceiver::ConstructL()
+void CHCTLBcmH4Receiver::ConstructL()
 	{
 	LOG_FUNC
 
@@ -84,13 +84,13 @@ void CHCTLUartOriginalReceiver::ConstructL()
     iReceiveBuffer.Assign(buf);
 	}
 
-void CHCTLUartOriginalReceiver::QueueReadForNextFrame(TUint16 aOffset, TUint16 aBytesRequired)
+void CHCTLBcmH4Receiver::QueueReadForNextFrame(TUint16 aOffset, TUint16 aBytesRequired)
 	{
 	LOG_FUNC
 
-	__ASSERT_DEBUG(!IsActive(), PANIC(KUartOriginalPanic, EPortReadAttemptWhenReadOutstanding));
-	__ASSERT_DEBUG(aBytesRequired != 0, PANIC(KUartOriginalPanic, EAttemptToReadZeroBytes));
-	__ASSERT_DEBUG(aOffset + aBytesRequired <= iReceiveBuffer.MaxLength(), PANIC(KUartOriginalPanic, EHctlReceiverBufferOverflow));
+	__ASSERT_DEBUG(!IsActive(), PANIC(KBcmHctlH4Panic, EPortReadAttemptWhenReadOutstanding));
+	__ASSERT_DEBUG(aBytesRequired != 0, PANIC(KBcmHctlH4Panic, EAttemptToReadZeroBytes));
+	__ASSERT_DEBUG(aOffset + aBytesRequired <= iReceiveBuffer.MaxLength(), PANIC(KBcmHctlH4Panic, EHctlReceiverBufferOverflow));
  
     SetActive();
 
@@ -99,7 +99,7 @@ void CHCTLUartOriginalReceiver::QueueReadForNextFrame(TUint16 aOffset, TUint16 a
 	iPort.Read(iStatus, iReceiveBufPtr, aBytesRequired);
 	}
 
-void CHCTLUartOriginalReceiver::ProcessData()	
+void CHCTLBcmH4Receiver::ProcessData()	
     {
 	LOG_FUNC
 
@@ -113,7 +113,7 @@ void CHCTLUartOriginalReceiver::ProcessData()
 			// reads the first byte of the Packet, to decide the 
 			// type of Packet and set the next state
 			__ASSERT_ALWAYS(iReceiveBufPtr.Length() == KHctlHeaderSize, 
-			                PANIC(KUartOriginalPanic, EReadCompletedWithInsufficientBytes));
+			                PANIC(KBcmHctlH4Panic, EReadCompletedWithInsufficientBytes));
 
 			// Store the HCI packet.
 			iCurrentHCIPacketType = iReceiveBufPtr[KHctlPacketTypeOffset];
@@ -123,7 +123,7 @@ void CHCTLUartOriginalReceiver::ProcessData()
 			// type will be overwritten when the HCI header bytes are read.
 		    switch(iCurrentHCIPacketType)
 			    {
-				case CHCTLUartOriginal::EACLDataPacket:
+				case CHCTLBcmH4::EACLDataPacket:
 			    	{
 					HCI_LOG_FRAME(this, 
 								  KHCILoggerControllerToHost | KHCILoggerACLDataFrame | KHCILoggerFrameFragmented,
@@ -133,7 +133,7 @@ void CHCTLUartOriginalReceiver::ProcessData()
 			    	}
 			    	break;
 
-				case CHCTLUartOriginal::ESynchronousDataPacket:
+				case CHCTLBcmH4::ESynchronousDataPacket:
 					{
 					HCI_LOG_FRAME(this, 
 								  KHCILoggerControllerToHost | KHCILoggerSynchronousDataFrame | KHCILoggerFrameFragmented,
@@ -143,7 +143,7 @@ void CHCTLUartOriginalReceiver::ProcessData()
 					}
 					break;
 
-				case CHCTLUartOriginal::EEventPacket:
+				case CHCTLBcmH4::EEventPacket:
 			    	{
 					HCI_LOG_FRAME(this, 
 								  KHCILoggerControllerToHost | KHCILoggerCommandOrEvent | KHCILoggerFrameFragmented,
@@ -156,18 +156,21 @@ void CHCTLUartOriginalReceiver::ProcessData()
 				default:
 					///////////////////////////////////////
 					//CHRIS MODIF
-					//if(iHCTLUartOriginal->iInitFlag == TRUE)
-						//{
+					if((iHCTLBcmH4.iInitpluginState == EMiniDrvToHcdConfigFileDelay) || (iHCTLBcmH4.iInitpluginState == EMiniDrvToBinConfigFileDelay)) 
+						{
 						if((iCurrentHCIPacketType == 0x34) || (iCurrentHCIPacketType == 0x31) )
 							{
 							bytesRequiredForNextRead = 1;
 							iState = EWaitingForHctlHeaderByte;
 							break;
 							}
-						//}
+						}
+					else
+						{
 					/////////////////////////////////////////
 					// unexpected/unsupported data Received
 					iState = EInvalidDataReceived;
+						}
 					break;
 			    };
 			}
@@ -180,10 +183,10 @@ void CHCTLUartOriginalReceiver::ProcessData()
 			// Read the packet length.
 			switch(iCurrentHCIPacketType)
 				{
-				case CHCTLUartOriginal::EACLDataPacket:
+				case CHCTLBcmH4::EACLDataPacket:
 					{
 					__ASSERT_ALWAYS(iReceiveBufPtr.Length() == CHctlAclDataFrame::KHCIACLDataPacketHeaderLength, 
-					                PANIC(KUartOriginalPanic, EReadCompletedWithInsufficientBytes));
+					                PANIC(KBcmHctlH4Panic, EReadCompletedWithInsufficientBytes));
 
 					bytesRequiredForNextRead = LittleEndian::Get16(iReceiveBufPtr.Ptr() + CHctlDataFrameBase::KHCIDataPacketLengthFieldOffset);
 					
@@ -203,10 +206,10 @@ void CHCTLUartOriginalReceiver::ProcessData()
 					}
 					break;
 
-				case CHCTLUartOriginal::ESynchronousDataPacket: 
+				case CHCTLBcmH4::ESynchronousDataPacket: 
 					{
 					__ASSERT_ALWAYS(iReceiveBufPtr.Length() == CHctlSynchronousDataFrame::KHCISynchronousDataPacketHeaderLength, 
-					                PANIC(KUartOriginalPanic, EReadCompletedWithInsufficientBytes));
+					                PANIC(KBcmHctlH4Panic, EReadCompletedWithInsufficientBytes));
 
 					bytesRequiredForNextRead = iReceiveBufPtr[CHctlDataFrameBase::KHCIDataPacketLengthFieldOffset];
 					HCI_LOG_FRAME(this, 
@@ -216,10 +219,10 @@ void CHCTLUartOriginalReceiver::ProcessData()
 					}
 					break;
 
-				case CHCTLUartOriginal::EEventPacket:
+				case CHCTLBcmH4::EEventPacket:
 					{
 					__ASSERT_ALWAYS(iReceiveBufPtr.Length() == THCIEventBase::KEventCommonFieldsLength, 
-					                PANIC(KUartOriginalPanic, EReadCompletedWithInsufficientBytes));
+					                PANIC(KBcmHctlH4Panic, EReadCompletedWithInsufficientBytes));
 
 					bytesRequiredForNextRead = iReceiveBufPtr[THCIEventBase::KTotalParameterLengthOffset];
 					HCI_LOG_FRAME(this, 
@@ -232,7 +235,7 @@ void CHCTLUartOriginalReceiver::ProcessData()
 				default:
 					{
 					// Invalid state.
-					PANIC(KUartOriginalPanic, EIllegalState);
+					PANIC(KBcmHctlH4Panic, EIllegalState);
 					break;
 					}
 				};
@@ -244,36 +247,36 @@ void CHCTLUartOriginalReceiver::ProcessData()
 			TUint16 payloadLength = iReceiveBufPtr.Length();
 			switch(iCurrentHCIPacketType)
 				{
-				case CHCTLUartOriginal::EACLDataPacket:
+				case CHCTLBcmH4::EACLDataPacket:
 					{
 					HCI_LOG_FRAME(this, 
 								  KHCILoggerControllerToHost | KHCILoggerACLDataFrame, 
 								  iReceiveBufPtr);
-					iHCTLUartOriginal.ProcessACLData(iReceiveBuffer.Left(payloadLength + CHctlAclDataFrame::KHCIACLDataPacketHeaderLength));
+					iHCTLBcmH4.ProcessACLData(iReceiveBuffer.Left(payloadLength + CHctlAclDataFrame::KHCIACLDataPacketHeaderLength));
 					}
 					break;
 
-				case CHCTLUartOriginal::ESynchronousDataPacket:
+				case CHCTLBcmH4::ESynchronousDataPacket:
 					{
 					HCI_LOG_FRAME(this, 
 							      KHCILoggerControllerToHost | KHCILoggerSynchronousDataFrame, 
 								  iReceiveBufPtr);
-					iHCTLUartOriginal.ProcessSynchronousData(iReceiveBuffer.Left(payloadLength + CHctlSynchronousDataFrame::KHCISynchronousDataPacketHeaderLength));
+					iHCTLBcmH4.ProcessSynchronousData(iReceiveBuffer.Left(payloadLength + CHctlSynchronousDataFrame::KHCISynchronousDataPacketHeaderLength));
 					}
 					break;
 
-				case CHCTLUartOriginal::EEventPacket:
+				case CHCTLBcmH4::EEventPacket:
 					{
 					HCI_LOG_FRAME(this, 
 								  KHCILoggerControllerToHost | KHCILoggerCommandOrEvent, 
 						          iReceiveBufPtr);
-					iHCTLUartOriginal.ProcessEvent(iReceiveBuffer.Left(payloadLength + THCIEventBase::KEventCommonFieldsLength));
+					iHCTLBcmH4.ProcessEvent(iReceiveBuffer.Left(payloadLength + THCIEventBase::KEventCommonFieldsLength));
 					}
 					break;
 
 				default:  
 					// Invalid state
-					PANIC(KUartOriginalPanic, EIllegalState);
+					PANIC(KBcmHctlH4Panic, EIllegalState);
 				};
 				
 			// Starting a new Packet. Bytes Required now is 1, offset is 0
@@ -286,14 +289,14 @@ void CHCTLUartOriginalReceiver::ProcessData()
 
 		default:  
 			// must never get here
-			PANIC(KUartOriginalPanic, EIllegalState);
+			PANIC(KBcmHctlH4Panic, EIllegalState);
 			break;
 		}
 
 	if(iState == EInvalidDataReceived)
 		{
 		// The HCTL can not recover from this.  Reset the controller and restart the host.
-		iHCTLUartOriginal.MhriStartHardReset();
+		iHCTLBcmH4.MhriStartHardReset();
 		}
 	else
 		{
@@ -303,7 +306,7 @@ void CHCTLUartOriginalReceiver::ProcessData()
 	}
 
 
-void CHCTLUartOriginalReceiver::RunL()
+void CHCTLBcmH4Receiver::RunL()
     {
 	LOG_FUNC
 	LOG1(_L8("\tiStatus = %d"), iStatus.Int());
@@ -316,11 +319,11 @@ void CHCTLUartOriginalReceiver::RunL()
     else
     	{
 		// The HCTL can not recover from this.  Reset the controller and restart the host.
-		iHCTLUartOriginal.MhriStartHardReset();
+		iHCTLBcmH4.MhriStartHardReset();
     	}
 	}
 
-void CHCTLUartOriginalReceiver::DoCancel()
+void CHCTLBcmH4Receiver::DoCancel()
 	{
 	LOG_FUNC
 	
@@ -328,10 +331,10 @@ void CHCTLUartOriginalReceiver::DoCancel()
 	iPort.ReadCancel();
 	}
 
-void CHCTLUartOriginalReceiver::Start()
+void CHCTLBcmH4Receiver::Start()
 	{
 	LOG_FUNC
-	__ASSERT_DEBUG(!IsActive(), PANIC(KUartOriginalPanic, EStartCalledWhenReadOutstanding));
+	__ASSERT_DEBUG(!IsActive(), PANIC(KBcmHctlH4Panic, EStartCalledWhenReadOutstanding));
 	
 	// Reset this object state and make an initial read on the UART.
 	iState = EWaitingForHctlHeaderByte;

@@ -41,10 +41,10 @@
 #include "../../bluetooth/btstack/bld.inf"
 
 // Remote Control
-#include "../../../devicesrv/accessoryservices/remotecontrolfw/group/bld.inf"
+//#include "../../../devicesrv/accessoryservices/remotecontrolfw/group/bld.inf"
 
 // Profiles
-#include "../../bluetooth/gavdp/group/bld.inf"
+//#include "../../bluetooth/gavdp/group/bld.inf"
 #include "../../bluetoothcommsprofiles/btpan/group/BLD.INF"
 
 
@@ -67,7 +67,7 @@
 #include "../../bluetooth/btexample/example/group/bld.inf"
 
 // Test UI
-#include "../../bluetooth/btexample/testui/bld.inf"
+//#include "../../bluetooth/btexample/testui/bld.inf"
 
 // Subsystem Test Code
 #include "../../bluetooth/btexample/test/group/bld.inf"

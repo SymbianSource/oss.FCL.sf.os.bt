@@ -16,11 +16,15 @@
 //
 
 PRJ_EXPORTS
-corehci_symbian.ini /epoc32/data/z/private/101f7989/bluetooth/corehci_symbian.ini
-corehci_symbian.ini /epoc32/release/winscw/udeb/z/private/101f7989/bluetooth/corehci_symbian.ini // For WINSCW debugging
-corehci_symbian.ini /epoc32/release/winscw/urel/z/private/101f7989/bluetooth/corehci_symbian.ini
+//corehci_symbian.ini /epoc32/data/z/private/101f7989/bluetooth/corehci_symbian.ini
+//corehci_symbian.ini /epoc32/release/winscw/udeb/z/private/101f7989/bluetooth/corehci_symbian.ini // For WINSCW debugging
+//corehci_symbian.ini /epoc32/release/winscw/urel/z/private/101f7989/bluetooth/corehci_symbian.ini
 
-corehci_symbian_ti.ini /epoc32/data/z/private/101f7989/bluetooth/corehci_symbian_ti.ini // Preconfigured for TI hardware
+//corehci_symbian_ti.ini /epoc32/data/z/private/101f7989/bluetooth/corehci_symbian_ti.ini // Preconfigured for TI hardware
+
+corehci_symbian_brcm.ini /epoc32/data/z/private/101f7989/bluetooth/corehci_symbian.ini
+corehci_symbian_brcm.ini /epoc32/release/winscw/udeb/z/private/101f7989/bluetooth/corehci_symbian.ini // For WINSCW debugging
+corehci_symbian_brcm.ini /epoc32/release/winscw/urel/z/private/101f7989/bluetooth/corehci_symbian.ini
 
 corehci_symbian.iby		/epoc32/rom/include/corehci_symbian.iby
 

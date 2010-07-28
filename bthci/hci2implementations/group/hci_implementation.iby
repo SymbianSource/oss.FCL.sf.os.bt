@@ -26,20 +26,25 @@ define HCI_DIR BUILD_DIR
 #define HCI_PLUGIN ECOM_PLUGIN
 #endif
 
+
 #include <corehci_symbian.iby>
 #include <commandsevents_symbian.iby>
 #include <hci_qdp_symbian.iby>
 
 #ifdef HCI_TI
-
 #include <hctl_ti.iby>
 #include <hci_initialisor_ti.iby>
-
-#else // CSR + Default
-
+#elif defined HCI_BRCM
+#include <Broadcom_Hctl_H4.iby>
+#include <initialisor_brcm.iby>
+#else
 #include <hctl_bcsp.iby>
 #include <initialisor_symbian.iby>
-
 #endif
 
+
 #endif //  HCI_IMPLMENTATION_IBY
+
+
+
+

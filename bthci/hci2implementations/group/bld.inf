@@ -18,8 +18,10 @@
 #include "../hctls/bcsp/group/bld.inf"
 #include "../hctls/ti/group/bld.inf"
 #include "../hctls/uart_original/group/bld.inf"
+#include "../hctls/brcmh4/group/bld.inf"
 
 #include "../initialisors/ti/group/bld.inf"
+#include "../initialisors/brcm/group/bld.inf"
 #include "../initialisors/symbian/group/bld.inf"
 
 #include "../qdps/symbian/group/bld.inf"

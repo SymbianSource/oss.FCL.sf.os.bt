@@ -18,14 +18,15 @@
  @internalComponent
 */
 
-#ifndef HCTLTIRECEIVER_H
-#define HCTLTIRECEIVER_H
+#ifndef BROADCOMHCTLH4RECEIVER_H
+#define BROADCOMHCTLH4RECEIVER_H
 
 #include <e32base.h>
 #include <bluetooth/hci/hcievents.h>
 #include <bluetooth/hciframelogger.h>
 
-class CHCTLTi;
+
+class CHCTLBcmH4;
 class RBusDevComm;
 
 /**
@@ -33,17 +34,17 @@ class RBusDevComm;
 	
 	This class is not intented for derivation.
 */
-NONSHARABLE_CLASS(CHCTLTiReceiver) : public CActive
+NONSHARABLE_CLASS(CHCTLBcmH4Receiver) : public CActive
     {
 public:
-	static CHCTLTiReceiver* NewL(CHCTLTi& aHCTLTi, RBusDevComm& aPort);
-	~CHCTLTiReceiver();
+	static CHCTLBcmH4Receiver* NewL(CHCTLBcmH4& aHCTLBcmH4, RBusDevComm& aPort);
+	~CHCTLBcmH4Receiver();
 
 	// Called to initiate the initial read on the port.
 	void Start();
 	
 private:
-	CHCTLTiReceiver(CHCTLTi& aHCTLTi, RBusDevComm& aPort);
+	CHCTLBcmH4Receiver(CHCTLBcmH4& aHCTLBcmH4, RBusDevComm& aPort);
 	void ConstructL();
 
 	// Helper methods
@@ -68,10 +69,10 @@ private:
 	// is exceeding this packet size.
 	
 	// 3-DH5.  Payload = 1021 octets.
-	// Buffer length = payload + HCTL overhead + ACL Header
-	static const TUint16 KHCTLRecvBufSize = 1026;
+	// Buffer length = payload + HCTL overhead
+	static const TUint16 KHCTLRecvBufSize = 1022;
 
-	CHCTLTi& iHCTLTi;
+	CHCTLBcmH4& iHCTLBcmH4;
 	THctlReceiverState iState;
 
 	TUint8 iCurrentHCIPacketType;
@@ -83,5 +84,5 @@ private:
 	DECLARE_HCI_LOGGER
 	};
 
-#endif // HCTLTIRECEIVER_H
+#endif // BROADCOMHCTLH4RECEIVER_H
 

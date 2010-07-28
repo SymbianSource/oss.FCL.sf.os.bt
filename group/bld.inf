@@ -22,3 +22,7 @@ PRJ_PLATFORMS
 /* include subsystems build info */
 #include "../atext/group/bld.inf"
 #include "../bt_plat/group/bld.inf"
+#include "../bluetoothmgmt/btcommon/bld.inf"
+
+
+PRJ_MMPFILES

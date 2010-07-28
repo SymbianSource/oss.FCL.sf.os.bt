@@ -19,7 +19,6 @@
  @file
  @internalComponent
 */
-
 #include "hcisession.h"
 #include "hciserver.h"
 #include "corehciutil.h"

@@ -1,0 +1,31 @@
+TARGET Initialisor_brcm.dll
+TARGETTYPE PLUGIN
+// UID2 = 0x10009d8d for ECOM plugins.
+// UID3 = the 'DLL UID' (see resource file)
+UID 0x10009d8d 0x2003011A
+VENDORID 0x70000001
+CAPABILITY CommDD PowerMgmt ReadDeviceData WriteDeviceData TrustedUI ProtServ NetworkControl NetworkServices LocalServices ReadUserData WriteUserData
+
+SOURCEPATH ../src
+
+RESOURCE Initialisor_brcm.rss
+
+SOURCE Initialisor_Broadcom_ConfigFile.cpp
+SOURCE ControllerInitialisationPluginImpl.cpp 
+SOURCE Initialisor_Brcm_main.cpp 
+
+USERINCLUDE ../inc
+OS_LAYER_SYSTEMINCLUDE_SYMBIAN
+
+LIBRARY euser.lib 
+LIBRARY initialisor_base.lib
+LIBRARY btlogger.lib
+LIBRARY efsrv.lib
+LIBRARY cinidata.lib
+LIBRARY commandsevents.lib
+
+OPTION cw -strict on -w pedantic,unused,hidevirtual,padding,ptrintconv
+
+UNPAGED
+
+SMPSAFE

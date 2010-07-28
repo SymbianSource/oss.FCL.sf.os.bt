@@ -18,16 +18,18 @@
  @internalComponent
 */
 
-#ifndef HCTLUARTORIGINAL_H
-#define HCTLUARTORIGINAL_H
+#ifndef BROADCOMHCTLH4_H
+#define BROADCOMHCTLH4_H
 
 #include <bluetooth/hci/hctluartbase.h>
 #include <bluetooth/hciframelogger.h>
 #include <bluetooth/hci/hcitypes.h>
 
+#include <bluetooth/hci/hctlbcmconfiginterface.h>
 
-class CHCTLUartOriginalReceiver;
-class CHCTLUartOriginalSender;
+
+class CHCTLBcmH4Receiver;
+class CHCTLBcmH4Sender;
 class CControllerManager;
 
 // Define HCTL Packet Header Size
@@ -46,16 +48,17 @@ static const TInt KHCTLAclDataTrailerSize = 0;
 static const TInt KHCTLSynchronousDataHeaderSize = 1;
 static const TInt KHCTLSynchronousDataTrailerSize = 0;
 
-_LIT(KIniFileName, "hctl_uart_original");
+_LIT(KIniFileName, "hctl_broadcom");
 
 /**
 This is the class that implements the UART specific HCTL.	
 */
-NONSHARABLE_CLASS(CHCTLUartOriginal) : public CHCTLUartBase
+NONSHARABLE_CLASS(CHCTLBcmH4) : public CHCTLUartBase,
+								public MHctlBcmConfigInterface
 	{
 public:
-	static CHCTLUartOriginal* NewL();
-	~CHCTLUartOriginal();
+	static CHCTLBcmH4* NewL();
+	~CHCTLBcmH4();
 
 	void DoConfigL();
 	virtual void ProcessACLData(const TDesC8& aData);
@@ -87,7 +90,7 @@ public:
 	    };
 
 private:
-	CHCTLUartOriginal();
+	CHCTLBcmH4();
 	void ConstructL();
 	TAny* Interface(TUid aUid);
 
@@ -109,18 +112,24 @@ private:
 	virtual void MhiSetControllerStateObserver(MControllerStateObserver& aControllerStateObserver);
 	virtual void MhiSetQdpPluginInterfaceFinder(MQdpPluginInterfaceFinder& aQdpPluginInterfaceFinder);
 
+	// From MHCTLBcmConfigInterface
+	virtual TInt MhciUpdateBaudRate(TUint32 aBaudRate);
+	
+	virtual void MhciSetInitPluginState(TInitState InitState);
 private:
-	CHCTLUartOriginalReceiver* iReceiver;
-	CHCTLUartOriginalSender* iSender;   
+	CHCTLBcmH4Receiver* iReceiver;
+	CHCTLBcmH4Sender* iSender;   
 	MQdpPluginInterfaceFinder* iQdpPluginInterfaceFinder;
 	TBTPowerState iCurrentPowerState;
 
 	CControllerManager* iControllerMan;
 	//CHRIS MODIF
 	//TBool iInitFlag;
+public:
+	TInitState iInitpluginState;
 	DECLARE_HCI_LOGGER
 	};
 
 
-#endif // HCTLUARTORIGINAL_H
+#endif // BROADCOMHCTLH4_H
 

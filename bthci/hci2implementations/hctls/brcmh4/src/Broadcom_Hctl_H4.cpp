@@ -18,13 +18,13 @@
  @internalComponent
 */
 
-#include "hctluartoriginal.h"
+#include "Broadcom_Hctl_H4.h"
 
-#include "hctluartoriginalsender.h"
-#include "hctluartoriginalreceiver.h"
+#include "Broadcom_Hctl_H4_sender.h"
+#include "Broadcom_Hctl_H4_receiver.h"
 #include "controllermanager.h"
 
-#include "uartoriginalutils.h"
+#include "Broadcom_Hctl_H4_utils.h"
 
 #include <bluetooth/hci/hctleventobserver.h>
 #include <bluetooth/hci/hctldataobserver.h>
@@ -33,15 +33,15 @@
 
 
 #ifdef __FLOG_ACTIVE
-_LIT8(KLogComponent, LOG_COMPONENT_HCTL_UART_ORIGINAL);
+_LIT8(KLogComponent, LOG_COMPONENT_HCTL_BCM_H4);
 #endif
 
-CHCTLUartOriginal::CHCTLUartOriginal()
+CHCTLBcmH4::CHCTLBcmH4()
 	{
 	LOG_FUNC
 	}
 
-CHCTLUartOriginal::~CHCTLUartOriginal()
+CHCTLBcmH4::~CHCTLBcmH4()
 	{
 	LOG_FUNC
 	HCI_LOG_UNLOAD(this);
@@ -50,31 +50,30 @@ CHCTLUartOriginal::~CHCTLUartOriginal()
 	delete iControllerMan;
 	}
 
-CHCTLUartOriginal* CHCTLUartOriginal::NewL()
+CHCTLBcmH4* CHCTLBcmH4::NewL()
 	{
 	LOG_STATIC_FUNC
 
-	CHCTLUartOriginal* self = new(ELeave) CHCTLUartOriginal();
+	CHCTLBcmH4* self = new(ELeave) CHCTLBcmH4();
 	CleanupStack::PushL(self);
 	self->ConstructL();
 	CleanupStack::Pop();
 	return self;
 	}
 
-void CHCTLUartOriginal::ConstructL()
+void CHCTLBcmH4::ConstructL()
 	{
 	LOG_FUNC
 	HCI_LOG_LOADL(this, KHCILoggerDatalinkTypeH4);
 
 	// Initialises iSender and iReceiver via the PortOpenedL method.
 	BaseConstructL(KIniFileName());
-	//CHRIS MODIF
-	//iInitFlag = FALSE;
+
 	
 	iControllerMan = CControllerManager::NewL(*this);
 	}
 
-TAny* CHCTLUartOriginal::Interface(TUid aUid)
+TAny* CHCTLBcmH4::Interface(TUid aUid)
 	{
 	LOG_FUNC
 	
@@ -92,6 +91,11 @@ TAny* CHCTLUartOriginal::Interface(TUid aUid)
 		case KHCHardResetUid:
 			ret = reinterpret_cast<TAny*>(static_cast<MHardResetInitiator*>(this));   
 			break;
+			
+		case KHctlBcmConfigInterfaceUid:
+			ret = reinterpret_cast<TAny*>(static_cast<MHctlBcmConfigInterface*>(this));
+			break;
+
 		default:
 			break;
 		}
@@ -99,7 +103,7 @@ TAny* CHCTLUartOriginal::Interface(TUid aUid)
 	return ret;
 	}
 
-void CHCTLUartOriginal::DoConfigL()
+void CHCTLBcmH4::DoConfigL()
 	{
 	LOG_FUNC
 
@@ -124,7 +128,7 @@ void CHCTLUartOriginal::DoConfigL()
 	}
 
 //Implementation of pure virtuals from MHCTLInterface
-TInt CHCTLUartOriginal::MhiWriteAclData(const TDesC8& aData)
+TInt CHCTLBcmH4::MhiWriteAclData(const TDesC8& aData)
 	{
 	LOG_FUNC
 
@@ -141,7 +145,7 @@ TInt CHCTLUartOriginal::MhiWriteAclData(const TDesC8& aData)
 	return rerr;
 	}
 
-TInt CHCTLUartOriginal::MhiWriteSynchronousData(const TDesC8& aData)
+TInt CHCTLBcmH4::MhiWriteSynchronousData(const TDesC8& aData)
 	{
 	LOG_FUNC
 	
@@ -158,7 +162,7 @@ TInt CHCTLUartOriginal::MhiWriteSynchronousData(const TDesC8& aData)
 	return rerr;
 	}
 
-TInt CHCTLUartOriginal::MhiWriteCommand(const TDesC8& aData)
+TInt CHCTLBcmH4::MhiWriteCommand(const TDesC8& aData)
 	{
 	LOG_FUNC
 
@@ -175,18 +179,18 @@ TInt CHCTLUartOriginal::MhiWriteCommand(const TDesC8& aData)
 	return rerr;
 	}
 	
-void CHCTLUartOriginal::MhiSetQdpPluginInterfaceFinder(MQdpPluginInterfaceFinder& aQdpPluginInterfaceFinder)
+void CHCTLBcmH4::MhiSetQdpPluginInterfaceFinder(MQdpPluginInterfaceFinder& aQdpPluginInterfaceFinder)
 	{
 	iQdpPluginInterfaceFinder = &aQdpPluginInterfaceFinder;
 	}
 	
-void CHCTLUartOriginal::MhriStartHardReset()
+void CHCTLBcmH4::MhriStartHardReset()
 	{
-	__ASSERT_DEBUG(iControllerMan, PANIC(KUartOriginalPanic, ENoControllerManager));
+	__ASSERT_DEBUG(iControllerMan, PANIC(KBcmHctlH4Panic, ENoControllerManager));
 	iControllerMan->HardReset();
 	}
 	
-void CHCTLUartOriginal::MhiGetAclDataTransportOverhead(TUint& aHeaderSize, TUint& aTrailerSize) const
+void CHCTLBcmH4::MhiGetAclDataTransportOverhead(TUint& aHeaderSize, TUint& aTrailerSize) const
 	{
 	// Return the transport overhead for ACL data.
 	aHeaderSize = KHCTLAclDataHeaderSize;
@@ -194,26 +198,37 @@ void CHCTLUartOriginal::MhiGetAclDataTransportOverhead(TUint& aHeaderSize, TUint
 	}
 	
 
-void CHCTLUartOriginal::MhiGetSynchronousDataTransportOverhead(TUint& aHeaderSize, TUint& aTrailerSize) const
+void CHCTLBcmH4::MhiGetSynchronousDataTransportOverhead(TUint& aHeaderSize, TUint& aTrailerSize) const
 	{
 	// Return the transport overhead for Synchronous data.
 	aHeaderSize = KHCTLSynchronousDataHeaderSize;
 	aTrailerSize = KHCTLSynchronousDataTrailerSize;
 	}
 
-void CHCTLUartOriginal::MhiGetCommandTransportOverhead(TUint& aHeaderSize, TUint& aTrailerSize) const
+void CHCTLBcmH4::MhiGetCommandTransportOverhead(TUint& aHeaderSize, TUint& aTrailerSize) const
 	{
 	// Return the transport overhead for HCI commands data.
 	aHeaderSize = KHCTLCommandHeaderSize;
 	aTrailerSize = KHCTLCommandTrailerSize;
 	}
 
+TInt CHCTLBcmH4::MhciUpdateBaudRate(TUint32 aBaudRate)
+	{
+	// Call the base class method to process this change.
+	TRAPD(rerr, SetPortBaudRateL(aBaudRate));
+	return rerr;
+	}
+
+void CHCTLBcmH4::MhciSetInitPluginState(TInitState InitState)
+	{
+	iInitpluginState = InitState;	
+	}
 
 /**
 This function is used by the receiver for informing HCI that ACL data has been received
 The receiver doesn't have reference to iDataObserver. So this is merely a wrapper for iDataObserver
 */
-void CHCTLUartOriginal::ProcessACLData(const TDesC8& aData)
+void CHCTLBcmH4::ProcessACLData(const TDesC8& aData)
 	{
 	iDataObserver->MhdoProcessAclData(aData);
 	}
@@ -222,7 +237,7 @@ void CHCTLUartOriginal::ProcessACLData(const TDesC8& aData)
 This function is used by the receiver for informing HCI that Synchronous data has been received
 The receiver doesn't have reference to iDataObserver. So this is merely a wrapper for iDataObserver
 */
-void CHCTLUartOriginal::ProcessSynchronousData(const TDesC8& aData)
+void CHCTLBcmH4::ProcessSynchronousData(const TDesC8& aData)
 	{
 	iDataObserver->MhdoProcessSynchronousData(aData);
 	}
@@ -231,7 +246,7 @@ void CHCTLUartOriginal::ProcessSynchronousData(const TDesC8& aData)
 This function is used by the receiver for informing HCI that event has been received
 The receiver doesn't have reference to iEventObserver. So this is merely a wrapper for iDataObserver
 */	
-void CHCTLUartOriginal::ProcessEvent(const TDesC8& aEvent)
+void CHCTLBcmH4::ProcessEvent(const TDesC8& aEvent)
 	{
 	iEventObserver->MheoProcessEvent(aEvent);
 	}
@@ -242,7 +257,7 @@ QdpPluginInterfaceFinder getter.
 @return returns iQdpPluginInterfaceFinder which could be NULL 
 if it has not been given one.
 */
-MQdpPluginInterfaceFinder* CHCTLUartOriginal::QdpPluginInterfaceFinder()
+MQdpPluginInterfaceFinder* CHCTLBcmH4::QdpPluginInterfaceFinder()
 	{
 	return iQdpPluginInterfaceFinder;
 	}
@@ -254,7 +269,7 @@ Hence the HC can recognise whether this packet is a command, ACL/SCO data.
 The packet preamble/indication is different between different HCTL 
 implementations and are totally dependent upon the meduim used (UART, R2232 etc).
 */
-/*static*/ void CHCTLUartOriginal::SetPacketIndicator(THctlPacketType aType, const TDesC8& aData)
+/*static*/ void CHCTLBcmH4::SetPacketIndicator(THctlPacketType aType, const TDesC8& aData)
 	{
 	LOG_STATIC_FUNC
 	
@@ -263,11 +278,11 @@ implementations and are totally dependent upon the meduim used (UART, R2232 etc)
 	}
 	
 // Implementation of pure virtual from CHCTLUartBase
-void CHCTLUartOriginal::PortOpenedL()
+void CHCTLBcmH4::PortOpenedL()
 	{
 	LOG_FUNC
 
-	__ASSERT_DEBUG(Port().Handle(), PANIC(KUartOriginalPanic, EPortNotOpen));
+	__ASSERT_DEBUG(Port().Handle(), PANIC(KBcmHctlH4Panic, EPortNotOpen));
 
 	if (iSender || iReceiver)
 		{
@@ -280,37 +295,37 @@ void CHCTLUartOriginal::PortOpenedL()
 	// the receiver Active Object so that it gets preferential treatment. It 
 	// is reported that otherwise the response from a command can come in 
 	// before the sending client is told that the send has completed!
-	iSender	= CHCTLUartOriginalSender::NewL(Port());
-	iReceiver = CHCTLUartOriginalReceiver::NewL(*this, Port());
+	iSender	= CHCTLBcmH4Sender::NewL(Port());
+	iReceiver = CHCTLBcmH4Receiver::NewL(*this, Port());
 
 	// Start reading from the UART  
 	iReceiver->Start();
 	}
 
 
-void CHCTLUartOriginal::MhiSetDataObserver(MHCTLDataObserver& aDataObserver)
+void CHCTLBcmH4::MhiSetDataObserver(MHCTLDataObserver& aDataObserver)
 	{
 	iDataObserver = &aDataObserver;
 	}
 
-void CHCTLUartOriginal::MhiSetEventObserver(MHCTLEventObserver& aEventObserver)
+void CHCTLBcmH4::MhiSetEventObserver(MHCTLEventObserver& aEventObserver)
 	{
 	iEventObserver = &aEventObserver;
 	}
 
-void CHCTLUartOriginal::MhiSetChannelObserver(MHCTLChannelObserver& aChannelObserver)
+void CHCTLBcmH4::MhiSetChannelObserver(MHCTLChannelObserver& aChannelObserver)
 	{
 	iChannelObserver = &aChannelObserver;
 	iSender->SetChannelObserver(aChannelObserver); 
 	}
 
-void CHCTLUartOriginal::MhiSetControllerStateObserver(MControllerStateObserver& aControllerStateObserver)
+void CHCTLBcmH4::MhiSetControllerStateObserver(MControllerStateObserver& aControllerStateObserver)
 	{
 	iControllerStateObserver = &aControllerStateObserver;
 	iControllerMan->SetControllerStateObserver(aControllerStateObserver);
 	}
 
-void CHCTLUartOriginal::HandlePowerOff()
+void CHCTLBcmH4::HandlePowerOff()
 	{
 	iCurrentPowerState = EBTOff;
 	// Close all channels and cancel the sender and receiver.
@@ -320,7 +335,7 @@ void CHCTLUartOriginal::HandlePowerOff()
 	iChannelObserver->MhcoChannelClosed(KHCITransportAllChannels);
 	}
 
-void CHCTLUartOriginal::HandlePowerOn()
+void CHCTLBcmH4::HandlePowerOn()
 	{
 	iCurrentPowerState = EBTOn;
 	iChannelObserver->MhcoChannelOpen(KHCITransportAllChannels);
@@ -332,13 +347,13 @@ void CHCTLUartOriginal::HandlePowerOn()
 	// The sender will be activated when the first frame needs to be sent.
 	}
 
-TBTPowerState CHCTLUartOriginal::CurrentPowerState() const
+TBTPowerState CHCTLBcmH4::CurrentPowerState() const
 	{
 	return iCurrentPowerState;
 	}
 
 //CHRIS MODIF
-//void CHCTLUartOriginal::SetInitFlag(TBool flag)
+//void CHCTLBcmH4::SetInitFlag(TBool flag)
 	//{
 	//iInitFlag = flag;
 	//}
