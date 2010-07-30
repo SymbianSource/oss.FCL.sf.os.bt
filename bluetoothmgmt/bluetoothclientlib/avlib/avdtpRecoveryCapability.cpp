@@ -35,7 +35,7 @@ EXPORT_C TAvdtpRecoveryCapabilities::TAvdtpRecoveryCapabilities()
 	{
 	}
 
-EXPORT_C /*virtual*/ TInt inline TAvdtpRecoveryCapabilities::AsProtocol(RBuf8& aBuffer) const
+EXPORT_C /*virtual*/ TInt TAvdtpRecoveryCapabilities::AsProtocol(RBuf8& aBuffer) const
 	{
 	TInt ret = AddHeader(aBuffer);
 	
