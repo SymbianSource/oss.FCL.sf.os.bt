@@ -1,4 +1,4 @@
-// Copyright (c) 2004-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2004-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -445,12 +445,37 @@ void CGavdp::ServiceComplete(TInt aResult)
 	
 void CGavdp::Error(TInt aError)
 	{
-	// helper tells user - here we do whatever we need to tidy ourselves
+	//here we do whatever we need to tidy ourselves
 	delete iRequesterHelper;
 	iRequesterHelper = NULL;
-	iState = EIdle;
-	// and tell the user
-	iServiceUser.GAVDP_Error(aError, KNullDesC8);
+	
+	if (iState == EListening)
+		{
+		//if we're in the listening state and we get a KErrDisconnected error, this is
+		//because a connection completed and was disconnected straight away before we got
+		//the chance to pickup the connection indicator. We need to re-listen and throw
+		//away this error. Let's replace the error with the result of the re-listen.
+		if (aError == KErrDisconnected)
+			{
+			aError = Listen();
+			}
+		
+		//when listening, it doesn't make sense to pass this error to the user
+		if (aError == KErrCouldNotConnect)
+			{
+			aError = KErrNone;
+			}
+		}
+	
+	//the error might have been replaced due to the condition mentioned above so
+	//this needs to be checked.
+	if (aError != KErrNone)
+		{
+		iServiceUser.GAVDP_Error(aError, KNullDesC8);
+		
+		//update the state because an error did occur
+		iState = EIdle;
+		}
 	}
 
 void CGavdp::FatalError()
@@ -476,10 +501,12 @@ void CGavdp::BindSignallingL(const TBTDevAddr& aRemoteAddress)
 		// eg Abort, Config
 		User::Leave(KErrInUse);
 		}
-	iRequesterHelper = CGavdpConnector::NewL(*this, iServiceUser, aRemoteAddress);
+	
+	//create a passive connector helper
+	iRequesterHelper = CGavdpConnector::NewL(*this, iServiceUser, aRemoteAddress, ETrue);
 	iRequesterHelper->Begin();
 	}
-	
+
 /*
 Forms the binding between passively created transport sessions and sockets
 */

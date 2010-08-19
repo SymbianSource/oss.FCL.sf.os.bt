@@ -639,7 +639,6 @@ void COobDataSession::TryCancelReadLocalOobData()
 		}
 	}
 
-
 void COobDataSession::XoldoLocalOobDataRetrieved(TInt aResult, const TBluetoothSimplePairingHash& aHash, const TBluetoothSimplePairingRandomizer& aRandomizer)
 	{
 	LOG_FUNC
@@ -702,8 +701,8 @@ CDedicatedBondingSession::~CDedicatedBondingSession()
 	{
 	LOG_FUNC
 	iPhysicalLinksManager.SecMan().CancelRequest(*this);
-	delete iProxySap;
-	if(iStartBondingMsg.Handle())
+	delete iProxySap; // cannot do an immediate shutdown as the semantics for that kill the phy
+	if(!iStartBondingMsg.IsNull())
 		{
 		iStartBondingMsg.Complete(KErrCancel);
 		}
@@ -718,6 +717,7 @@ void CDedicatedBondingSession::DispatchSubSessMessageL(const RMessage2& aMessage
 	case EPairingServerStartDedicatedBond:
 		StartBondingL(aMessage);
 		break;
+		
 	default:
 		CPairingSubSession::DispatchSubSessMessageL(aMessage);
 		break;
@@ -727,9 +727,18 @@ void CDedicatedBondingSession::DispatchSubSessMessageL(const RMessage2& aMessage
 void CDedicatedBondingSession::Complete(TInt aError)
 	{
 	LOG_FUNC
-	iState = EShutdown;
-	iAsyncShutdown->CallBack();
-	iStartBondingMsg.Complete(aError);
+	if(!iStartBondingMsg.IsNull())
+		{
+		__ASSERT_DEBUG(!ShuttingDown(), PANIC(KPairingServerFaultCat, EPairingServerBadShutdownState));
+		iState = EShutdownRequested;
+		iAsyncShutdown->CallBack();
+		iPhysicalLinksManager.SecMan().CancelRequest(*this); // we don't want the result anymore (if it's still pending).
+		iStartBondingMsg.Complete(aError); 
+		}
+	else
+		{
+		__ASSERT_DEBUG(ShuttingDown(), PANIC(KPairingServerFaultCat, EPairingServerBadShutdownState));
+		}
 	}
 
 TInt CDedicatedBondingSession::StaticShutdown(TAny* aDedBond)
@@ -742,42 +751,49 @@ TInt CDedicatedBondingSession::StaticShutdown(TAny* aDedBond)
 void CDedicatedBondingSession::Shutdown()
 	{
 	LOG_FUNC
-	__ASSERT_DEBUG(iState == EShutdown, PANIC(KPairingServerFaultCat, EPairingServerBadShutdownState));
-	iState = EInvalid;
+	__ASSERT_DEBUG(iState == EShutdownRequested, PANIC(KPairingServerFaultCat, EPairingServerBadShutdownState));
+	__ASSERT_DEBUG(iStartBondingMsg.IsNull(), PANIC(KPairingServerFaultCat, EPairingServerMessageShouldBeNull));
+	iState = EShutdownPending;
 	iProxySap->Shutdown(CServProviderBase::ENormal);
+	}
+	
+TBool CDedicatedBondingSession::ShuttingDown() const
+	{
+	return iState == EShutdownRequested || iState == EShutdownPending;
 	}
 
 void CDedicatedBondingSession::StartBondingL(const RMessage2& aMessage)
 	{
 	LOG_FUNC
 
-	if(!iStartBondingMsg.IsNull() || iState != EInvalid)
+	if(iState != EMintCondition)
 		{
 		aMessage.Panic(KPairingServerPanicCat, EPairingServerDedicatedBondAlreadyInProgress);
 		return;
 		}
-
+	__ASSERT_DEBUG(iStartBondingMsg.IsNull(), PANIC(KPairingServerFaultCat, EPairingServerMessageShouldBeNull));
+	
+	// Now we've been initiated, no turning back for this object.
+	iState = EInitiated;
+	
 	TPckgBuf<TBTDevAddr> addrBuf;
 	TInt addrLen = aMessage.GetDesLengthL(0);
 	if(addrLen != sizeof(TBTDevAddr))
 		{
-		// If the length is correct then the address has been packaged incorrect for the
+		// If the length is incorrect then the address has been packaged incorrectly for the
 		// IPC operation.
 		LEAVEL(KErrBadDescriptor);
 		}
 	aMessage.ReadL(0, addrBuf);
 
-	iStartBondingMsg = aMessage;
-	CleanupStack::PushL(TCleanupItem(CleanupStartMessage, this));
-
 	TBTSockAddr addr;
 	addr.SetBTAddr(addrBuf());
 	iProxySap = CBTProxySAP::NewL(iPhysicalLinksManager, NULL);
-
-	CleanupStack::Pop(this); // the start message cleaner
 	
+	iStartBondingMsg = aMessage;
 	// Now we've entered the realm of not leaving with an error, since the connection
 	// process has started.  Errors from now on must be via the Error() function call.
+	
 	iState = EInitialConnectionPending;
 	iProxySap->SetNotify(this);
 	iProxySap->SetRemName(addr);
@@ -787,13 +803,6 @@ void CDedicatedBondingSession::StartBondingL(const RMessage2& aMessage)
 		{
 		Error(err);
 		}
-	}
-
-void CDedicatedBondingSession::CleanupStartMessage(TAny* aPtr)
-	{
-	LOG_STATIC_FUNC
-	CDedicatedBondingSession* session = reinterpret_cast<CDedicatedBondingSession*>(aPtr);
-	session->iStartBondingMsg = RMessage2(); // blat the old one
 	}
 
 void CDedicatedBondingSession::DoAccessRequestL()
@@ -833,7 +842,7 @@ void CDedicatedBondingSession::AccessRequestComplete(TInt aResult)
 		// fall-through...
 	case EInitialConnection:
 		ASSERT_DEBUG(aResult != EBTSecManAccessDeferred); // Should have been disconnected if we receive
-													// this - I don't expect this to happen.
+														  // this - I don't expect this to happen.
 		// fall-through...
 	case EFinalConnection:
 		completed = ETrue; // in the final connection any complete is errored.
@@ -842,12 +851,15 @@ void CDedicatedBondingSession::AccessRequestComplete(TInt aResult)
 			err = KErrAccessDenied;
 			}
 		break;
+		
 	case EInitialConnectionPending:
+		// fall-through deliberate
 	case EFinalConnectionPending:
 		// Access request shouldn't successfully complete if the connection is still pending
 		__ASSERT_DEBUG(aResult != EBTSecManAccessGranted,  PANIC(KPairingServerFaultCat, EPairingServerUnexpectedAccessCallback));
 		// We should get the MSocketNotify::Error callback, so don't do anything else
 		break;
+		
 	default:
 		LOG1(_L("Unexpected Access Request Complete in state %d"), iState);
 		__ASSERT_DEBUG(EFalse, PANIC(KPairingServerFaultCat, EPairingServerUnexpectedAccessCallback));
@@ -885,15 +897,21 @@ void CDedicatedBondingSession::ConnectComplete()
 	case EFinalConnectionPending:
 		iState = EFinalConnection;
 		break;
+		
 	case EInitialConnection:
+		// fall-through deliberate
 	case EFinalConnection:
 		// Apparently multiple connect completes are allowed by CSocket
 		break;
-	case EShutdown:
+		
+	case EShutdownRequested:
+		// fall-through deliberate
+	case EShutdownPending:
 		// If an error occurred just after the connection request then we
 		// might receive a connection complete before the async shutdown request
-		// has been executed.
+		// has been executed or completed.
 		break;
+		
 	default:
 		LOG1(_L("Unexpected Connect Complete in state %d"), iState);
 		__ASSERT_DEBUG(EFalse, PANIC(KPairingServerFaultCat, EPairingServerUnexpectedSocketCallback));
@@ -924,6 +942,9 @@ void CDedicatedBondingSession::ConnectComplete(CServProviderBase& /*aSSP*/, cons
 void CDedicatedBondingSession::CanClose(TDelete aDelete)
 	{
 	LOG_FUNC
+	__ASSERT_DEBUG(iState == EShutdownPending, PANIC(KPairingServerFaultCat, EPairingServerUnexpectedSocketCallback));
+	__ASSERT_DEBUG(iStartBondingMsg.IsNull(), PANIC(KPairingServerFaultCat, EPairingServerMessageShouldBeNull));
+	iState = EShutdown;
 	if (aDelete == EDelete)
 		{
 		delete iProxySap; iProxySap = NULL;
@@ -951,12 +972,17 @@ void CDedicatedBondingSession::Disconnect()
 		// enter the zombie state and wait for the access requester to complete.
 		iState = EZombie;
 		break;
+		
 	case EFinalConnection:
 		Error(KErrDisconnected);
 		break;
-	case EShutdown:
+		
+	case EShutdownRequested:
+		// fall-through deliberate
+	case EShutdownPending:
 		// Already closing down.
 		break;
+		
 	default:
 		LOG1(_L("Unexpected Disconnect in state %d"), iState);
 		__ASSERT_DEBUG(EFalse, PANIC(KPairingServerFaultCat, EPairingServerUnexpectedSocketCallback));

@@ -149,7 +149,8 @@ public:
 	
 	TInt AddSession(TAvdtpTransportSessionType aType,
 					CUserPlaneTransportSession& aSession,
-					CTransportChannel*& aTransportChannel);
+					CTransportChannel*& aTransportChannel,
+					TL2CapConfig::TChannelPriority aPriority = TL2CapConfig::ELow);
 	void DropSession(TAvdtpTransportSessionType aType, CUserPlaneTransportSession& aSession);
 	void ClearSession(CUserPlaneTransportSession& aSession);
 
@@ -303,7 +304,8 @@ public:
 	virtual TInt AddSession(CAVStream& aStream, 
 							TAvdtpTransportSessionType aType,
 							CUserPlaneTransportSession& aSession,
-							CTransportChannel*& aTransportChannel) const;
+							CTransportChannel*& aTransportChannel,
+							TL2CapConfig::TChannelPriority aPriority) const;
 	virtual void DropSession(CAVStream& aStream, TAvdtpTransportSessionType aType,
 							 CUserPlaneTransportSession& aSession) const;
 	
@@ -398,7 +400,8 @@ public:
 	virtual TInt AddSession(CAVStream& aStream,
 					TAvdtpTransportSessionType aType,
 					CUserPlaneTransportSession& aSession,
-					CTransportChannel*& aChannel) const;
+					CTransportChannel*& aChannel,
+					TL2CapConfig::TChannelPriority aPriority) const;
 	virtual void DropSession(CAVStream& aStream, TAvdtpTransportSessionType aType,
 					 CUserPlaneTransportSession& aSession) const;
 	virtual void SetConfigurationL(CAVStream& aStream, 
@@ -419,7 +422,8 @@ public:
 	TInt AddSession(CAVStream& aStream, 
 							TAvdtpTransportSessionType aType,
 							CUserPlaneTransportSession& aSession,
-							CTransportChannel*& aTransportChannel) const;
+							CTransportChannel*& aTransportChannel,
+							TL2CapConfig::TChannelPriority aPriority) const;
 	virtual void Enter(CAVStream& aStream) const;
 private:
 	void TryToOpen(CAVStream& aStream) const;
@@ -440,7 +444,8 @@ public:
 	virtual TInt AddSession(CAVStream& aStream,
 					TAvdtpTransportSessionType aType,
 					CUserPlaneTransportSession& aSession,
-					CTransportChannel*& aChannel) const;
+					CTransportChannel*& aChannel,
+					TL2CapConfig::TChannelPriority aPriority) const;
 				
 	virtual TInt StartReceived(CAVStream& aStream) const;
 	virtual void Enter(CAVStream& aStream) const;
@@ -454,7 +459,8 @@ public:
 	virtual TInt AddSession(CAVStream& aStream,
 					TAvdtpTransportSessionType aType,
 					CUserPlaneTransportSession& aSession,
-					CTransportChannel*& aChannel) const;
+					CTransportChannel*& aChannel,
+					TL2CapConfig::TChannelPriority aPriority) const;
 	
 	virtual TInt StartReceived(CAVStream& aStream) const;
 	virtual void Enter(CAVStream& aStream) const;
@@ -494,7 +500,8 @@ public:
 	virtual TInt AddSession(CAVStream& aStream,
 			TAvdtpTransportSessionType aType,
 			CUserPlaneTransportSession& aSession,
-			CTransportChannel*& aChannel) const;
+			CTransportChannel*& aChannel,
+			TL2CapConfig::TChannelPriority aPriority) const;
 	// next pertains to reconfiguration
 	void SetConfigurationL(CAVStream& aStream, 
 									RBuf8& aPacketBuffer,

@@ -207,6 +207,7 @@ public:
 	void ProcessPeerValue(const TRetransmissionAndFlowControlOption& aFecOption,
 						  TBool aIsUnacceptableParameters);
 	void ProcessImplicitPeerValue();
+	void DowngradeToBasic();
     void Setup();
 protected:
     void BuildRequest(TL2CapChannelMode aMode, TRetransmissionAndFlowControlOption& aFecOption);

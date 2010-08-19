@@ -1177,11 +1177,11 @@ void CL2CAPMux::PriorityAddDataController(CL2CapBasicDataController& aDataContro
 		else
 			{
 			TBool controllerAdded = EFalse;
-			while((handler = iter++) != NULL && !controllerAdded)
+			while(!controllerAdded && (handler = iter++) != NULL)
 				{
 				if(channelPriority > handler->Config().ChannelPriority())
 					{
-					handler->iLink.AddBefore(&(aDataController.iLink));
+					aDataController.iLink.AddBefore(&handler->iLink);
 					controllerAdded = ETrue;
 					}
 				}

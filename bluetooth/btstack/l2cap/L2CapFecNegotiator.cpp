@@ -558,6 +558,14 @@ void TL2CapIncomingFecNegotiator::ProcessImplicitPeerValue()
 	ProcessPeerValue(response, EFalse);
 	}
 
+void TL2CapIncomingFecNegotiator::DowngradeToBasic()
+	{
+	LOG_FUNC
+	iPreferred = TRetransmissionAndFlowControlOption();
+	iConfigStatus = EOptionConfigComplete;
+	}
+
+
 void TL2CapIncomingFecNegotiator::BuildRequest(TL2CapChannelMode aMode, TRetransmissionAndFlowControlOption& aFecOption)
     {
     LOG_FUNC
@@ -761,9 +769,7 @@ void TL2CapFecNegotiator::DowngradeIncomingToBasicIfOutgoingIsBasic()
 		iIncomingNegotiator.Preferred().LinkMode() != EL2CAPBasicMode)
 		{
 		LOG(_L("\tReceived Basic mode Config Request, downgrading incoming channel mode to Basic"));
-		// Downgrade incoming FEC to be basic mode.
-  		TRetransmissionAndFlowControlOption basicFec;
-  		iIncomingNegotiator.SetPreferred(basicFec);
+		iIncomingNegotiator.DowngradeToBasic();
 		}
 	}
 

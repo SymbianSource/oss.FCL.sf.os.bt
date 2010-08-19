@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2008 Nokia Corporation and/or its subsidiary(-ies).
+* Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
 * All rights reserved.
 * This component and the accompanying materials are made available
 * under the terms of "Eclipse Public License v1.0"
@@ -11,19 +11,19 @@
 *
 * Contributors:
 *
-* Description:  build file
+* Description:  This file provides the information required for building the
+*               whole of limitedpdpplugin
 *
 */
-
 
 #include <platform_paths.hrh>
 
 PRJ_PLATFORMS
 
 PRJ_EXPORTS
+../rom/limitedpdpplugin.iby     CORE_OS_LAYER_IBY_EXPORT_PATH(limitedpdpplugin.iby)
 
 PRJ_MMPFILES
-#include "../legacymodemplugin/group/bld.inf"
-#include "../limitedpdpplugin/group/bld.inf"
+limitedpdpplugin.mmp
 
 PRJ_TESTMMPFILES

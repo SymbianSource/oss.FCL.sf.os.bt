@@ -76,7 +76,7 @@ TInt CMediaSession::DoActiveOpen()
 	__ASSERT_DEBUG(iStream, Panic(EAvdtpTransportSessionBaseNotCheckStream));
 	TInt ret = KErrGeneral; // may be OOM or notfound
 
-	ret = iStream->AddSession(EMedia,*this,iTransportChannel);
+	ret = iStream->AddSession(EMedia,*this,iTransportChannel,TL2CapConfig::EHigh);
 	if (ret!=KErrNone)
 		{
 		// not erroring the stream, as it's not it's fault

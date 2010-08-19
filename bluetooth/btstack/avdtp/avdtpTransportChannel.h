@@ -59,7 +59,7 @@ public:
 
 // management path
 	virtual void DetachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType aType)=0;
-	virtual TInt AttachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType aType)=0;
+	virtual TInt AttachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType aType, TL2CapConfig::TChannelPriority aPriority)=0;
 	virtual TBool CouldAttachSession(const TAvdtpSockAddr& aAddr)=0;
 	virtual TTCID TCID() const=0;
 	inline const TBTDevAddr& RemoteAddress() const;
@@ -100,6 +100,9 @@ protected:
 	void ConstructL();
 	void CloseLogicalChannel();
 	inline CAvdtpProtocol& Protocol() const;
+
+private:
+	virtual void UpdateChannelPriority() = 0;
 
 protected:
 	RTCID				iTCID;

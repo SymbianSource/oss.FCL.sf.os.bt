@@ -32,7 +32,6 @@ public:
 	
 private:
 	CBTSynchronousLinkBaseband(CBluetoothSynchronousLink& aParent);
-	void ConstructL();
 	void DoCancel();
 	void RunL();
 	TInt RunError(TInt aError);
@@ -41,7 +40,7 @@ private:
 	TBTBasebandEvent			iEvent;
 	};
 
-//CBluetoothSynchronousLink Active Objects...
+
 NONSHARABLE_CLASS(CBTSynchronousLinkAttacher) : public CActive
 	{
 public:
@@ -53,7 +52,6 @@ public:
 
 private:
 	CBTSynchronousLinkAttacher(CBluetoothSynchronousLink& aParent, TSCOType aSCOTypes);
-	void ConstructL();
 	void DoCancel();
 	void RunL();
 	TInt RunError(TInt aError);
@@ -75,7 +73,6 @@ public:
 
 private:
 	CBTSynchronousLinkDetacher(CBluetoothSynchronousLink& aParent, TSCOType aSCOTypes);
-	void ConstructL();
 	void DoCancel();
 	void RunL();
 	TInt RunError(TInt aError);
@@ -93,12 +90,11 @@ public:
 	static CBTSynchronousLinkAccepter* NewL(CBluetoothSynchronousLink& aParent, TSCOType aSCOType);
 	~CBTSynchronousLinkAccepter();
 
-	void Accept(RSocket& aSocket);
+	void Accept();
 
 
 private:
 	CBTSynchronousLinkAccepter(CBluetoothSynchronousLink& aParent, TSCOType aSCOType);
-	void ConstructL();
 	void DoCancel();
 	void RunL();
 	TInt RunError(TInt aError);
@@ -120,7 +116,6 @@ public:
 
 private:
 	CBTSynchronousLinkSender(CBluetoothSynchronousLink& aParent, TSCOType aSCOType);
-	void ConstructL();
 	void DoCancel();
 	void RunL();
 	TInt RunError(TInt aError);
@@ -142,7 +137,6 @@ public:
 
 private:
 	CBTSynchronousLinkReceiver(CBluetoothSynchronousLink& aParent, TSCOType aSCOTypes);
-	void ConstructL();
 	void DoCancel();
 	void RunL();
 	TInt RunError(TInt aError);

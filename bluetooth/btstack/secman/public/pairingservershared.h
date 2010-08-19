@@ -71,6 +71,7 @@ enum TPairingServerFaultReason
 	EPairingServerUnexpectedSocketCallback,
 	EPairingServerUnexpectedAccessCallback,
 	EPairingServerBadShutdownState,
+	EPairingServerMessageShouldBeNull,
 	};
 
 #endif // PAIRINGSERVERSHARED_H

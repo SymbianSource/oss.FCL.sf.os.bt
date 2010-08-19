@@ -898,6 +898,9 @@ void TL2CAPSigStateWaitConfig::ConfigRequest(CL2CapSAPSignalHandler& aSignalHand
 void TL2CAPSigStateWaitConfig::Enter(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
+	// Cancel the Config timer if it's running
+	aSignalHandler.CancelTimer();
+	
 	// First start the ConfigReq sending delay timer (see DelayConfigRequest() for why).
 	// It's short lived, we'll start the proper L2CAP config timer when it expires.
 	aSignalHandler.StartConfigRequestDelayTimer();

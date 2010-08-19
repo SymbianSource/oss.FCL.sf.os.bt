@@ -435,7 +435,7 @@ TInt CL2CAPConnectionSAP::SAPSetOption(TUint aLevel, TUint aName, const TDesC8& 
 		case KL2CAPUpdateChannelConfig:
 			{
 			const TL2CapConfig apiConf = *reinterpret_cast<const TL2CapConfig*>(aOption.Ptr());
-			return iL2CapSAPSignalHandler->UpdateChannelConfig(apiConf);
+            return UpdateChannelConfig(apiConf);
 			}
 			
 		// Can't set these
@@ -1084,6 +1084,11 @@ TInt CL2CAPConnectionSAP::CreateDataPlane(CL2CapChannelConfig& aConfig,
 
 	if(dataConfig)
 		{
+		// if UpdateChannelConfig was called before iL2CapDataQueue was created we update the priority now
+		if (iChannelPriority != 0)
+			{
+			dataConfig->SetChannelPriority(iChannelPriority);
+			}
 		TRAP(rerr, iL2CapDataQueue = CL2CapSDUQueue::NewL(*this,
 		                                                  aLocalPort,
 		                                                  aRemotePort,

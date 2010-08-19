@@ -343,10 +343,11 @@ void CAVStream::Released()
 
 TInt CAVStream::AddSession(TAvdtpTransportSessionType aType,
 						   CUserPlaneTransportSession& aSession,
-						   CTransportChannel*& aChannel)
+						   CTransportChannel*& aChannel,
+						   TL2CapConfig::TChannelPriority aPriority)
 	{
 	LOG_FUNC
-	return iState->AddSession(*this, aType, aSession, aChannel);
+	return iState->AddSession(*this, aType, aSession, aChannel, aPriority);
 	}
 	
 void CAVStream::DropSession(TAvdtpTransportSessionType aType, CUserPlaneTransportSession& aSession)

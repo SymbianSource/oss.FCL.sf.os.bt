@@ -324,7 +324,7 @@ NONSHARABLE_CLASS( TATExtEntrySupport )
 public:
 
     TATExtEntrySupport( TDesC8& aAtCmdFull,
-                        const RMessage2& aMessage,
+                        RMessage2& aMessage,
                         CArrayFixFlat<TATExtOneCmdSupport>* aSupport ) :
                         iAtCmdFull( aAtCmdFull ),
                         iMessage( aMessage ),
@@ -333,6 +333,8 @@ public:
                         iStartIndex( KErrNotFound ),
                         iSupportFound( EFalse ){}
 
+    TATExtEntrySupport& operator=( TATExtEntrySupport& aEntrySupport );
+    
     /**
      * Full AT command for which to check the support
      * (base part + parameters)
@@ -342,7 +344,7 @@ public:
     /**
      * Client request message for reading
      */
-    const RMessage2& iMessage;
+    RMessage2& iMessage;
 
     /**
      * AT command's plugin entry support data.
@@ -365,7 +367,7 @@ public:
      * Found plugin support for HandlePartialAndMasterPluginSupportL().
      */
     TBool iSupportFound;
-
+    
     };
 
 /**

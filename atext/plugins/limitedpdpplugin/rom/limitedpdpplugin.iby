@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2008 Nokia Corporation and/or its subsidiary(-ies).
+* Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
 * All rights reserved.
 * This component and the accompanying materials are made available
 * under the terms of "Eclipse Public License v1.0"
@@ -11,19 +11,14 @@
 *
 * Contributors:
 *
-* Description:  build file
+* Description:  Image description file for project limitedpdpplugin
 *
 */
 
 
-#include <platform_paths.hrh>
+#ifndef __LIMITEDPDPPLUGIN_IBY__
+#define __LIMITEDPDPPLUGIN_IBY__
 
-PRJ_PLATFORMS
+ECOM_PLUGIN( limitedpdpplugin.dll, limitedpdpplugin.rsc )
 
-PRJ_EXPORTS
-
-PRJ_MMPFILES
-#include "../legacymodemplugin/group/bld.inf"
-#include "../limitedpdpplugin/group/bld.inf"
-
-PRJ_TESTMMPFILES
+#endif

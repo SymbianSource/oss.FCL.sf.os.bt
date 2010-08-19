@@ -37,7 +37,7 @@ public:
 // can just forward down to L2CAP...
 
 	virtual void DetachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType aType);
-	virtual TInt AttachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType aType);
+	virtual TInt AttachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType aType, TL2CapConfig::TChannelPriority aPriority = TL2CapConfig::ELow);
 	virtual TBool CouldAttachSession(const TAvdtpSockAddr& aAddr);
 	virtual TTCID TCID() const;
 	CServProviderBase* ObtainSAP();
@@ -48,7 +48,8 @@ public:
 	
 private:
 	CDirectChannel(CAvdtpProtocol& aProtocol, const TBTDevAddr& aRemoteDevice);
- 
+	void UpdateChannelPriority();
+	
 private:
 // interesting stuff from l2cap
 	virtual void NewData(TUint aCount);
@@ -59,6 +60,7 @@ private:
 private:
 	CUserPlaneTransportSession*	iTransportSession;			// non-owned
 	TBool						iTransportSessionBlocked;
+	TL2CapConfig::TChannelPriority iChannelPriority;
 	};
 	
 #endif //AVDTPDIRECTCHANNEL_H
