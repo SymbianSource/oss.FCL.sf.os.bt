@@ -967,12 +967,7 @@ void CSdpServSession::ServiceL(const RMessage2& aMessage)
 				// we wouldn't want to remove the record if an error did occur,
 				// which is very unlikely as typically only 1 or 2 records are
 				// added per session.
-				err = iSessionRecords.Append(newRecord);
-				if(err != KErrNone)
-				    {
-				    //if append fails delete the service record created above and return the error code
-				    Server().DeleteServiceRecord(newRecord);
-				    }
+				(void)iSessionRecords.Append(newRecord);
 				}
 			aMessage.Complete(err);
 			}

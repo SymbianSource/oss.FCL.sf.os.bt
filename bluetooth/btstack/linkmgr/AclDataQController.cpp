@@ -20,6 +20,7 @@
 //
 
 #include <bluetooth/logger.h>
+#include <bluetooth/hci/hciconsts.h>
 #include "AclDataQController.h"
 #include "linkmgr.h"
 #include "AclDataQ.h"

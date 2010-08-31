@@ -24,6 +24,5 @@ PRJ_EXPORTS
 
 PRJ_MMPFILES
 #include "../legacymodemplugin/group/bld.inf"
-#include "../limitedpdpplugin/group/bld.inf"
 
 PRJ_TESTMMPFILES

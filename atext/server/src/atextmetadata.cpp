@@ -2049,9 +2049,7 @@ void CATExtMetadata::DoCreateAndFindSupportL(
         TRACE_FUNC_EXIT
         return;
         }
-    TATExtEntrySupport entrySupport( aAtCmdFull,
-                                     const_cast<RMessage2&>(aMessage),
-                                     support );
+    TATExtEntrySupport entrySupport( aAtCmdFull, aMessage, support );
     TInt i;
     aComplInfo.iProcessed = EFalse;
     TInt count = support->Count();
@@ -2143,14 +2141,11 @@ TBool CATExtMetadata::HandleMasterAndPartialPluginSupportL(
     HBufC8* atCmdFull = HBufC8::NewMaxLC( aEntrySupport.iAtCmdFull.Length() );
     TPtr8 atCmdFullPtr = atCmdFull->Des();
     atCmdFullPtr.Copy( aEntrySupport.iAtCmdFull );
-    // First send the entry to the observers
-    TATExtEntrySupport handleCommandEntry = aEntrySupport;
-    aEntrySupport.iStartIndex = aStartIndex;
-    SendToMultipleObserverL( aEntrySupport, atCmdFull );
-    aEntrySupport = handleCommandEntry;
     // Now execute the HandleCommand()
     iCmdData.iReplyExpected = ETrue;  // Set before HandleCommandL()
     HandleCommandL( aEntrySupport, ETrue );
+    aEntrySupport.iStartIndex = aStartIndex;
+    SendToMultipleObserverL( aEntrySupport, atCmdFull );
     CleanupStack::PopAndDestroy( atCmdFull );
     aReplyExpected = ETrue;
     TRACE_FUNC_EXIT
@@ -2192,8 +2187,8 @@ TBool CATExtMetadata::HandleObserverPluginSupportL(
         TPtr8 atCmdFullPtr = atCmdFull->Des();
         atCmdFullPtr.Copy( aEntrySupport.iAtCmdFull );
         // Now execute the HandleCommand()
-        SendToMultipleObserverL( nextSupport, atCmdFull );
         HandleCommandL( aEntrySupport, EFalse );
+        SendToMultipleObserverL( nextSupport, atCmdFull );
         CleanupStack::PopAndDestroy( atCmdFull );
         }
     else
@@ -2731,23 +2726,4 @@ TInt CATExtMetadata::WriteReplyBufferToClient( const TDesC8& aBuffer,
         }
     TRACE_FUNC_EXIT
     return KErrNone;
-    }
-
-// ---------------------------------------------------------------------------
-// Assignment operator for ease of usage
-// ---------------------------------------------------------------------------
-//
-TATExtEntrySupport& TATExtEntrySupport::operator=( TATExtEntrySupport& aEntrySupport )
-    {
-    if ( &aEntrySupport == this )
-        {
-        return aEntrySupport;
-        }
-    iAtCmdFull = aEntrySupport.iAtCmdFull;
-    iMessage = aEntrySupport.iMessage;
-    iSupport = aEntrySupport.iSupport;
-    iEntry = aEntrySupport.iEntry;
-    iStartIndex = aEntrySupport.iStartIndex;
-    iSupportFound = aEntrySupport.iSupportFound;
-    return *this;
     }

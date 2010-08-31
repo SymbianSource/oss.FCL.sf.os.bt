@@ -31,10 +31,6 @@
 _LIT8(KLogComponent, LOG_COMPONENT_AVCTP);
 #endif
 
-#ifdef _DEBUG
-PANICCATEGORY("pktmgr");
-#endif
-
 using namespace SymbianAvctp;
 
 /**

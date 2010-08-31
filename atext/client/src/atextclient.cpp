@@ -274,7 +274,6 @@ EXPORT_C TInt RATExt::ReceiveEcomPluginChange(
 EXPORT_C TInt RATExt::CancelReceiveEcomPluginChange()
     {
     TRACE_FUNC_ENTRY
-    TRACE_INFO((_L("CancelReceiveEcomPluginChange, Thread ID %Lu"), RThread().Id().Id()))
     if ( !Handle() )
         {
         TRACE_FUNC_EXIT
