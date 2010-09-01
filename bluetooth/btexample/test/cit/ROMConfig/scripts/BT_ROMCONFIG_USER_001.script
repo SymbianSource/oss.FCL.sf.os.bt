@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2010 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2009 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -18,7 +18,7 @@ LOAD_SERVER TestServerSymbianExcludeBt
 START_TESTCASE BT-ROMCONFIG-USER-001
 //! @SYMTestCaseID BT-ROMCONFIG-USER-001
 //! @SYMTestCaseDesc CBluetoothPhysicalLinks cannot be constructed
-//! on a !__BT ROM
+//! on a SYMBIAN_EXCLUDE_BLUETOOTH ROM
 //! @SYMREQ 5413
 //! @SYMTestType CIT
 //! @SYMTestPriority 1

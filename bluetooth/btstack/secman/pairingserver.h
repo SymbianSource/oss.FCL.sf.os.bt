@@ -218,8 +218,8 @@ private:
 
 	void Complete(TInt aError);
 
-	static void CleanupStartMessage(TAny* aPtr);
 	static TInt StaticShutdown(TAny* aPtr);
+	TBool ShuttingDown() const;
 
 private: // from CPairingSubSession
 	void DispatchSubSessMessageL(const RMessage2& aMessage);
@@ -246,12 +246,15 @@ private: // from MSocketNotify
 private:
 	enum TState
 		{
-		EInvalid,
+		EMintCondition,
+		EInitiated,
 		EInitialConnectionPending,
 		EInitialConnection,
 		EZombie,
 		EFinalConnectionPending,
 		EFinalConnection,
+		EShutdownRequested,
+		EShutdownPending,
 		EShutdown,
 		};
 

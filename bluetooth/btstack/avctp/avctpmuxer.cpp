@@ -37,6 +37,10 @@
 _LIT8(KLogComponent, LOG_COMPONENT_AVCTP);
 #endif
 
+#ifdef _DEBUG
+PANICCATEGORY("avctpmux");
+#endif
+
 using namespace SymbianAvctp;
 
 #ifdef __FLOG_ACTIVE	

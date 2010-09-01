@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2005-2006 Nokia Corporation and/or its subsidiary(-ies).
+* Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
 * All rights reserved.
 * This component and the accompanying materials are made available
 * under the terms of "Eclipse Public License v1.0"
@@ -11,17 +11,19 @@
 *
 * Contributors:
 *
-* Description:  Build information file for project btaudioadaptation_stub
+* Description:  This file provides the information required for building the
+*               whole of limitedpdpplugin
 *
 */
 
+#include <platform_paths.hrh>
 
 PRJ_PLATFORMS
-DEFAULT
 
-#if defined __BT_STEREO_AUDIO
+PRJ_EXPORTS
+../rom/limitedpdpplugin.iby     CORE_OS_LAYER_IBY_EXPORT_PATH(limitedpdpplugin.iby)
 
 PRJ_MMPFILES
-../group/btaudiostreaminputadaptation.mmp	
+limitedpdpplugin.mmp
 
-#endif // __BT_STEREO_AUDIO 
+PRJ_TESTMMPFILES

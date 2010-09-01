@@ -37,7 +37,7 @@ const TInt KAVDTPPortSEIDMask		=0x3f;
 // const TInt KMinMediaCodecLOSC = 2; // mediatype, codectype - see figure8-50 AVDTP
 // const TInt KMinContentProtectionLOSC = 2; // protectiontype
 
-static const TUint KAvdtpSockAddrLocalMask = static_cast<TUint>(1U<<31U);
+static const TUint KAvdtpSockAddrLocalMask = static_cast<TUint>(1<<31);
 
 /**
 Default constructor using 0 as the parameter for setPort()

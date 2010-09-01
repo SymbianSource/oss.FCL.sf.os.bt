@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -13,8 +13,8 @@
 // Description:
 //
 
-#ifndef  HCI_IMPLEMENTATION_REFERENCE_IBY
-#define  HCI_IMPLEMENTATION_REFERENCE_IBY
+#ifndef  HCI_IMPLMENTATION_IBY
+#define  HCI_IMPLMENTATION_IBY
 
 // If __HCI_DEBUG__ is defined pull in debug versions of the
 // HCI DLLs and Plugins regardless of the ROM type
@@ -42,4 +42,4 @@ define HCI_DIR BUILD_DIR
 
 #endif
 
-#endif //  HCI_IMPLEMENTATION_REFERENCE_IBY
+#endif //  HCI_IMPLMENTATION_IBY

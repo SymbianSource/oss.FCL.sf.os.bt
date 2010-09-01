@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2010 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2009 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -14,7 +14,7 @@
 //
 
 // Run all the BT_INC_ROMCONFIG_* tests
-// Expects a ROM to be built with BT i.e. __BT has been specified
+// Expects a ROM to be built with BT i.e. SYMBIAN_EXCLUDE_BLUETOOTH has NOT been specified
 
 RUN_SCRIPT c:\scripts\btromconfig\BT_INC_ROMCONFIG_MANAGER_001.script
 
