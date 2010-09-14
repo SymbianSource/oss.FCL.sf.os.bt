@@ -78,6 +78,8 @@ SOURCE hcifacade_commands.cpp
 SOURCE hcifacade_events.cpp
 SOURCE physicallinks.cpp
 SOURCE PhysicalLinkHelper.cpp
+SOURCE roleswitchhelper.cpp
+SOURCE encryptionkeyrefreshhelper.cpp
 SOURCE basebandsap.cpp
 SOURCE physicallinksmanager.cpp
 SOURCE physicallinkmetrics.cpp

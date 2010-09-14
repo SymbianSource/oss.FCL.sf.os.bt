@@ -128,8 +128,8 @@ public:
 	IMPORT_C TBool UplinkAccessAllowed() const;
 	IMPORT_C TBool IsValid() const;
 	
-	// Non-exported constructor.  Allows creation of default NULL instance
-	TPanConnection();
+	// Allows creation of default NULL instance
+	IMPORT_C TPanConnection();
 	
 private:
 	TBTDevAddr iRemoteDeviceAddress;

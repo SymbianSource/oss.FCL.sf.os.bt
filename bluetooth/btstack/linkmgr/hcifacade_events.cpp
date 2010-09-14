@@ -80,6 +80,7 @@
 #include <bluetooth/hci/vendordebugcompleteevent.h>
 #include <bluetooth/hci/writesimplepairingmodecommand.h>
 #include <bluetooth/hci/readlocalsupportedcommandscommand.h>
+#include <bluetooth/hci/encryptionkeyrefreshcompleteevent.h>
 
 
 // Command Complete Events
@@ -1220,6 +1221,14 @@ void CHCIFacade::MaxSlotsChangeEvent(const THCIEventBase& aEvent, const CHCIComm
 	iLinksMgr->MaxSlotsChange(maxSlotsChangeEvent.ConnectionHandle(), maxSlotsChangeEvent.LMPMaxSlots());
 	}
 
+void CHCIFacade::EncryptionKeyRefreshCompleteEvent(const THCIEventBase& aEvent, const CHCICommandBase* /*aRelatedCommand*/)
+	{
+	LOG_FUNC
+	const TEncryptionKeyRefreshCompleteEvent& refreshCompleteEvent = TEncryptionKeyRefreshCompleteEvent::Cast(aEvent);
+
+	iLinksMgr->EncryptionKeyRefreshComplete(aEvent.ErrorCode(), refreshCompleteEvent.ConnectionHandle());
+	}
+
 // ----------------------------------------------------------------------------
 // Data event processing functions
 // ----------------------------------------------------------------------------
@@ -1347,6 +1356,10 @@ void CHCIFacade::MhcqcCommandEventReceived(const THCIEventBase& aEvent,
 	case EVendorDebugEvent:
 		VendorDebugEvent(aEvent, aRelatedCommand);
 		break;
+		
+	case EEncryptionKeyRefreshCompleteEvent:		
+		EncryptionKeyRefreshCompleteEvent(aEvent, aRelatedCommand);
+		break;
 
 	// Inquiry based events.
 	// By default these should be caused by the inquiry manager and so be returned to it.
@@ -1382,7 +1395,6 @@ void CHCIFacade::MhcqcCommandEventReceived(const THCIEventBase& aEvent,
 	case EPageScanModeChangeEvent:
 	case EPageScanRepetitionModeChangeEvent:
 	case EUserPasskeyRequestEvent:
-	case EEncryptionKeyRefreshCompleteEvent:		
 		LOG1(_L("Warning!! Unhandled Command Event (event code:%d)"), aEvent.EventCode());
 		break;
 		

@@ -99,7 +99,6 @@ TInt TRfcommState::SignalError(CRfcommSAP& aSAP, TInt aErr, MSocketNotify::TOper
 
 	if(aType & MSocketNotify::EErrorFatal)
 		{
-		aSAP.iProtocol.ControlPlane().ModifyPhysicalLink(EUndoOverridePark, aSAP.iRemoteDev);
 		ChangeState(aSAP, CRfcommStateFactory::EError);
 		}
 	return aErr;
@@ -657,6 +656,16 @@ void TRfcommStateError::Enter(CRfcommSAP& aSAP)
 	   don't want to get any more notifications from the mux
 	**/
 	{
+	// Depending where we came from we may have applied either a
+	// park override or an all LPM override.  We remove both these
+	// overrides because it's safe to remove an override that 
+	// hasn't been applied.
+	// Note that although park is one of the LPMs the different
+	// levels of override are managed separately, so an
+	// UndoOverrideLPM does not remove an explicit park only 
+	// override.
+	aSAP.iProtocol.ControlPlane().ModifyPhysicalLink(EUndoOverridePark, aSAP.iRemoteDev);
+	aSAP.iProtocol.ControlPlane().ModifyPhysicalLink(EUndoOverrideLPM, aSAP.iRemoteDev);
 
 	aSAP.DeregisterCodService();	// See if there is a Service to remove for CodMan
 	
@@ -694,13 +703,23 @@ void TRfcommStateClosed::Enter(CRfcommSAP& aSAP)
 		}
 	aSAP.iNewDataToNotify=0;
 	aSAP.iDataBuffer.Reset();
+	
+	// Depending where we came from we may have applied either a
+	// park override or an all LPM override.  We remove both these
+	// overrides because it's safe to remove an override that 
+	// hasn't been applied.
+	// Note that although park is one of the LPMs the different
+	// levels of override are managed separately, so an
+	// UndoOverrideLPM does not remove an explicit park only 
+	// override.
 	aSAP.iProtocol.ControlPlane().ModifyPhysicalLink(EUndoOverridePark, aSAP.iRemoteDev);
+	aSAP.iProtocol.ControlPlane().ModifyPhysicalLink(EUndoOverrideLPM, aSAP.iRemoteDev);
+
 	if(aSAP.iMux)
 		{
 		aSAP.iMux->DetachSAP(aSAP);
 		}
 	aSAP.DeregisterCodService();	// See if there is a Service to remove for CodMan
-		
 	}
 
 void TRfcommStateClosed::Error(CRfcommSAP& /*aSAP*/, TInt /*aErr*/, 
@@ -731,7 +750,11 @@ void TRfcommStateClosed::ActiveOpen(CRfcommSAP& aSAP)
 		}
 
 	aSAP.RegisterCodService();	// See if there is a Service set for CodMan
-		
+	
+	// Override LPM while we do some sigalling to ensure it can complete in 
+	// a timely fashion.
+	aSAP.iProtocol.ControlPlane().ModifyPhysicalLink(EOverrideLPM, aSAP.iRemoteDev);
+
 	// First get a Mux.
 	ChangeState(aSAP, CRfcommStateFactory::EWaitForMux);
 	}
@@ -1313,7 +1336,7 @@ CRfcommSAP* TRfcommStateListening::AttemptToClone(CRfcommSAP& aSAP, CRfcommMuxer
 		newSAP->iRemoteDev=aMux.RemoteBTAddr();
 		//  Must come after registering the remote address with the new SAP because we will need 
 		//  the remote address  to find a link in LinkMgrProtocol to override LPM on
-		newSAP->iProtocol.ControlPlane().ModifyPhysicalLink(EOverrideLPMWithTimeout, newSAP->iRemoteDev);
+		newSAP->iProtocol.ControlPlane().ModifyPhysicalLink(EOverrideLPM, newSAP->iRemoteDev);
 		newSAP->iUserDefinedMTU=aSAP.iUserDefinedMTU;	//	We take our cues as
 														//	regards max MTU from
 														//	the listening SAP.
@@ -1738,7 +1761,17 @@ void TRfcommStateOpen::Enter(CRfcommSAP& aSAP)
 		return;
 		}
 	
+	// Depending where we came from we may have applied either a
+	// park override or an all LPM override.  We remove both these
+	// overrides because it's safe to remove an override that 
+	// hasn't been applied.
+	// Note that although park is one of the LPMs the different
+	// levels of override are managed separately, so an
+	// UndoOverrideLPM does not remove an explicit park only 
+	// override.
 	aSAP.iProtocol.ControlPlane().ModifyPhysicalLink(EUndoOverridePark, aSAP.iRemoteDev);
+	aSAP.iProtocol.ControlPlane().ModifyPhysicalLink(EUndoOverrideLPM, aSAP.iRemoteDev);
+
 	aSAP.iSocket->ConnectComplete();
 	aSAP.CTS(EFalse);			//	So that we block should anyone try to write
 								//	anything through this SAP before we get MSC
@@ -1779,6 +1812,9 @@ void TRfcommStateOpen::Shutdown(CRfcommSAP& aSAP)
 	   Shutdown the open channel gracefully
 	**/
 	{
+	// Only override park for disconnect.  We need to be able
+	// to send the signalling, but we don't care if it takes
+	// ages.  No point starting a sniff bun-fight.
 	aSAP.iProtocol.ControlPlane().ModifyPhysicalLink(EOverridePark, aSAP.iRemoteDev);
 	aSAP.iClosePending=ETrue;
 	ChangeState(aSAP, CRfcommStateFactory::EDisconnect);
@@ -1796,6 +1832,10 @@ void TRfcommStateOpen::FastShutdown(CRfcommSAP& aSAP)
 	//	the queued DISC frame does not get deleted when the SAP gets 
 	//	removed from the muxer
 	__ASSERT_DEBUG(aSAP.iMux!=NULL,PanicInState(ERfcommNullMux));
+	
+	// Only override park for disconnect.  We need to be able
+	// to send the signalling, but we don't care if it takes
+	// ages.  No point starting a sniff bun-fight.
 	aSAP.iProtocol.ControlPlane().ModifyPhysicalLink(EOverridePark, aSAP.iRemoteDev);
 	aSAP.iMux->SendDISC(aSAP.DLCI());  // Disassociated from the SAP
 	ChangeState(aSAP, CRfcommStateFactory::EClosed);

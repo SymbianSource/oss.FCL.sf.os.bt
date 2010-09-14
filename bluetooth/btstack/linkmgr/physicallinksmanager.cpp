@@ -23,7 +23,7 @@
 #include "ProxySAP.h"
 
 #include <bt_sock.h>
-#include "PhysicalLinkHelper.h"
+#include "roleswitchhelper.h"
 #include "hostresolver.h"
 
 #include <bluetooth/hci/writepagetimeoutcommand.h>
@@ -583,6 +583,13 @@ void CPhysicalLinksManager::MaxSlotsChange(THCIConnHandle aConnH, TUint8 aSlots)
 	found->MaxSlotsChange(aConnH, aSlots);
 	}
 
+void CPhysicalLinksManager::EncryptionKeyRefreshComplete(THCIErrorCode aErr, THCIConnHandle aConnH)
+	{
+	CPhysicalLink* found = FindPhysicalLink(aConnH);
+	RETURN_IF_NULL_CONNECTION(found);
+	found->EncryptionKeyRefreshComplete(aErr, aConnH);
+	}
+
 void CPhysicalLinksManager::ModeChange(THCIErrorCode aErr, THCIConnHandle aConnH, TBTLinkMode aMode, TBasebandTime aInterval)
 	{
 	CPhysicalLink* found = FindPhysicalLink(aConnH);
@@ -996,7 +1003,7 @@ void CPhysicalLinksManager::RoleChangeRejectedByHW(THCIErrorCode aErr)
  		// this the only role request, it's safe to kick off the state machine
  		// first suspend host resolver
  		LinkManagerProtocol().InquiryMgr().Suspend();
- 		aRoleSwitcher.Start();
+ 		aRoleSwitcher.StartHelper();
  		}
  	}
  
@@ -1016,7 +1023,7 @@ void CPhysicalLinksManager::RoleChangeRejectedByHW(THCIErrorCode aErr)
  	
  	if (startNextRoleSwitcher && !iRoleSwitchersQ.IsEmpty())
  		{
- 		iRoleSwitchersQ.First()->Start();
+ 		iRoleSwitchersQ.First()->StartHelper();
  		}
  	else 
  		{
