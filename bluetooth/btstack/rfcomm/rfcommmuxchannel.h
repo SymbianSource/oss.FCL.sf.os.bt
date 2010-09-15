@@ -110,7 +110,6 @@ public:
 private:
 	TInt TransmitSABM();
 	TInt TransmitUA();
-	TInt TransmitDISC();
 	TInt TransmitDM();
 	TInt TransmitPN(TBool aCommand, const TRfcommPortParams& aParams);
 	void QueIdleTimer(TInt aDelay);

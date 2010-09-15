@@ -89,6 +89,9 @@ enum TRFCOMMPanic
 	ERfCommMuxerStateOutOfBounds = 64, 
 	ERfCommStateOutOfBounds = 65,
 	ERfCommStateBufferFull = 66,
+	ERfCommNothingToHandleResponse = 67,
+	ERfCommDiscSentOnMuxDlci = 68,
+	ERfCommUnexpectedCommandOnMuxChannel = 69,
 	};
 
 /**

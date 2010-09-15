@@ -2347,6 +2347,10 @@ TInt CRfcommMuxer::TransmitSABM(TUint8 aDLCI, CRfcommSAP* aSAP)
 	**/
 	{
 	LOG1(_L("RFCOMM: Sending SABM for DLCI %d"), aDLCI); 
+	// We always expect a response for a SABM, so this frame should
+	// be associated with a SAP or be sent by the mux channel.
+	__ASSERT_DEBUG(aSAP || (aDLCI == KMuxDLCI), Panic(ERfCommNothingToHandleResponse));
+	
 	CRfcommCtrlFrame* frm=NewFrame(aSAP);
 	
 	if(!frm)
@@ -2401,12 +2405,22 @@ TInt CRfcommMuxer::TransmitDM(TUint8 aDLCI, TBool aPFBit, CRfcommSAP* aSAP)
 TInt CRfcommMuxer::TransmitDISC(TUint8 aDLCI, CRfcommSAP* aSAP)
 	{
 	LOG1(_L("RFCOMM: Sending DISC for DLCI %d"), aDLCI); 
+	// In setting the response needed flag we assume that only SAPs 
+	// will send a DISC, not the mux channel.  If this changes in the 
+	// future then the condition on setting the response needed flag 
+	// needs reconsidering to deal with this.
+	__ASSERT_DEBUG(aDLCI != KMuxDLCI, Panic(ERfCommDiscSentOnMuxDlci));
+
 	CRfcommCtrlFrame* frm=NewFrame(aSAP);
 	if(!frm)
 		return KErrNoMemory;
 
+	// We only wait for a response for a DISC if there's going to 
+	// be something still around to receive it, otherwise we'll just 
+	// ignore the response when it comes in.
+	frm->SetResponseNeeded(aSAP ? ETrue : EFalse);
+	
 	// DISC always has Final set
-	frm->SetResponseNeeded(ETrue);
 	frm->SetControl(KDISCCtrlField | KPollFinalBitmask);
 	frm->SetAddress(BuildAddr(aDLCI, ETrue));  // C/R set
 	EnqueFrame(frm);
@@ -2450,6 +2464,13 @@ TInt CRfcommMuxer::TransmitRPN(TUint8 aDLCI, TBool aCommand, TUint8 aLen,
 	
 	__ASSERT_DEBUG(aLen == KRPNCommandLength || aLen == KRPNRequestLength || 
 				   aLen == KRPNResponseLength,	Panic(ERfcommInvalidRPNLength));
+	// We never expect an RPN on the mux channel
+	__ASSERT_DEBUG(aDLCI != KMuxDLCI, Panic(ERfCommUnexpectedCommandOnMuxChannel));
+	
+	// We always expect a response for an RPN command frame, so this frame should
+	// be associated with a SAP.
+	__ASSERT_DEBUG(!aCommand || aSAP, Panic(ERfCommNothingToHandleResponse));
+
 	LOG(_L("RFCOMM: Creating RPN frame"));
 	frm=NewSignalFrame(aLen, aCommand, aSAP);
 	if(!frm)
@@ -2679,6 +2700,14 @@ TInt CRfcommMuxer::TransmitPN(TUint8 aDLCI, TBool aCommand,
 	{
 	LOG3(_L("RFCOMM: Sending PN %S for dlci %d (MTU=%d)"), 
 		(aCommand?&KCommandText:&KResponseText) , aDLCI, aParams.iMaxFrameSize);
+	// We never expect to send a PN on the mux channel, however to aid interop 
+	// with shoddy remotes we tolerate responding to one
+	__ASSERT_DEBUG(((aDLCI != KMuxDLCI) || !aCommand), Panic(ERfCommUnexpectedCommandOnMuxChannel));
+	
+	// We always expect a response for a PN command frame, so this frame should
+	// be associated with a SAP.
+	__ASSERT_DEBUG(!aCommand || aSAP, Panic(ERfCommNothingToHandleResponse));
+
 	CRfcommMuxCtrlFrame* frm=NewSignalFrame(KRPNCommandLength, aCommand, aSAP);
 
 	if(!frm)
@@ -2801,6 +2830,13 @@ TInt CRfcommMuxer::TransmitMSC(TUint8 aDLCI, TBool aCommand, TUint8 aSignals, CR
 	LOG3(_L("RFCOMM: SendMSC %S DLCI %d, Signals %x"),
 		(aCommand?&KCommandText:&KResponseText), aDLCI, aSignals);
 	
+	// We never expect an MSC on the mux channel
+	__ASSERT_DEBUG(aDLCI != KMuxDLCI, Panic(ERfCommUnexpectedCommandOnMuxChannel));
+	
+	// We always expect a response for an MSC command frame, so this frame should
+	// be associated with a SAP.
+	__ASSERT_DEBUG(!aCommand || aSAP, Panic(ERfCommNothingToHandleResponse));
+	
 	CRfcommMuxCtrlFrame* frm=NewSignalFrame(KMSCCommandLength, aCommand, aSAP);
 	if(!frm)
 		return KErrNoMemory;
@@ -2844,6 +2880,13 @@ TInt CRfcommMuxer::TransmitRLS(TBool aCommand, TUint8 aDLCI, TUint8 aStatus,
 	   Send out a RLS signalling command
 	**/
 	{
+	// We never expect an RLS on the mux channel
+	__ASSERT_DEBUG(aDLCI != KMuxDLCI, Panic(ERfCommUnexpectedCommandOnMuxChannel));
+	
+	// We always expect a response for an RLS command frame, so this frame should
+	// be associated with a SAP.
+	__ASSERT_DEBUG(!aCommand || aSAP, Panic(ERfCommNothingToHandleResponse));
+	
 	CRfcommMuxCtrlFrame* frm=NewSignalFrame(KRLSCommandLength, aCommand, aSAP);
 	if(!frm)
 		return KErrNoMemory;
