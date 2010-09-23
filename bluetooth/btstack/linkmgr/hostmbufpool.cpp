@@ -20,6 +20,7 @@
 #include <bluetooth/hci/hcievents.h>
 #include <bluetooth/hci/commandcompleteevent.h>
 #include <bluetooth/hci/hciutil.h>
+#include <bluetooth/hci/hciconsts.h>
 
 #include "linkconsts.h"
 #include "linkutil.h"

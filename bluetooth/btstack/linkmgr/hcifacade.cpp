@@ -175,19 +175,6 @@ void CHCIFacade::ConstructL()
 
 	iAFHTimer=CAFHTimer::NewL(*this);
 	
-	// Read low power mode override timeout from the configuration file
-	_LIT(KLPMSection, "lowpowermodeconfiguration");
-	_LIT(KLPMTag, "overridelpmtimeout_microseconds");
-
-	TUint overrideLPMTimeout = 0;
-	TRAP(err, overrideLPMTimeout = iHciUtil->GetValueFromFileL(KLPMSection, KLPMTag));
-	
-	if (err == KErrNone)
-		{
-		// LPM override timeout found, pass the value into link manager
-		iLinkMgrProtocol.SetOverrideLPMTimeout(overrideLPMTimeout);
-		}
-	
 	iLastPowerState = EBTOn;
 	
 	// used later to ensure that we have enough data to call SetEventMask

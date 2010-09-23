@@ -412,6 +412,7 @@ public:
 
 	// Events called from the SAP Signal Handler.
 	void ChannelClosed(CL2CAPConnectionSAP& aSAP) const;
+	void SignalHandlerError(CL2CAPConnectionSAP& /*aSAP*/, TInt /*aErrorCode*/, MSocketNotify::TOperationBitmasks /*aErrorAction*/) const;
 
 	// State Transition Actions.
 	void Enter(CL2CAPConnectionSAP& aSAP) const;	

@@ -1,4 +1,4 @@
-// Copyright (c) 2000-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2000-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -32,7 +32,7 @@ class TUUID;
    acts as an internal socket binding to a lower level SAP.  Thus we
    derive from MSocketNotify so that the SAP can directly notify us of events.
 **/
-NONSHARABLE_CLASS(CSdpClient) : public CBase, private MSocketNotify
+NONSHARABLE_CLASS(CSdpClient) : public CBase, private MSocketNotify, private MProvdSecurityChecker
 	{
 friend class CSdpProtocol;
 public:
@@ -72,6 +72,9 @@ public:
 	void Bearer(const TDesC8& /*aConnectionInf*/) {};
 
 private:
+	// From MProvdSecurityChecker
+	TInt CheckPolicy(const TSecurityPolicy& aPolicy, const char *aDiagnostic);
+	
 	// Create/destroy
 	CSdpClient(CSdpProtocol& aProtocol, CProtocolBase& aL2CAP); 
 	void ConstructL();

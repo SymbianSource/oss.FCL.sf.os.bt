@@ -1423,6 +1423,13 @@ void TL2CAPSAPStateError::ChannelClosed(CL2CAPConnectionSAP& /*aSAP*/) const
 	// Consume the event.
 	}
 	
+void TL2CAPSAPStateError::SignalHandlerError(CL2CAPConnectionSAP& /*aSAP*/, TInt /*aErrorCode*/, MSocketNotify::TOperationBitmasks /*aErrorAction*/) const
+    {
+    LOG_FUNC
+    // Already in the error state so no need to transition.
+    // Consume the event.
+    }   
+
 // State Transition Actions.
 void TL2CAPSAPStateError::Enter(CL2CAPConnectionSAP& aSAP) const
 	{

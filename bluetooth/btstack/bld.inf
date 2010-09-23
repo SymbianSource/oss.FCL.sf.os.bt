@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -29,22 +29,20 @@ PRJ_MMPFILES
 common/bt_v2.mmp
 
 PRJ_EXPORTS
-linkmgr/interface/LinkMuxNotifier.h	SYMBIAN_OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/linkmuxnotifier.h)
-linkmgr/interface/PhysicalLinksState.h	SYMBIAN_OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/physicallinksstate.h)
-linkmgr/interface/HardResetInitiator.h	SYMBIAN_OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/hardresetinitiator.h)
-eirman/interface/eirmanshared.h		SYMBIAN_OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/eirmanshared.h)
-secman/public/pairingservershared.h	SYMBIAN_OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/pairingservershared.h)
+linkmgr/interface/LinkMuxNotifier.h		OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/linkmuxnotifier.h)
+linkmgr/interface/PhysicalLinksState.h	OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/physicallinksstate.h)
+linkmgr/interface/HardResetInitiator.h	OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/hardresetinitiator.h)
 
+eirman/interface/eirmanshared.h			OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/eirmanshared.h)
+
+secman/public/pairingservershared.h		OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/pairingservershared.h)
+
+l2cap/l2capdebuginfo.h					OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/l2capdebuginfo.h)
 
 
 // Stack configuration file
+bluetooth_stack.ini z:/private/101f7989/bluetooth/bluetooth_stack.ini
 
-bluetooth_stack.ini /epoc32/data/z/private/101f7989/bluetooth/bluetooth_stack.ini
-bluetooth_stack.ini /epoc32/release/winscw/udeb/z/private/101f7989/bluetooth/bluetooth_stack.ini
-bluetooth_stack.ini /epoc32/release/winscw/urel/z/private/101f7989/bluetooth/bluetooth_stack.ini
-
-PRJ_EXPORTS
-l2cap/l2capdebuginfo.h			SYMBIAN_OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/l2capdebuginfo.h)
 
 
 

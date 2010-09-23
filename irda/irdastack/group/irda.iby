@@ -31,8 +31,6 @@ REM *** supported by the device or not.
 #include <commsdebugutility.iby>
 #endif
 
-#include <obexprotocol.iby>
-
 REM *** irda.dll and irtranp.dll (Infrared Transfer Picture) are
 REM *** client side dlls. They are always included in the ROM whether
 REM *** IRDA is supported by the device or not, so that client

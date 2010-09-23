@@ -141,7 +141,8 @@ public:
 
 	void OverrideParkMode();
 	void UndoOverrideParkMode();
-	void OverrideLPMWithTimeout();
+	void OverrideLPM();
+	void UndoOverrideLPM();
 
 	inline TInt SignalHandlerErrorCode() const;
 	inline MSocketNotify::TOperationBitmasks SignalHandlerErrorAction() const;

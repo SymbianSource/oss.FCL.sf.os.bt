@@ -305,6 +305,7 @@ private:
 	TDblQueLink iLink;
 	//Mixin providing security checking, This is not an owned variable.
 	MProvdSecurityChecker* iSecurityChecker;
+	TInquirySockAddr	iSockAddr;
 	};
 
 #ifdef CONNECTION_PREEMPTS_INQUIRY
@@ -438,6 +439,8 @@ private:
 	TInt CacheAge(TUint aIAC) const;
 	void SetCacheAge(TUint aIAC, TInt aAge);
 	
+	TUint RequestedInquiryIAC();
+	
 private:
 	MHCICommandQueue*   iCommandQueue;
 
@@ -448,10 +451,6 @@ private:
 	THWState		iHWState;
 	// IAC of the current inquiry
 	TUint			iCurrentInquiryIAC;
-	// IAC of the inquiry that is currently requested by a host resolver, either in progress or about to start
-	TUint			iRequestedInquiryIAC;
-	// IAC of the inquiry that has been put on hold while a higher priority IAC is in progress
-	TUint			iQueuedInquiryIAC;
 	// Number of times we've interrupted the current inquiry
 	TInt			iInquiryInteruptions;
 	// Time since the last inquiry, per IAC

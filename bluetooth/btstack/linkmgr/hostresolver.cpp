@@ -524,21 +524,21 @@ void CBTHostResolver::GetByAddress(TNameRecord& aName)
 	__ASSERT_DEBUG(iRequestState == EIdle, Panic(EHostResolverTwoRequests));
 	iNameRecord = &aName;
 	iNameRecord->iName.Zero();
-	TInquirySockAddr& sa = TInquirySockAddr::Cast(aName.iAddr);
+	iSockAddr = TInquirySockAddr::Cast(aName.iAddr);
 
-	LOG1(_L("Host Resolver\tAction = %d"),sa.Action());
+	LOG1(_L("Host Resolver\tAction = %d"),iSockAddr.Action());
 
-	if(sa.Action() & KHostResCache)
+	if(iSockAddr.Action() & KHostResCache)
 		//Complete immediately with info if available!
 		{
 		TInt err = KErrNotFound;
-		CBTInqResultRef* ref = iInquiryMgr.FindExistingCacheEntry(sa.BTAddr());
+		CBTInqResultRef* ref = iInquiryMgr.FindExistingCacheEntry(iSockAddr.BTAddr());
 		if (ref)
 			{// Got a result to send up
 			CBTInqResultRecord& rec = ref->Result();
-			rec.GetInquirySockAddr(sa); //Put BT address, CoD etc into 'aName'
+			rec.GetInquirySockAddr(TInquirySockAddr::Cast(aName.iAddr)); //Put BT address, CoD etc into 'aName'
 			// Check whether client wants EIRs instead of names
-			if(sa.Action() & KHostResEir)
+			if(iSockAddr.Action() & KHostResEir)
 				{
 				// Client knows about EIR, we'll fill the TNameRecord with EIR
 				err = rec.GetEir(aName, EFalse);
@@ -565,7 +565,7 @@ void CBTHostResolver::GetByAddress(TNameRecord& aName)
 		}
 	
 	// Must request at least one of inquiry or name lookup
-	if (!(sa.Action() & (KHostResInquiry | KHostResName)))
+	if (!(iSockAddr.Action() & (KHostResInquiry | KHostResName)))
 		{
 		iRequestState = EError;
 		CompleteRequest(KErrArgument);
@@ -581,26 +581,26 @@ void CBTHostResolver::GetByAddress(TNameRecord& aName)
 		return;
 		}
 
-	iNameLookupMode = (sa.Action()) & KHostResName ? EDoGetNames : EDontGetNames;
-	TBool ignoreCache = (sa.Action() & KHostResIgnoreCache) ? ETrue : EFalse;
+	iNameLookupMode = (iSockAddr.Action()) & KHostResName ? EDoGetNames : EDontGetNames;
+	TBool ignoreCache = (iSockAddr.Action() & KHostResIgnoreCache) ? ETrue : EFalse;
 
-	if (sa.Action() & KHostResInquiry)
+	if (iSockAddr.Action() & KHostResInquiry)
 		{
 		// We only support GIAC and LIAC
-		if (sa.IAC() != KLIAC && sa.IAC() != KGIAC)
+		if (iSockAddr.IAC() != KLIAC && iSockAddr.IAC() != KGIAC)
 			{
 			iRequestState = EError;
 			CompleteRequest(KErrNotSupported);
 			return;
 			}
-		sa.SetBTAddr(TBTDevAddr());
+		iSockAddr.SetBTAddr(TBTDevAddr());
 		iRequestState = EInquiry;
 		if (iInquiryStatus == EInquiryReady)
 			{// Need to start the inquiry process
 			iInquiryStatus = EInquiring;
 			// We set this before calling StartInquiry, as StartInquiry can call InquiryComplete synchronously. 
 			iResults.Reset();
-			iInquiryMgr.StartInquiry(*this, sa.IAC(), ignoreCache);
+			iInquiryMgr.StartInquiry(*this, iSockAddr.IAC(), ignoreCache);
 			}
 		}
 	else // Not an inquiry - just a name lookup
@@ -608,7 +608,7 @@ void CBTHostResolver::GetByAddress(TNameRecord& aName)
 		// Just name lookup -- add it to the result set, and request a lookup of it
 		iResults.Reset();
 
-		CBTInqResultRef* ref = iInquiryMgr.AddEntryToCache(sa.BTAddr());
+		CBTInqResultRef* ref = iInquiryMgr.AddEntryToCache(iSockAddr.BTAddr());
 		if(ref)
 			{// This ref is in cache -- need to make our own ref
 			ref = iResults.Add(ref->Result());
@@ -620,7 +620,7 @@ void CBTHostResolver::GetByAddress(TNameRecord& aName)
 			}
 		iResults.NextResult(); // Move iter onto first (only) result
 		iRequestState = ENameLookup;
-		iInquiryMgr.LookupName(*this, sa.BTAddr(), ignoreCache, ETrue);
+		iInquiryMgr.LookupName(*this, iSockAddr.BTAddr(), ignoreCache, ETrue);
 		}
 	TryToCompleteRequest();
 	}
@@ -709,8 +709,7 @@ void CBTHostResolver::InquiryResult(CBTInqResultRecord& aResult)
 	if (ref)
 		return;
 
-	TInquirySockAddr& sa = TInquirySockAddr::Cast(iNameRecord->iAddr);
-	if(!aResult.HasRespondedToIAC(sa.IAC()))
+	if(!aResult.HasRespondedToIAC(iSockAddr.IAC()))
 		return; // It's never responded to our IAC, so ignore it
 
 	ref = iResults.Add(aResult);
@@ -723,7 +722,7 @@ void CBTHostResolver::InquiryResult(CBTInqResultRecord& aResult)
 	if(iNameLookupMode == EDoGetNames)
 		{
 		// Find out whether cache was supposed to be ignored from TNameRecord that was passed into GetByAddress() previously
-		TBool ignoreCache = (sa.Action() & KHostResIgnoreCache) ? ETrue : EFalse;
+		TBool ignoreCache = (iSockAddr.Action() & KHostResIgnoreCache) ? ETrue : EFalse;
 		// Handle a "special" case: Cache is to be ignored, but we got the _complete_ name during the inquiry process inside an EIR
 		// (which doesn't count as cached data, since it's freshly arrived from the radio). In this case we don't really want to 
 		// launch a remote name request
@@ -801,13 +800,13 @@ void CBTHostResolver::GetLocalNameComplete(TInt aErr, const TDesC8& aName)
 TUint CBTHostResolver::GetIAC() const
 	{
 	LOG_FUNC
-	if (!iNameRecord)
+	TUint ret = 0;
+	if (iInquiryStatus == EInquiring)
 		{
-		return 0;		// avoid dereferencing a null ptr
+		ret = iSockAddr.IAC(); // Only return IAC if an inquiry is requested
 		}
 	
-	TInquirySockAddr& sa = TInquirySockAddr::Cast(iNameRecord->iAddr);
-	return sa.IAC();
+	return ret;
 	}
 
 TInt CBTHostResolver::SecurityCheck(MProvdSecurityChecker *aSecurityChecker)
@@ -833,8 +832,7 @@ void CBTHostResolver::TryToCompleteRequest()
 **/
 	{
 	LOG_FUNC
-	TInquirySockAddr& sa = TInquirySockAddr::Cast(iNameRecord->iAddr);
-	if ((sa.Action() & KHostResInquiry) && iRequestState == EInquiry)
+	if ((iSockAddr.Action() & KHostResInquiry) && iRequestState == EInquiry)
 		{
 		CBTInqResultRef* refNextRes = iResults.NextResult();
 		if (refNextRes)
@@ -845,12 +843,12 @@ void CBTHostResolver::TryToCompleteRequest()
 				}
 			else
 				{//Complete!
-				refNextRes->Result().GetInquirySockAddr(sa);
+				refNextRes->Result().GetInquirySockAddr(TInquirySockAddr::Cast(iNameRecord->iAddr));
 				// If EIR was requested and we got one, stick it in the name field
 				TInt err = KErrNone;
-				if(sa.Action() & KHostResEir)
+				if(iSockAddr.Action() & KHostResEir)
 					{
-					err = refNextRes->Result().GetEir(*iNameRecord, (sa.Action() & KHostResIgnoreCache) && !(sa.Action() & KHostResName));
+					err = refNextRes->Result().GetEir(*iNameRecord, (iSockAddr.Action() & KHostResIgnoreCache) && !(iSockAddr.Action() & KHostResName));
 					}
 				else
 					{
@@ -879,7 +877,7 @@ void CBTHostResolver::TryToCompleteRequest()
 			}
 		}
 
-	if ((sa.Action() & KHostResName) && iRequestState == ENameLookup)
+	if ((iSockAddr.Action() & KHostResName) && iRequestState == ENameLookup)
 		{
 		CBTInqResultRef* refNextRes = iResults.CurrentResult();
 		if(!refNextRes)
@@ -894,11 +892,11 @@ void CBTHostResolver::TryToCompleteRequest()
 			CBTInqResultRecord& rec = refNextRes->Result();
 			if(rec.HaveNameLookupResult() && !rec.IsNameRequestPending() && rec.IsNameComplete())
 				{// Got a name! Complete the request
-				rec.GetInquirySockAddr(sa);
+				rec.GetInquirySockAddr(TInquirySockAddr::Cast(iNameRecord->iAddr));
 				TInt err = rec.NameLookupResultCode();
 				if (err == KErrNone)
 					{// Copy & convert the UTF-8 name over into the result record.
-					if(sa.Action() & KHostResEir)
+					if(iSockAddr.Action() & KHostResEir)
 						{
 						err = rec.GetEir(*iNameRecord, EFalse);
 						}
@@ -912,7 +910,7 @@ void CBTHostResolver::TryToCompleteRequest()
 					iNameRecord->iName.Zero();
 					}
 				// Name lookup complete (poss. with errors)
-				if(sa.Action() & KHostResInquiry)
+				if(iSockAddr.Action() & KHostResInquiry)
 					{// Ignore name failures if we're also doing inquiry
 					CompleteRequest(KErrNone);
 					}
@@ -931,7 +929,7 @@ void CBTHostResolver::TryToCompleteRequest()
 		{
 		CompleteRequest(KErrHardwareNotAvailable);
 		}
-	if(sa.Action() & KHostResDontBlock)
+	if(iSockAddr.Action() & KHostResDontBlock)
 		{// Complete any outstanding non-blocking operation
 		CompleteRequest(KErrWouldBlock);
 		}
@@ -1047,26 +1045,37 @@ CBTHostResolver* CBTInquiryMgr::NewHostResolverL()
 void CBTInquiryMgr::DeletingHostResolver()
 	{
 	LOG_FUNC
-	// A host resolver is being deleted - we need to check if any other host resolvers want inquiry results from the current IAC.
-	if(!iRequestedInquiryIAC)
+	// A host resolver is being deleted - we need to check if we need to change IAC.
+	// If no host resolver is requesting an inquiry, just let the inquiry run to fill up the cache 
+	TUint requestedIAC = RequestedInquiryIAC();
+	if (iHWState == EInquiry && requestedIAC != 0 && iCurrentInquiryIAC != requestedIAC)
 		{
-		 //No 'current' IAC exists
-		 return;		 
-		}
-	TDblQueIter<CBTHostResolver> iter(iHRs);
-	TBool iacFound=EFalse;
-	while (iter)
-		{
-		if ((iter++)->GetIAC() == iRequestedInquiryIAC)
+		TInt err = CancelHardwareInquiry();
+		if(err==KErrNone)
 			{
-			iacFound = ETrue;
+			SetHWState(ECancellingForNewIAC);
+			iFlusher->Cancel();     // Stop watchdog, start flusher.
 			}
 		}
-	if (!iacFound)
-		{
-		iRequestedInquiryIAC = 0;
-		}
 	}
+
+TUint CBTInquiryMgr::RequestedInquiryIAC()
+    {
+    TUint ret = 0;
+    TDblQueIter<CBTHostResolver> iter(iHRs);
+    CBTHostResolver* hostRes = NULL;
+    while ((hostRes = iter++) != NULL)
+        {
+    	// Only overwrite the requested IAC if:
+    	// - We haven't found a host resolver requesting an IAC yet, or
+    	// - This host resolver requests LIAC, which we prioritise over GIAC
+        if (ret == 0 || hostRes->GetIAC() == KLIAC)
+            {
+            ret = hostRes->GetIAC();
+            }
+        }
+    return ret;
+    }
 
 void CBTInquiryMgr::InquiryResult(TInt aErr,const TInquiryLogEntry& aEntry)
 /**
@@ -1174,8 +1183,8 @@ void CBTInquiryMgr::InquiryComplete(TInt aErr, TUint8 /*aNumResponses*/)
 	{
 	LOG_FUNC
 	SetCacheAge(iCurrentInquiryIAC, 0);
-	TUint iacToComplete = iRequestedInquiryIAC;
-	iRequestedInquiryIAC = 0;
+	TUint iacToComplete = iCurrentInquiryIAC;
+	iCurrentInquiryIAC = 0;
 	iFlusher->Cancel(); // Stop watchdog, start flusher
 	SetHWState(EIdle);
 	// don't publish status here, might be doing a name lookup
@@ -1208,10 +1217,8 @@ void CBTInquiryMgr::InquiryComplete(TInt aErr, TUint8 /*aNumResponses*/)
 		}
 	// Only queue the inquiry if we have completed all the name requests from this one.
 	// Otherwise, it will be issued after all the remote name requests have completed.
-	if (iQueuedInquiryIAC != 0 && iPendingNameRequests == 0)
+	if (RequestedInquiryIAC() != 0 && iPendingNameRequests == 0)
 		{
-		iRequestedInquiryIAC = iQueuedInquiryIAC;
-		iQueuedInquiryIAC = 0;
 		DoInquiry();
 		}
 	}
@@ -1384,11 +1391,6 @@ void CBTInquiryMgr::HandleRemoteNameResult(TInt aErr, CBTInqResultRef& aRef, con
 
 	// In case we're now free, do inquiry
 	LOG(_L("CBTInquiryMgr::HandleRemoteNameResult asking for another inquiry"));
-	if (iPendingNameRequests == 0 && iRequestedInquiryIAC == 0) // If we've completed the current inquiry, see if we've got another one queued.
-		{
-		iRequestedInquiryIAC = iQueuedInquiryIAC;
-		iQueuedInquiryIAC = 0;
-		}
 	DoInquiry();
 	}
 
@@ -1525,40 +1527,30 @@ void CBTInquiryMgr::StartInquiry(CBTHostResolver& aResolver, TUint aIAC, TBool a
 		return;
 		}
 	
-	if (iRequestedInquiryIAC || iQueuedInquiryIAC)
+	if (iCurrentInquiryIAC)
 		{
-		LOG(_L("CBTInquiryMgr::StartInquiry iRequestedInquiryIAC"));
-		if(iRequestedInquiryIAC == aIAC)
+		LOG(_L("CBTInquiryMgr::StartInquiry"));
+        if (aIgnoreCache && (aIAC == iCurrentInquiryIAC || aIAC == KGIAC))
+            {
+            // an Inquiry is ongoing, return any results already found during the
+            // current Inquiry if not already done so as part of the complete cache
+            iCurrentResults.ReturnToFirstResult();
+            while (CBTInqResultRef* ref = iCurrentResults.NextResult())
+                {
+                if (ref->Result().iFoundDuringCurrentInquiry)
+                    {
+                    aResolver.InquiryResult(ref->Result());
+                    }
+                }   
+            }
+		if(iCurrentInquiryIAC == aIAC)
 			{
-			// an Inquiry is ongoing, return any results already found during the
-			// current Inquiry if not already done so as part of the complete cache
-			if (aIgnoreCache)
-				{
-				iCurrentResults.ReturnToFirstResult();
-				while (CBTInqResultRef* ref = iCurrentResults.NextResult())
-					{
-					if (ref->Result().iFoundDuringCurrentInquiry)
-						{
-						aResolver.InquiryResult(ref->Result());
-						}
-					}	
-				}
 			// the current Inquiry will just continue
 			return;			
 			}
-		if (aIAC == KGIAC)
+		if(iHWState == EInquiry && RequestedInquiryIAC() != iCurrentInquiryIAC)
 			{
-			// If the current IAC is GIAC, and the requested inquiry IAC isn't, it must be LIAC
-			__ASSERT_DEBUG(iRequestedInquiryIAC == KLIAC, Panic(EBTUnexpectedIAC)); 
-			// Queue a general inquiry for when the current limited inquiry has finished
-			iQueuedInquiryIAC = aIAC;
-			return;
-			}
-		else if(iHWState == EInquiry)
-			{
-			// The host resolver should only allow through GIAC and LIAC, and we handle GIAC above
-			__ASSERT_DEBUG(aIAC == KLIAC, Panic(EBTUnexpectedIAC)); 
-			// We favour a Limited inqiury, so interrupt the current general inquiry
+			// The requested IAC (which prioritises LIAC) is different to the current IAC, so cancel to change the IAC
 			TInt err = CancelHardwareInquiry();
 			if(err!=KErrNone)
 				{
@@ -1566,23 +1558,12 @@ void CBTInquiryMgr::StartInquiry(CBTHostResolver& aResolver, TUint aIAC, TBool a
 				aResolver.InquiryComplete(err); // cancel went wrong
 				return;
 				}
-			// Queue a general inquiry for when the limited inquiry is complete
-			iRequestedInquiryIAC = KLIAC;
-			iQueuedInquiryIAC = KGIAC;
 			SetHWState(ECancellingForNewIAC);
 			iFlusher->Cancel(); 	// Stop watchdog, start flusher.
 			return;
 			}
-		else
-			{
-			// The host resolver should only allow through GIAC and LIAC, and we handle GIAC above
-			__ASSERT_DEBUG(aIAC == KLIAC, Panic(EBTUnexpectedIAC)); 
-			iRequestedInquiryIAC = KLIAC;
-			iQueuedInquiryIAC = KGIAC;
-			}
 		}
 
-	iRequestedInquiryIAC = aIAC;
 	iInquiryInteruptions = 0;
 
 	DoInquiry();
@@ -1802,10 +1783,10 @@ void CBTInquiryMgr::DoInquiry()
 	{
 	LOG_FUNC
 
-	if(iRequestedInquiryIAC == 0 || iHWState != EIdle || iHRs.IsEmpty())
+	if(RequestedInquiryIAC() == 0 || iHWState != EIdle || iHRs.IsEmpty())
 		{
 #ifdef _DEBUG
-		LOG3(_L("Not starting inquiry. iRequestedInquiryIAC == %d, iHWState == %d, iHostResolverCount == %d"), iRequestedInquiryIAC, iHWState, iNumHRs);
+		LOG3(_L("Not starting inquiry. RequestedInquiryIAC == %d, iHWState == %d, iHostResolverCount == %d"), RequestedInquiryIAC(), iHWState, iNumHRs);
 		if (iHRs.IsEmpty())
 			{
 			LOG(_L("No HRs interested in results - Stopping discovery"));
@@ -1815,6 +1796,10 @@ void CBTInquiryMgr::DoInquiry()
 			{
 			LOG(_L("CBTInquiryMgr::DoInquiry PublishStatus Idle"));	
 			PublishStatus();// make sure the status says we're idle
+			}
+		if (RequestedInquiryIAC() == 0)
+			{
+			iCurrentInquiryIAC = 0;
 			}
 		return;
 		}
@@ -1845,7 +1830,7 @@ void CBTInquiryMgr::DoInquiry()
 		{
 		// Couldn't start inquiry.
 		// Make sure the request is completed.
-		iRequestedInquiryIAC = 0;
+		iCurrentInquiryIAC = 0;
 		InquiryComplete(err, 0);
 		LOG(_L("CBTInquiryMgr::DoInquiry PublishState Idle couldn't start inquiry"));
 		PublishStatus();
@@ -1877,7 +1862,7 @@ TInt CBTInquiryMgr::CancelHardwareInquiry()
 TInt CBTInquiryMgr::StartHardwareInquiry()
 	{
 	LOG_FUNC
-	iCurrentInquiryIAC = iRequestedInquiryIAC;
+	iCurrentInquiryIAC = RequestedInquiryIAC();
 	// attempt to free up baseband space for best performance discovery
 	iLinkMgrProtocol.PhysicalLinksMgr().RequireSlotSpace(); // will *eventually* put connections in hold - we dont wait though
 	TRAPD(err, StartInquiryL(iCurrentInquiryIAC, KInquiryLength, KInquiryMaxResults));
@@ -1923,8 +1908,7 @@ This method attempts to issue a name lookup to the HCI
 		CBTInqResultRecord& rec = ref->Result();
 		if(rec.IsNameRequestPending())
 			{
-			if(!iRequestedInquiryIAC ||
-			   rec.NameLookupAttempts() < KMaxNameLookupAttemptsDuringInquiry)
+			if(RequestedInquiryIAC() == 0 || rec.NameLookupAttempts() < KMaxNameLookupAttemptsDuringInquiry)
 				{
 				// We want the first record for the current IAC or a record for an explicit name request.
 				// Failing that, we'll just have the first record

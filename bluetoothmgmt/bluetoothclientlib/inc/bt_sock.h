@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -36,7 +36,7 @@
 
 #include <es_sock.h>
 #include <bttypes.h>
-#include <d32comm.h>	// for RS232 signal names for RFCOMM
+#include <d32public.h> // for RFCOMM API
 #include <bluetooth/hci/hcierrors.h>
 #include <btmanclient.h>
 #include <bt_subscribe.h>
@@ -102,9 +102,9 @@ const static TInt KErrBtEskError = -6999;	/*!< BT ESK error code */
 /** BT options. */
 enum TBTOptions
 	{
-	/** Override device security */
-	KBTRegisterCodService = 0x998,		/*!< Set a CoD Service bit(s) */
-	KBTSecurityDeviceOverride = 0x999,
+	KBTSetNoSecurityRequired = 0x997,	/*!< Set No security required for Security Mode 4*/
+    KBTRegisterCodService = 0x998,		/*!< Set a CoD Service bit(s) */
+	KBTSecurityDeviceOverride = 0x999,	/*!< Override device security */
 	};
 
 typedef TPckgBuf<TBTServiceSecurityPerDevice> TBTServiceSecurityPerDeviceBuf;	/*!< Package definition for securty settings */

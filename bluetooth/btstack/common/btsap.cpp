@@ -1,4 +1,4 @@
-// Copyright (c) 2003-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2003-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -27,7 +27,7 @@
 const char* const KBT_SAP_NAME_DIAG = __PLATSEC_DIAGNOSTIC_STRING("Bluetooth SAP");
 
 CBluetoothSAP::CBluetoothSAP(CBTSecMan& aSecMan, CBTCodServiceMan& aCodMan)
-: iSecMan(aSecMan), iCodMan(aCodMan)
+: iSecMan(aSecMan), iCodMan(aCodMan), iNoSecurityRequired(EFalse)
 	{
 	}
 
@@ -166,6 +166,7 @@ void CBluetoothSAP::StartAccessRequest(const CBluetoothSAP& aSAPWithSecuritySett
 						aSAPWithSecuritySettings.Override(RemoteAddress()),
 						RemoteAddress(),
 						aSecurityModeFourOutgoing ? EGeneralBondingSecurityMode4Outgoing : EGeneralBonding, // We are doing general bonding
+						aSAPWithSecuritySettings.iNoSecurityRequired,
 						const_cast<MAccessRequestResponseHandler&>(handler)));
 
 	if (err != KErrNone)
@@ -273,7 +274,21 @@ TInt CBluetoothSAP::SetOption(TUint aLevel,TUint aName,const TDesC8 &aOption)
 				rerr = SetCodServiceBits(newServiceBits);	// The service bits are saved and then registered when SAP becomes live
 				}
 				break;	
-
+			case KBTSetNoSecurityRequired:
+				{
+				__ASSERT_DEBUG(iSecurityChecker, User::Panic(KSECURITY_PANIC, EBTPanicNullSecurityChecker));
+				rerr = iSecurityChecker->CheckPolicy(KSDP_SID_PROT_SERV, KBT_SAP_NAME_DIAG);
+				if (rerr == KErrNone)
+					{
+					iNoSecurityRequired = *reinterpret_cast<const TBool*>(aOption.Ptr());
+					}
+				}
+				break;
+			case KBTSecurityDeviceOverride:
+				{
+				rerr = SetDeviceOverride(aOption); 
+				}
+				break;
 			default:
 				// Unhandled SetOpt name
 				rerr = KErrNotSupported;

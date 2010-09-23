@@ -1,4 +1,4 @@
-// Copyright (c) 2000-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2000-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -40,6 +40,7 @@ void CSdpClient::ConstructL()
 	{
 	iBoundSAP=iL2CAP.NewSAPL(KSockSeqPacket);
 	iBoundSAP->SetNotify(this);
+	iBoundSAP->SecurityCheck(this);
 	CheckForIdle(KSDPIdleTimeout*4);// No point hanging about if no one connects
 	}
 
@@ -92,6 +93,13 @@ void CSdpClient::Open(TBTDevAddr& aAddr)
 	if(iBoundSAP->SetRemName(remote)!=KErrNone)
 		{
 		Panic(ESdpErrorSettingAddress);
+		}
+	TPckgBuf<TBool> noSecurityRequired;
+	noSecurityRequired() = ETrue;
+	
+	if(iBoundSAP->SetOption(KSolBtSAPBase, KBTSetNoSecurityRequired, noSecurityRequired)!=KErrNone)
+		{
+		Panic(ESdpAgentErrorSettingNoSecurity);
 		}
 	iBoundSAP->ActiveOpen();  // Signals ConnectComplete eventually!
 	}
@@ -650,3 +658,7 @@ TInt CSdpClient::IdleTimerExpired(TAny* aPtr)
 	return FALSE;
 	}
 
+TInt CSdpClient::CheckPolicy(const TSecurityPolicy& /*aPolicy*/, const char* /*aDiagnostic*/)
+	{
+	return KErrNone;
+	}

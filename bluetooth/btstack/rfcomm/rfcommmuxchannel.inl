@@ -102,11 +102,6 @@ inline TInt CRfcommMuxChannel::TransmitUA()
 	return iMux.TransmitUA(KMuxDLCI);
 	}
 
-inline TInt CRfcommMuxChannel::TransmitDISC()
-	{
-	return iMux.TransmitDISC(KMuxDLCI);
-	}
-
 inline TInt CRfcommMuxChannel::TransmitDM()
 	{
 	return iMux.TransmitDM(KMuxDLCI, ETrue);

@@ -1,4 +1,4 @@
-// Copyright (c) 1999-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 1999-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -20,14 +20,13 @@
 #include <e32base.h>
 #include <s32mem.h>
 
-#include <bluetooth/hci/hciopcodes.h>
-#include <bluetooth/hci/hciconsts.h>
+#include <bttypes.h>
 
 /** The maximum length of a bluetooth device name, as stored in CBTDevice.
 @publishedAll
 @released
 **/
-static const TInt KMaxBluetoothNameLen = KHCILocalDeviceNameMaxLength;
+static const TInt KMaxBluetoothNameLen = 248;
 
 /** The maximum length of the user-assinged friendly name for a bluetooth device, as stored in CBTDevice.
 @publishedAll

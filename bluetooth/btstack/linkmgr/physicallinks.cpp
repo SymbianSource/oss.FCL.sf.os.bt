@@ -25,10 +25,11 @@
 #include "linkconsts.h"
 #include "hcifacade.h"
 #include "hostresolver.h"
-#include "PhysicalLinkHelper.h"
+#include "roleswitchhelper.h"
 #include "pairingscache.h"
 #include "oobdata.h"
 #include "pairingserver.h"
+#include "encryptionkeyrefreshhelper.h"
 
 #include <bt_sock.h>
 
@@ -91,7 +92,6 @@ CPhysicalLink::CPhysicalLink(CPhysicalLinksManager& aConnectionMan, CRegistrySes
 	, iProxySAPs(_FOFF(CBTProxySAP, iQueueLink))
 	, iOverrideParkRequests(EFalse)
 	, iOverrideLPMRequests(EFalse)
-	, iLPMOverrideTimerQueued(EFalse)
 	, iConnectionPacketTypeChanged(EFalse)
 	, iLowPowModeCtrl(*this, iLinksMan.HCIFacade().CommandQController())
 	, iDisconnectCtrl(*this, iLinksMan.HCIFacade().CommandQController())
@@ -119,11 +119,6 @@ CPhysicalLink::~CPhysicalLink()
 	iACLLogicalLinks.Close();
 
 	RemoveIdleTimer();
-	if (iLPMOverrideTimerQueued)
-		{
-		BTSocketTimer::Remove(iOverrideLPMTimerEntry);
-		iLPMOverrideTimerQueued = EFalse;
-		}
 
 	LOG(_L("sec\tClosing subscribers..."))
 
@@ -149,9 +144,11 @@ CPhysicalLink::~CPhysicalLink()
 	delete iPasskeyEntry;
 	delete iArbitrationDelay;
 	delete iRoleSwitchCompleteCallBack;
+	delete iKeyRefreshCompleteCallBack;
 	delete iEncryptionEnforcer;
 
 	DeleteRoleSwitcher();
+	DeleteKeyRefresher();
 	}
 
 void CPhysicalLink::ConstructL()
@@ -164,9 +161,9 @@ void CPhysicalLink::ConstructL()
 	TCallBack cb1(RoleSwitchCompleteCallBack, this);
 	iRoleSwitchCompleteCallBack = new (ELeave)CAsyncCallBack(cb1, EActiveHighPriority);
 
-	TCallBack cb2(OverrideLPMTimeoutCallback, this);
-	iOverrideLPMTimerEntry.Set(cb2);
-
+	TCallBack cb2(KeyRefreshCompleteCallBack, this);
+	iKeyRefreshCompleteCallBack = new (ELeave)CAsyncCallBack(cb2, EActiveHighPriority);
+	
 	iPhysicalLinkMetrics = CPhysicalLinkMetrics::NewL(*this, iLinksMan.HCIFacade().CommandQController());
 	}
 
@@ -237,9 +234,19 @@ TInt CPhysicalLink::TryToAndThenPreventHostEncryptionKeyRefresh(TAny* aOutToken)
 		}
 	else
 		{
-		if (iAutoKeyRefreshQue.IsEmpty())
+		// Only refresh the key if no-one is preventing it and we aren't still 
+		// refreshing the key from a previous request.  Note that although
+		// the previous key refresh may actually have finished if the key
+		// refresher is waiting for async delete we have only just refreshed 
+		// the key and there's no point doing it again.
+		if (iAutoKeyRefreshQue.IsEmpty() && !iKeyRefresher)
 			{
-			TRAP_IGNORE(iLinksMan.HCIFacade().RefreshEncryptionKeyL(iHandle));
+			TRAPD(err, iKeyRefresher = CEncryptionKeyRefresher::NewL(iLinksMan, *this));
+			if(!err)
+				{
+				// Kick off the helper state machine
+				iKeyRefresher->StartHelper();
+				}
 			// If we can't refresh the encryption key, there's not much we can do
 			}
 		XAutoKeyRefreshToken* token = new XAutoKeyRefreshToken();
@@ -1364,6 +1371,17 @@ void CPhysicalLink::DoUpdateNameL(const TBTDeviceName8& aName)
 	nameChanger->Start(BDAddr(), aName);
 	}
 
+void CPhysicalLink::EncryptionKeyRefreshComplete(THCIErrorCode aErr, THCIConnHandle aConnH)
+	{
+	LOG_FUNC
+	__CHECK_CONNECTION_HANDLE(aConnH);
+
+	if(iKeyRefresher)
+		{
+		iKeyRefresher->EncryptionKeyRefreshComplete(aErr);
+		}
+	}
+
 void CPhysicalLink::Disconnection(THCIErrorCode aErr, THCIConnHandle aConnH, THCIErrorCode aResult)
 	{
 	LOG_FUNC
@@ -2227,22 +2245,6 @@ void CPhysicalLink::RemoveIdleTimer()
 	iIdleTimerQueued = EFalse;
 	}
 
-void CPhysicalLink::QueueLPMOverrideTimer(TInt aTimeout)
-/**
-	Queue LPM Override timer entry.
-	When this timer expires, it'll call UndoLPMOverride.
-**/
-	{
-	LOG_FUNC
-	__ASSERT_DEBUG(aTimeout!=0, Panic(EBTPhysicalLinksInvalidArgument));
-	if (iLPMOverrideTimerQueued)
-		{
-		BTSocketTimer::Remove(iOverrideLPMTimerEntry);
-		}
-	BTSocketTimer::Queue(aTimeout, iOverrideLPMTimerEntry);
-	iLPMOverrideTimerQueued = ETrue;
-	}
-
 void CPhysicalLink::NotifyStateChange(TBTBasebandEventNotification& aEvent)
 	{
 	LOG_FUNC
@@ -2664,6 +2666,27 @@ void CPhysicalLink::DeleteRoleSwitcher()
 	iRoleSwitcher = NULL;
 	}
 
+void CPhysicalLink::AsyncDeleteKeyRefresher()
+	{
+	LOG_FUNC
+	iKeyRefreshCompleteCallBack->CallBack();
+	}
+
+/*static*/ TInt CPhysicalLink::KeyRefreshCompleteCallBack(TAny* aPhysicalLink)
+	{
+	LOG_STATIC_FUNC
+	CPhysicalLink* physicalLink = static_cast<CPhysicalLink*>(aPhysicalLink);
+	physicalLink->DeleteKeyRefresher();
+	return EFalse;
+	}
+
+void CPhysicalLink::DeleteKeyRefresher()
+	{
+	LOG_FUNC
+	delete iKeyRefresher;
+	iKeyRefresher = NULL;
+	}
+
 TBool CPhysicalLink::IsEncryptionDisabledForRoleSwitch() const
 /**
 	If link is encrypted, but role switcher temporarily disabled encryption, returns true.
@@ -2711,20 +2734,6 @@ TInt CPhysicalLink::UndoOverridePark()
 	return Arbitrate();
 	}
 
-TInt CPhysicalLink::OverrideLPMWithTimeout(TUint aTimeout)
-	{
-	LOG_FUNC
-	if(aTimeout == 0)
-		{
-		return KErrNone; //facility not wanted
-		}
-
-	TInt rerr = OverrideLPM();
-	QueueLPMOverrideTimer(aTimeout);
-
-	return rerr;
-	}
-
 TInt CPhysicalLink::OverrideLPM()
 /**
 	A request has come in that requires us to ensure we are not using
@@ -2737,20 +2746,6 @@ TInt CPhysicalLink::OverrideLPM()
 	iOverrideLPMRequests = ETrue;
 
 	return Arbitrate();
-	}
-
-/*static*/ TInt CPhysicalLink::OverrideLPMTimeoutCallback(TAny* aCPhysicalLink)
-	{
-	LOG_STATIC_FUNC	
-	CPhysicalLink* c = reinterpret_cast<CPhysicalLink*>(aCPhysicalLink);
-	TInt err = c->UndoOverrideLPM();
-	//we deliberately ignore this return value because we can't do anything to correct the error situation
-	if (KErrNone != err)
-		{
-		LOG2(_L("Physical link: UndoOverrideLPM returned an error %d on the connection 0x%08x"), err, c);
-		}
-	c->iLPMOverrideTimerQueued = EFalse;
-	return KErrNone;
 	}
 
 TInt CPhysicalLink::UndoOverrideLPM()

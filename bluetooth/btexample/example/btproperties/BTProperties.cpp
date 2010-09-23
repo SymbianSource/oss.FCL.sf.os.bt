@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2005-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -200,7 +200,7 @@ void CDeviceNameSubscriber::RunL()
 	{
 	Start();
 	
-	TBuf16<KHCILocalDeviceNameMaxLength> val;
+	TBuf16<KMaxBluetoothNameLen> val;
 	iProperty.Get(val);
 
 	iTest.Printf(_L("%S = %S\n"), &iString, &val);

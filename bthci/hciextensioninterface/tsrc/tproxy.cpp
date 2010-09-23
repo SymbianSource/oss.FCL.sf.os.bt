@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2005-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -20,10 +20,11 @@
 #include <f32file.h>
 #include <bt_sock.h>
 #include <c32comm.h>
-#include "btmanclient.h"
+#include <btmanclient.h>
 #include "debug.h"
 #include <btsdp.h>
 #include <hciproxy.h>
+#include <bluetooth/hci/hciopcodes.h>
 
 #if defined (__WINS__)
 #define PDD_NAME _L("ECDRV")

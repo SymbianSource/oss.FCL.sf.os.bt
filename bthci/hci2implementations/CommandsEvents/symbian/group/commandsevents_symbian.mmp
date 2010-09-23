@@ -353,9 +353,9 @@ LIBRARY corehci_base.lib
 // against the exported .def files (which define the ordinals the .lib file is expecting of the implemenation).
 NOEXPORTLIBRARY
 #ifdef WINS
-DEFFILE /epoc32/include/bluetooth/hci/bwins/commandsevents.def
+DEFFILE OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/hci/bwins/commandsevents.def)
 #else
-DEFFILE /epoc32/include/bluetooth/hci/eabi/commandsevents.def
+DEFFILE OS_LAYER_PLATFORM_EXPORT_PATH(bluetooth/hci/eabi/commandsevents.def)
 #endif
 
 OPTION cw -strict on -w pedantic,unused,hidevirtual,padding,ptrintconv

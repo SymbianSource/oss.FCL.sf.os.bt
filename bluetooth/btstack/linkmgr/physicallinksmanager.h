@@ -204,6 +204,8 @@ public:
 	virtual void ClockOffset(THCIErrorCode aErr, THCIConnHandle aConnH, TBasebandTime aClockOffset);
 	virtual void RemoteName(THCIErrorCode aErr, const TBTDevAddr& aAddr, const TBTDeviceName8& aName);
 	virtual void SimplePairingComplete(const TBTDevAddr& aBDAddr, THCIErrorCode aErr);
+	virtual void EncryptionKeyRefreshComplete(THCIErrorCode aErr, THCIConnHandle aConnH);
+
 
 // events from MBTPairingsCacheObserver
 	virtual void MbpcoDeferredDecisionResolved(TInt aError);
