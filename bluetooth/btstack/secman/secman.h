@@ -244,6 +244,7 @@ public:
 						const TBTServiceSecurityPerDevice* const aOverride,
 						const TBTDevAddr& aBDAddr,
 						TAccessType aAccessType,
+						TBool aNoSecurityRequired,
 						MAccessRequestResponseHandler& aRequester);
 
 	void AccessRequestComplete(CBTAccessRequester* aRequester, TInt aResult);
@@ -328,6 +329,7 @@ public:
 									 const TBTServiceSecurityPerDevice* const aOverride,
 									 MAccessRequestResponseHandler& aRequester,
 									 TAccessType aAccessType,
+									 TBool aNoSecurityRequired,
 									 CBTSecMan& aParent);
 	~CBTAccessRequester();
 
@@ -394,6 +396,7 @@ private:
 					   const TBTServiceSecurityPerDevice* const aOverride,
 					   MAccessRequestResponseHandler& aRequester,
 					   TAccessType aDedicatedBonding,
+					   TBool aNoSecurityRequired,
 					   CBTSecMan& aParent);
 	void ConstructL();
 	void SubscribeToLinkObserver();
@@ -451,6 +454,8 @@ private:
 	CAuthenticationTimer*			iTimer;
 	
 	TBTAccessRequesterState 		iCurrentState;
+	
+	TBool							iNoSecurityRequired; //< Security mode 4 "no security required" - do not do any authentiction, not even just works
 	};
 
 

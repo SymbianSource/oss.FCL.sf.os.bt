@@ -51,10 +51,11 @@ CBTAccessRequester* CBTAccessRequester::NewLC(CPhysicalLink& aConnection,
 											  const TBTServiceSecurityPerDevice* const aOverride,
 											  MAccessRequestResponseHandler& aRequester,
 											  TAccessType aAccessType,
+											  TBool aNoSecurityRequired,
 											  CBTSecMan& aParent)
 	{
 	LOG_STATIC_FUNC
-	CBTAccessRequester* s = new(ELeave) CBTAccessRequester(aConnection, aSecurityRequired, aOverride, aRequester, aAccessType, aParent);
+	CBTAccessRequester* s = new(ELeave) CBTAccessRequester(aConnection, aSecurityRequired, aOverride, aRequester, aAccessType, aNoSecurityRequired, aParent);
 	CleanupStack::PushL(s);
 	s->ConstructL();
 	return s;
@@ -66,6 +67,7 @@ CBTAccessRequester::CBTAccessRequester(CPhysicalLink& aConnection,
 									   const TBTServiceSecurityPerDevice* const aOverride,
 									   MAccessRequestResponseHandler& aRequester,
 									   TAccessType aAccessType,
+									   TBool aNoSecurityRequired,
 									   CBTSecMan& aParent)
 	: iRequester(aRequester)
 	, iSecMan(aParent)
@@ -81,6 +83,7 @@ CBTAccessRequester::CBTAccessRequester(CPhysicalLink& aConnection,
 	, iAccessType(aAccessType)
 	, iRemoteIndicatedNoBonding(EFalse)
 	, iCurrentState(EBTUninitialised)
+	, iNoSecurityRequired(aNoSecurityRequired)
 	{
 	LOG_FUNC
 	// try to get name for UI dialogs
@@ -911,7 +914,13 @@ TBool CBTAccessRequester::AuthenticationRequired() const
 	// Here we determine if authentication is required on the link.
 	TBool authenticationRequired = EFalse;
 	
-	if(iBaseband->SimplePairingMode() == EPhySimplePairingEnabled)
+	if (iNoSecurityRequired)
+		{
+		// This is used for Security Mode 4 "no security required", e.g. SDP, 
+		// which we never authenticate
+		// <NOP> // authenticationRequired is already EFalse
+		}
+	else if(iBaseband->SimplePairingMode() == EPhySimplePairingEnabled)
 		{
 		// If operating in simple pairing mode then authentication is always required
 		// due to security mode 4.
@@ -948,7 +957,7 @@ TBool CBTAccessRequester::AuthenticationRecommended() const
 	{
 	LOG_FUNC
 	TBool authenticationRecommended = AuthenticationRequired();
-	if(!authenticationRecommended && LinkKeyGoodEnough())
+	if(!authenticationRecommended && LinkKeyGoodEnough() && !iNoSecurityRequired)
 		{
 		// If the current link key is good enough then we should be able to use that
 		// if it is available.
@@ -984,7 +993,7 @@ TBool CBTAccessRequester::EncryptionRequired() const
 		{
 		// Otherwise dedicated bonding is incidental...so only for general bonding accesses
 		// do we consider enabling encryption.
-		if(iBaseband->SimplePairingMode() == EPhySimplePairingEnabled)
+		if(iBaseband->SimplePairingMode() == EPhySimplePairingEnabled && !iNoSecurityRequired)
 			{
 			// If the link is SSP capable then for security mode 4 we must encrypt the link
 			// for general bonding requests.

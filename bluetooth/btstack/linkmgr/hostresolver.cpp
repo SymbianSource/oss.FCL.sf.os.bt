@@ -2284,7 +2284,7 @@ void CBTInquiryMgr::SetCacheAge(TUint aIAC, TInt aAge)
 		TInquiryCacheAge ageInfo;
 		ageInfo.iIAC = aIAC;
 		ageInfo.iCacheAge = aAge;
-		(void)iCacheAge.Append(ageInfo);
+		iCacheAge.Append(ageInfo);
 		// If we can't append, there's not a lot we can do - we'll just have
 		// to return KMaxTInt when someone asks for the age
 		}

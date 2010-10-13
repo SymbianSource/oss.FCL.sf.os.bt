@@ -1252,7 +1252,7 @@ HCFramePDU::HCFramePDU(RMBufChain& aPDUData, TInt aOptimalFragmentSize)
    iCommands(_FOFF(HL2CapCommand, iLink)),
    iCommandIter(iCommands)   
 	{
-	LOG_STATIC_FUNC
+	LOG_FUNC
 	L2CAP_DEBUG(ObjectAllocation(L2capDebugInfo::ECFrame,
 	                             L2capDebugInfo::EAllocated));
 	}

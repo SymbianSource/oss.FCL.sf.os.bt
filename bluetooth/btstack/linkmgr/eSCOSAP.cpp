@@ -52,6 +52,7 @@ CeSCOLink* CeSCOLink::NewL(CPhysicalLinksManager& aLinksMan, CPhysicalLink* aPhy
 CeSCOLink::CeSCOLink(CPhysicalLinksManager& aLinksMan, CPhysicalLink* aPhysicalLink)
 : CBTSynchronousLink(aLinksMan, aPhysicalLink, EeSCOLink)
 	{
+	LOG_FUNC
 	iUserPacketTypes = TBTSyncPackets::ESyncAnyESCOPacket;
 	}
 
@@ -62,6 +63,7 @@ void CeSCOLink::ConstructL()
 
 CeSCOLink::~CeSCOLink()
 	{
+	LOG_FUNC
 	}
 
 TInt CeSCOLink::GetOption(TUint aLevel, TUint aName, TDes8& aOption) const

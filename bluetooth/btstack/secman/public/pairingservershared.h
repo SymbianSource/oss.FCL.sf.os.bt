@@ -72,6 +72,7 @@ enum TPairingServerFaultReason
 	EPairingServerUnexpectedAccessCallback,
 	EPairingServerBadShutdownState,
 	EPairingServerMessageShouldBeNull,
+	EPairingServerObjectAlreadyExists,	
 	};
 
 #endif // PAIRINGSERVERSHARED_H

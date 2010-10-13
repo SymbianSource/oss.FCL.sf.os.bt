@@ -25,11 +25,10 @@
 #include "linkconsts.h"
 #include "hcifacade.h"
 #include "hostresolver.h"
-#include "roleswitchhelper.h"
+#include "PhysicalLinkHelper.h"
 #include "pairingscache.h"
 #include "oobdata.h"
 #include "pairingserver.h"
-#include "encryptionkeyrefreshhelper.h"
 
 #include <bt_sock.h>
 
@@ -59,7 +58,7 @@ PANICCATEGORY("plink");
 static const THCIErrorCode KDefaultRejectReason = EHostSecurityRejection; // see spec Error Codes
 
 #ifdef _DEBUG
-#define __CHECK_CONNECTION_HANDLE(aHandle) __ASSERT_DEBUG(HasHandle(aHandle), Panic(EBTLinkMgrConnectionEventInWrongSAP));
+#define __CHECK_CONNECTION_HANDLE(aHandle) __ASSERT_DEBUG(aHandle==iHandle, Panic(EBTLinkMgrConnectionEventInWrongSAP));
 #else
 #define __CHECK_CONNECTION_HANDLE(aHandle) aHandle=aHandle; // to suppress warnings
 #endif
@@ -92,6 +91,7 @@ CPhysicalLink::CPhysicalLink(CPhysicalLinksManager& aConnectionMan, CRegistrySes
 	, iProxySAPs(_FOFF(CBTProxySAP, iQueueLink))
 	, iOverrideParkRequests(EFalse)
 	, iOverrideLPMRequests(EFalse)
+	, iLPMOverrideTimerQueued(EFalse)
 	, iConnectionPacketTypeChanged(EFalse)
 	, iLowPowModeCtrl(*this, iLinksMan.HCIFacade().CommandQController())
 	, iDisconnectCtrl(*this, iLinksMan.HCIFacade().CommandQController())
@@ -119,6 +119,11 @@ CPhysicalLink::~CPhysicalLink()
 	iACLLogicalLinks.Close();
 
 	RemoveIdleTimer();
+	if (iLPMOverrideTimerQueued)
+		{
+		BTSocketTimer::Remove(iOverrideLPMTimerEntry);
+		iLPMOverrideTimerQueued = EFalse;
+		}
 
 	LOG(_L("sec\tClosing subscribers..."))
 
@@ -144,11 +149,9 @@ CPhysicalLink::~CPhysicalLink()
 	delete iPasskeyEntry;
 	delete iArbitrationDelay;
 	delete iRoleSwitchCompleteCallBack;
-	delete iKeyRefreshCompleteCallBack;
 	delete iEncryptionEnforcer;
 
 	DeleteRoleSwitcher();
-	DeleteKeyRefresher();
 	}
 
 void CPhysicalLink::ConstructL()
@@ -161,9 +164,9 @@ void CPhysicalLink::ConstructL()
 	TCallBack cb1(RoleSwitchCompleteCallBack, this);
 	iRoleSwitchCompleteCallBack = new (ELeave)CAsyncCallBack(cb1, EActiveHighPriority);
 
-	TCallBack cb2(KeyRefreshCompleteCallBack, this);
-	iKeyRefreshCompleteCallBack = new (ELeave)CAsyncCallBack(cb2, EActiveHighPriority);
-	
+	TCallBack cb2(OverrideLPMTimeoutCallback, this);
+	iOverrideLPMTimerEntry.Set(cb2);
+
 	iPhysicalLinkMetrics = CPhysicalLinkMetrics::NewL(*this, iLinksMan.HCIFacade().CommandQController());
 	}
 
@@ -219,48 +222,11 @@ aSubscriber will no longer be notified of state changes.
 TInt CPhysicalLink::TryToAndThenPreventHostEncryptionKeyRefresh(TAny* aOutToken)
 	{
 	LOG_FUNC
-	TInt err = KErrNone;
-	// The handling of the TAny* parameter seems a bit wacky - but it makes sense as follows
-	// this call handles a call from the bluetooth control plane (which passes
-	// only a TAny* as a parameter).  We need to return a value back through as well, so we need
-	// a pointer to a pointer (so after using the input it can be modified to point to the
-	// output).  We need a Bluetooth device address so a pointer to a pointer to a TBTDevAddr 
-	// is passed down. Then the pointer to a pointer is used to update the pointer to a control
-	// plane token (which represents a handle preventing host encryption key refreshes).
-	if (!IsEncryptionPauseResumeSupported())
-		{
-		err = KErrNotSupported;
-		*reinterpret_cast<MBluetoothControlPlaneToken**>(aOutToken) = NULL;
-		}
-	else
-		{
-		// Only refresh the key if no-one is preventing it and we aren't still 
-		// refreshing the key from a previous request.  Note that although
-		// the previous key refresh may actually have finished if the key
-		// refresher is waiting for async delete we have only just refreshed 
-		// the key and there's no point doing it again.
-		if (iAutoKeyRefreshQue.IsEmpty() && !iKeyRefresher)
-			{
-			TRAPD(err, iKeyRefresher = CEncryptionKeyRefresher::NewL(iLinksMan, *this));
-			if(!err)
-				{
-				// Kick off the helper state machine
-				iKeyRefresher->StartHelper();
-				}
-			// If we can't refresh the encryption key, there's not much we can do
-			}
-		XAutoKeyRefreshToken* token = new XAutoKeyRefreshToken();
-		if (token)
-			{
-			iAutoKeyRefreshQue.AddLast(*token);
-			}
-		else
-			{
-			err = KErrNoMemory;
-			}
-		*reinterpret_cast<MBluetoothControlPlaneToken**>(aOutToken) = token;
-		}
-	return err;
+	// Currently the host encryption key refresh functionality is not supported
+	// as to work smoothly it relies on changes to disable low power modes that
+	// are not present in this codeline.
+	*reinterpret_cast<MBluetoothControlPlaneToken**>(aOutToken) = NULL;
+	return KErrNotSupported;
 	}
 
 void CPhysicalLink::RegistryTaskComplete(CBTRegistryHelperBase* aHelper, TInt /*aResult*/)
@@ -1371,17 +1337,6 @@ void CPhysicalLink::DoUpdateNameL(const TBTDeviceName8& aName)
 	nameChanger->Start(BDAddr(), aName);
 	}
 
-void CPhysicalLink::EncryptionKeyRefreshComplete(THCIErrorCode aErr, THCIConnHandle aConnH)
-	{
-	LOG_FUNC
-	__CHECK_CONNECTION_HANDLE(aConnH);
-
-	if(iKeyRefresher)
-		{
-		iKeyRefresher->EncryptionKeyRefreshComplete(aErr);
-		}
-	}
-
 void CPhysicalLink::Disconnection(THCIErrorCode aErr, THCIConnHandle aConnH, THCIErrorCode aResult)
 	{
 	LOG_FUNC
@@ -1844,36 +1799,63 @@ TInt CPhysicalLink::DoArbitrate(TBool aLocalPriority)
 		return KErrNone;
 		}
 	
-	TBTLinkMode targetMode = EActiveMode;
+	TBTLinkMode nextMode = EActiveMode;
 	// Determine which LPM we should be in (if any)
 	if(modeChangeMask & KExplicitActiveMode)
 		{
-		targetMode = EActiveMode;
+		nextMode = EActiveMode;
 		}
 	else if(modeChangeMask & EHoldMode)
 		{
-		targetMode = EHoldMode;
+		nextMode = EHoldMode;
 		}
 	else if(modeChangeMask & ESniffMode)
 		{
-		targetMode = ESniffMode;
+		nextMode = ESniffMode;
 		}
 	else if(modeChangeMask & EParkMode)
 		{
-		targetMode = EParkMode;
+		nextMode = EParkMode;
 		}
-	LOG2(_L8("Arbitration: Arbitrating mode 0x%02x -> 0x%02x"), currentMode, targetMode);
+	LOG2(_L8("Arbitration: Arbitrating mode 0x%02x -> 0x%02x"), currentMode, nextMode);
 	
-	if(IsConnected())
-	    {
-        TInt err = iLowPowModeCtrl.ExecuteModeChange(targetMode);
-        LOG1(_L8("Arbitration: iLowPowModeCtrl.ExecuteModeChange: err:%d"), err);
-        return err;
-	    }
-	else
-	    {
-        return KErrDisconnected;
-	    }
+	if(nextMode != currentMode)
+		{
+		if(currentMode != EActiveMode)
+			{
+			LOG(_L8("Arbitration: Exiting existing LPM mode..."));
+			TInt err = RequestActive();
+			if(err != KErrNone)
+				{
+				return err;
+				}
+			}
+		if(nextMode == EHoldMode)
+			{
+			LOG(_L8("Arbitration: Entering Hold mode..."));
+			return RequestHold();
+			}
+		else if(nextMode == ESniffMode)
+			{
+			LOG(_L8("Arbitration: Entering Sniff mode..."));
+			return RequestSniff();
+			}
+		else if(nextMode == EParkMode)
+			{
+			LOG(_L8("Arbitration: Entering Park mode..."));
+			return RequestPark();
+			}
+		else if(nextMode == EActiveMode)
+			{
+			LOG(_L8("Arbitration: Staying in Active mode..."));
+			return KErrNone;
+			}
+		// Shouldn't reach here, we have a strange mode
+		DEBUG_PANIC_LINENUM;
+		}
+
+	LOG(_L8("Arbitration: Already in correct LPM, not doing anything"));
+	return KErrNone;
 	}
 
 void CPhysicalLink::SetPassKey(const TDesC8& aPassKey)
@@ -2245,6 +2227,22 @@ void CPhysicalLink::RemoveIdleTimer()
 	iIdleTimerQueued = EFalse;
 	}
 
+void CPhysicalLink::QueueLPMOverrideTimer(TInt aTimeout)
+/**
+	Queue LPM Override timer entry.
+	When this timer expires, it'll call UndoLPMOverride.
+**/
+	{
+	LOG_FUNC
+	__ASSERT_DEBUG(aTimeout!=0, Panic(EBTPhysicalLinksInvalidArgument));
+	if (iLPMOverrideTimerQueued)
+		{
+		BTSocketTimer::Remove(iOverrideLPMTimerEntry);
+		}
+	BTSocketTimer::Queue(aTimeout, iOverrideLPMTimerEntry);
+	iLPMOverrideTimerQueued = ETrue;
+	}
+
 void CPhysicalLink::NotifyStateChange(TBTBasebandEventNotification& aEvent)
 	{
 	LOG_FUNC
@@ -2588,6 +2586,29 @@ TInt CPhysicalLink::ChangeConnectionPacketType(TUint16 aType)
 	return rerr;
 	}
 
+TInt CPhysicalLink::ExitMode(TBTLinkMode aMode)
+	{
+	LOG_FUNC
+	return iLowPowModeCtrl.ExitMode(aMode, iHandle);
+	}
+
+TInt CPhysicalLink::RequestMode(TBTLinkMode aMode)
+	{
+	LOG_FUNC
+	if (!IsConnected())
+		return KErrDisconnected;
+
+	// if active mode is required, try to exit whatever Low Power mode we are in -
+	// if neither sniff nor park nothing will happen.
+	if(aMode == EActiveMode)
+		{
+		return ExitMode(iLinkState.LinkMode());
+		}
+
+	// now request this connection goes to requested mode
+	return iLowPowModeCtrl.ChangeMode(aMode, iHandle);
+	}
+
 TInt CPhysicalLink::RequestChangeRole(TBTBasebandRole aRole)
 	{
 	LOG_FUNC
@@ -2666,27 +2687,6 @@ void CPhysicalLink::DeleteRoleSwitcher()
 	iRoleSwitcher = NULL;
 	}
 
-void CPhysicalLink::AsyncDeleteKeyRefresher()
-	{
-	LOG_FUNC
-	iKeyRefreshCompleteCallBack->CallBack();
-	}
-
-/*static*/ TInt CPhysicalLink::KeyRefreshCompleteCallBack(TAny* aPhysicalLink)
-	{
-	LOG_STATIC_FUNC
-	CPhysicalLink* physicalLink = static_cast<CPhysicalLink*>(aPhysicalLink);
-	physicalLink->DeleteKeyRefresher();
-	return EFalse;
-	}
-
-void CPhysicalLink::DeleteKeyRefresher()
-	{
-	LOG_FUNC
-	delete iKeyRefresher;
-	iKeyRefresher = NULL;
-	}
-
 TBool CPhysicalLink::IsEncryptionDisabledForRoleSwitch() const
 /**
 	If link is encrypted, but role switcher temporarily disabled encryption, returns true.
@@ -2734,6 +2734,20 @@ TInt CPhysicalLink::UndoOverridePark()
 	return Arbitrate();
 	}
 
+TInt CPhysicalLink::OverrideLPMWithTimeout(TUint aTimeout)
+	{
+	LOG_FUNC
+	if(aTimeout == 0)
+		{
+		return KErrNone; //facility not wanted
+		}
+
+	TInt rerr = OverrideLPM();
+	QueueLPMOverrideTimer(aTimeout);
+
+	return rerr;
+	}
+
 TInt CPhysicalLink::OverrideLPM()
 /**
 	A request has come in that requires us to ensure we are not using
@@ -2746,6 +2760,20 @@ TInt CPhysicalLink::OverrideLPM()
 	iOverrideLPMRequests = ETrue;
 
 	return Arbitrate();
+	}
+
+/*static*/ TInt CPhysicalLink::OverrideLPMTimeoutCallback(TAny* aCPhysicalLink)
+	{
+	LOG_STATIC_FUNC	
+	CPhysicalLink* c = reinterpret_cast<CPhysicalLink*>(aCPhysicalLink);
+	TInt err = c->UndoOverrideLPM();
+	//we deliberately ignore this return value because we can't do anything to correct the error situation
+	if (KErrNone != err)
+		{
+		LOG2(_L("Physical link: UndoOverrideLPM returned an error %d on the connection 0x%08x"), err, c);
+		}
+	c->iLPMOverrideTimerQueued = EFalse;
+	return KErrNone;
 	}
 
 TInt CPhysicalLink::UndoOverrideLPM()
@@ -3088,14 +3116,29 @@ void CPhysicalLink::PinRequestComplete()
 	AuthenticationComplete(EPinRequestPending);
 	}
 
+
 TInt CPhysicalLink::RequestHold()
 	{
 	LOG_FUNC
-	if (!IsConnected())
-        {
-        return KErrDisconnected;
-        }
-	 return iLowPowModeCtrl.ChangeMode(EHoldMode, iHandle);
+	return RequestMode(EHoldMode);
+	}
+
+TInt CPhysicalLink::RequestSniff()
+	{
+	LOG_FUNC
+	return RequestMode(ESniffMode);
+	}
+
+TInt CPhysicalLink::RequestPark()
+	{
+	LOG_FUNC
+	return RequestMode(EParkMode);
+	}
+
+TInt CPhysicalLink::RequestActive()
+	{
+	LOG_FUNC
+	return RequestMode(EActiveMode);
 	}
 
 void CPhysicalLink::ReadNewPhysicalLinkMetricValue(TUint aIoctlName, CBTProxySAP& aSAP, TInt aCurrentValue)
@@ -3342,6 +3385,11 @@ CArbitrationDelayTimer::CArbitrationDelayTimer(CPhysicalLink* aParent)
 	CActiveScheduler::Add(this);
 	}
 
+CArbitrationDelayTimer::~CArbitrationDelayTimer()
+	{
+	LOG_FUNC
+	}
+
 void CArbitrationDelayTimer::ConstructL()
 	{
 	LOG_FUNC
@@ -3363,21 +3411,21 @@ TInt CArbitrationDelayTimer::Start(TBool aImmediate, TBool aLocalPriority)
 	LOG_FUNC
 	// Work out what the local priority will be now
 	iLocalPriority = iLocalPriority || aLocalPriority;
-	LOG1(_L8("Arbitration: Local Priority now %d"), iLocalPriority);
+	LOG1(_L8("Arbitraion: Local Priority now %d"), iLocalPriority);
 	if(aImmediate)
 		{
-		LOG(_L8("Arbitration: Immediate Arbitration Requested..."));
+		LOG(_L8("Arbitraion: Immediate Arbitration Requested..."));
 		CancelButPreserveLocalPriority();
 		return DoArbitrate();
 		}
 	else if(!IsActive())
 		{
-		LOG(_L8("Arbitration: Arbitration requested, will execute after delay timer..."));
+		LOG(_L8("Arbitraion: Arbitration requested, will execute after delay timer..."));
 		After(KBTArbitrationDelay);
 		}
 	else // timer is already on its way
 		{
-		LOG(_L8("Arbitration: Arbitration delay timer still pending..."));
+		LOG(_L8("Arbitraion: Arbitration delay timer still pending..."));
 		}
 	return KErrNone;
 	}
@@ -3385,7 +3433,7 @@ TInt CArbitrationDelayTimer::Start(TBool aImmediate, TBool aLocalPriority)
 void CArbitrationDelayTimer::Restart()
 	{
 	LOG_FUNC
-	LOG(_L8("Arbitration: Arbitration timer restarted..."));
+	LOG(_L8("Arbitraion: Arbitration timer restarted..."));
 	CancelButPreserveLocalPriority();
 	After(KBTArbitrationDelay);
 	}
@@ -3405,7 +3453,7 @@ Allow arbitration of low power modes when the timer expires
 **/
 	{
 	LOG_FUNC
-	LOG(_L8("Arbitration: Delayed Arbitration executing..."));
+	LOG(_L8("Arbitraion: Delayed Arbitration executing..."));
 	static_cast<void>(DoArbitrate()); // ignore the error (always has been...)
 	}
 
@@ -3943,46 +3991,6 @@ TInt TLowPowModeCmdController::ChangeMode(TBTLinkMode aMode, THCIConnHandle aHan
 	return err;
 	}
 
-TInt TLowPowModeCmdController::ExecuteModeChange(TBTLinkMode aTargetMode)
-	{
-	LOG_FUNC
-	iTargetMode = aTargetMode;
-	if(iTargetMode != iParent.LinkState().LinkMode())
-		{
-		if(iParent.LinkState().LinkMode() != EActiveMode)
-			{
-			//the current mode is not in Active Mode, therefore the mode need to change to active first before change to other mode.
-			LOG(_L8("ExecuteModeChange: Exiting existing LPM mode..."));
-			return ExitMode(iParent.LinkState().LinkMode(), iParent.Handle());
-			}
-		//the current mode is in Active mode, therefore the mode is ready to go other mode.
-		if(iTargetMode == EHoldMode)
-			{
-			LOG(_L8("ExecuteModeChange: Entering Hold mode..."));
-			return ChangeMode(EHoldMode, iParent.Handle());
-			}
-		else if(iTargetMode == ESniffMode)
-			{
-			LOG(_L8("ExecuteModeChange: Entering Sniff mode..."));
-			return ChangeMode(ESniffMode, iParent.Handle());
-			}
-		else if(iTargetMode == EParkMode)
-			{
-			LOG(_L8("ExecuteModeChange: Entering Park mode..."));
-			return ChangeMode(EParkMode, iParent.Handle());
-			}
-		else if(iTargetMode == EActiveMode)
-			{
-			LOG(_L8("ExecuteModeChange: Staying in Active mode..."));
-			return KErrNone;
-			}
-		// Shouldn't reach here, we have a strange mode
-		DEBUG_PANIC_LINENUM;
-		}
-	LOG(_L8("ExecuteModeChange: Already in correct LPM, not doing anything"));
-	return KErrNone;
-	}
-
 void TLowPowModeCmdController::SniffL(THCIConnHandle aHandleToRemote)
 	{
 	LOG_FUNC
@@ -4052,36 +4060,29 @@ void TLowPowModeCmdController::MhcqcCommandEventReceived(const THCIEventBase& aE
 		LOG2(_L("TLowPowModeCmdController::MhcqcCommandEventReceived: event:%d opcode:0x%x"), code, aRelatedCommand->Opcode());
 
 		const TModeChangeEvent& modeChangeEvent = TModeChangeEvent::Cast(aEvent);
-		TBTLinkMode currentmode = EActiveMode;
+		TBTLinkMode mode = EActiveMode;
 		switch(modeChangeEvent.CurrentMode())
 			{
 			// Mode 0, as defined for the Mode Change Event, is Active Mode
 			case 0:
 				break;
 			case 1:
-				currentmode = EHoldMode;
+				mode = EHoldMode;
 				break;
 			case 2:
-				currentmode = ESniffMode;
+				mode = ESniffMode;
 				break;
 			case 3:
-				currentmode = EParkMode;
+				mode = EParkMode;
 				break;
 			default:
 				__ASSERT_ALWAYS(EFalse, Panic(EHCICommandBadArgument));
 				break;
 			}
-		// In the HCI_Facade, in this situation, CPhysicalLinksManager::ModeChanged() is called.
-		// Since this methods find the CPhysicalLink object (that is iParent) and then call its
-		// ModeChange method, we can call it directly.
-		iParent.ModeChange(aEvent.ErrorCode(), modeChangeEvent.ConnectionHandle(), currentmode, modeChangeEvent.Interval());
-		//pass the current mode into Gear box. let gear box to decide if the mode is on the target mode. 
-		//if it is, the gear box returns KErrNone, if it is not, the gear box will make another request for the target mode
-		if (aEvent.ErrorCode() == EOK)
-			{
-            TInt err = ExecuteModeChange(iTargetMode);
-			LOG1(_L("TLowPowModeCmdController::ExecuteModeChange: err:%d"), err);
-			}
+			// In the HCI_Facade, in this situation, CPhysicalLinksManager::ModeChanged() is called.
+			// Since this methods find the CPhysicalLink object (that is iParent) and then call its
+			// ModeChange method, we can call it directly.
+			iParent.ModeChange(aEvent.ErrorCode(), modeChangeEvent.ConnectionHandle(), mode, modeChangeEvent.Interval());
 		}
 	}
 

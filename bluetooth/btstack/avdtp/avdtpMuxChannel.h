@@ -134,7 +134,7 @@ public:
 								TTCID aRemotelyAssignedTCID);
 
 // management path
-	virtual TInt AttachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType aType, TL2CapConfig::TChannelPriority aPriority = TL2CapConfig::ELow);
+	virtual TInt AttachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType aType);
 	virtual void DetachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType aType);
 	virtual TBool CouldAttachSession(const TAvdtpSockAddr& aAddr);
 	virtual TTCID TCID() const;
@@ -153,9 +153,7 @@ public:
 
 private:	
 	CMuxChannel(CAvdtpProtocol& aProtocol, const TBTDevAddr& aRemoteDevice);
-	
-	void UpdateChannelPriority();
-	
+						 
 	static TInt MuxSendIntervalCb(TAny* aCMuxChannel);
 	void CheckForClose();
 	TUint DoSend();
@@ -173,15 +171,13 @@ private:
 	// receive path	
 	struct TUserPlaneTransportSessionState
 		{
-		inline TUserPlaneTransportSessionState(CUserPlaneTransportSession& aSession, TL2CapConfig::TChannelPriority aChannelPriority);
+		inline TUserPlaneTransportSessionState(CUserPlaneTransportSession& aSession);
 		
 		CUserPlaneTransportSession& iSession;
 		TBool iIsBlocked;
-		TL2CapConfig::TChannelPriority iChannelPriority;
+		
 		};
 		
-	static void MaxChannelPriority(TL2CapConfig::TChannelPriority& aMaxPriority, const RArray<TUserPlaneTransportSessionState>& aSessions);
-	
 	RArray<TUserPlaneTransportSessionState>	iMediaSessions;
 	RArray<TUserPlaneTransportSessionState>	iReportingSessions;
 	RArray<TUserPlaneTransportSessionState>	iRecoverySessions; // recall not from same streams as other sessions
@@ -206,10 +202,8 @@ private:
 	};
 
 inline CMuxChannel::TUserPlaneTransportSessionState::TUserPlaneTransportSessionState(
-	CUserPlaneTransportSession& aSession,
-	TL2CapConfig::TChannelPriority aChannelPriority)
-	: iSession(aSession)
-	, iChannelPriority(aChannelPriority)
+	CUserPlaneTransportSession& aSession)
+: iSession(aSession)
 	{
 	}
 

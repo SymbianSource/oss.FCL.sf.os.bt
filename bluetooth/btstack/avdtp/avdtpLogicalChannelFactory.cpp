@@ -1296,7 +1296,13 @@ void CManagedLogicalChannel::ConstructL(CServProviderBase* aPrecreatedSAP)
 	
 	TPckgBuf<TL2CapConfig> configBuf;
 	iLogicalChannelSAP->GetOption(KSolBtL2CAP, KL2CAPUpdateChannelConfig, configBuf);
-	if(!aPrecreatedSAP)
+
+	if(iSequenceNumber != KInitialSequenceNumber)
+		{
+		configBuf().ConfigureChannelPriority(TL2CapConfig::EHigh);
+		iLogicalChannelSAP->SetOption(KSolBtL2CAP, KL2CAPUpdateChannelConfig, configBuf);
+		}
+	else if(!aPrecreatedSAP)
 		{
 		// FIXME consider value of rtx timer, should consider Tgavdp
 		// Note: The 'rtx timer' actually sets max retransmit count instead [Piotr].

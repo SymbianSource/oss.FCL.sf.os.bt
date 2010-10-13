@@ -410,6 +410,7 @@ TInt TAvctpStateClosed::Start(CAvctpTransport& aTransport, const TBTDevAddr& aAd
 	if (aAddr != TBTDevAddr(0))
 		{
 		// New this up just in time.
+		__ASSERT_DEBUG(!aTransport.iChannelSAPs[KAvctpPrimaryChannel], Panic(EObjectAlreadyExists));
 		TRAP(ret, aTransport.iChannelSAPs[KAvctpPrimaryChannel] = aTransport.iProtocol.LowerProtocol()->NewSAPL(KSockSeqPacket));
 		if (ret == KErrNone)
 			{

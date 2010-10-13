@@ -388,6 +388,7 @@ void CAvctpProtocol::DoStartAvctpListeningL()
 	localAddr.SetSecurity(sec);
 	
 	CleanupStack::Pop(sap);
+	__ASSERT_DEBUG(!iListener, Panic(EObjectAlreadyExists));
 	iListener = CIncomingConnectionListener::NewL(*this, sap, localAddr, KProtocolListeningQueueSize);										
 	
 	CServProviderBase* sap2 =iLowerProtocol->NewSAPL(KSockSeqPacket);

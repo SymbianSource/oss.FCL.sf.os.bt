@@ -1,4 +1,4 @@
-// Copyright (c) 2000-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2000-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -31,7 +31,8 @@ enum TSdpPanic
 	ESdpTwoQuerys,						//  8
 	ESdpNoRequestPdu,					//  9
 	ESdpBadUUID,						// 10
-	ESdpAgentBadResultLength			// 11
+	ESdpAgentBadResultLength,			// 11
+	ESdpAgentErrorSettingNoSecurity,	// 12
 	};
 
 void Panic(TSdpPanic aPanic);

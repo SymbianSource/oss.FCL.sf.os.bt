@@ -44,6 +44,7 @@ enum TBTControlPlaneMessage
 	EPreauthoriseDevice, // used for multiple SAPs operating in one usecase (eg AVRCP and GAVDP);
 	ESubscribePhysicalLink,
 	EUnsubscribePhysicalLink,
+	EOverrideLPMWithTimeout,
 	EOverrideLPM,
 	EUndoOverrideLPM,
 	ETryToAndThenPreventHostEncryptionKeyRefresh,

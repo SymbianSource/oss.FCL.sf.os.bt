@@ -1,4 +1,4 @@
-// Copyright (c) 2004-2010 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2004-2009 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -473,17 +473,16 @@ void CGavdpSelectSEP::RunL()
 
 	
 
-CGavdpConnector* CGavdpConnector::NewL(CGavdp& aGavdp, MGavdpUser& aUser, const TBTDevAddr& aAddr, TBool aPassive)
+CGavdpConnector* CGavdpConnector::NewL(CGavdp& aGavdp, MGavdpUser& aUser, const TBTDevAddr& aAddr)
 	{
-	return new (ELeave) CGavdpConnector(aGavdp, aUser, aAddr, aPassive);
+	return new (ELeave) CGavdpConnector(aGavdp, aUser, aAddr);
 	}
-
-CGavdpConnector::CGavdpConnector(CGavdp& aGavdp, MGavdpUser& aUser, const TBTDevAddr& aAddr, TBool aPassive)
+	
+CGavdpConnector::CGavdpConnector(CGavdp& aGavdp, MGavdpUser& aUser, const TBTDevAddr& aAddr)
 : CGavdpHelper(aGavdp, aUser)
 	{
 	iSocketAddress.SetBTAddr(aAddr);
 	iSocketAddress.SetSession(ESignalling);
-	iIsPassiveConnector = aPassive;
 	}
 
 CGavdpConnector::~CGavdpConnector()
@@ -493,12 +492,9 @@ CGavdpConnector::~CGavdpConnector()
 
 void CGavdpConnector::DoCancel()
 	{
-	//don't call cancel on the socket for passive connectors to prevent cancelling a listening socket
-	if (!iIsPassiveConnector)
-		{
-		AvdtpRequester().CancelAll(); // ESOCK has better semantics to SAP than CancelConnect.
-		}
+	AvdtpRequester().CancelAll(); // ESOCK has better semantics to SAP than CancelConnect.
 	}
+
 
 void CGavdpConnector::Begin()
 	{
@@ -511,6 +507,7 @@ void CGavdpConnector::Begin()
 
 void CGavdpConnector::RunL()
 	{
+		
 	// Do not call CGavdpHelper::CheckFailedL() here - avdtp will indicate a failure to connect, 
 	// and GAVDP is informed via CGavdpIndicator::RunL().
 	
@@ -754,14 +751,14 @@ void CGavdpIndicator::RunL()
 				}
 			};
 		}
-	
-	// This service is never complete, reissue ioctl.  We do this once we have finished using
-	// the iIndication data as once the ioctl has been issued the data may be overwritten.
-	// If AVDTP has an indication to pass to us and an ioctl has not been issued the
-	// indication will be queued within AVDTP until we have issued the ioctl again.
-	Begin();
-	}
 
+		// This service is never complete, reissue ioctl.  We do this once we have finished using
+		// the iIndication data as once the ioctl has been issued the data may be overwritten.
+		// If AVDTP has an indication to pass to us and an ioctl has not been issued the
+		// indication will be queued within AVDTP until we have issued the ioctl again.
+		Begin();
+	}
+	
 /**
 RunError overriden for CGavdpIndicator only. This GAVDP helper is used in its own right by GAVDP.
 It is not treated as a 'general' GAVDP helper, and, unlike a 'general' GAVDP helper,

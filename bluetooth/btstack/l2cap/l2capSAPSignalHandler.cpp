@@ -813,9 +813,8 @@ void CL2CapSAPSignalHandler::SAPClosed()
 	{
 	LOG_FUNC
 	// The SAP is about to be detached from this signal handler.
-	// Ensure no overrides are active.
+	// Ensure no park overrides are active.
 	UndoOverrideParkMode();
-	UndoOverrideLPM();
 	
 	// Check if this SH has any unsent commands
 	// outstanding.
@@ -917,26 +916,15 @@ void CL2CapSAPSignalHandler::UndoOverrideParkMode()
 		iSAP->Protocol().ControlPlane().ModifyPhysicalLink(EUndoOverridePark, iSAP->RemoteDev());
 		}
 	}
-
-void CL2CapSAPSignalHandler::OverrideLPM()
+	
+void CL2CapSAPSignalHandler::OverrideLPMWithTimeout()
 	{
 	LOG_FUNC
 	// Temporarily override all low power modes.  A reference to the SAP is required
 	// to get the remote device address.
 	if(iSAP)
 		{
-		iSAP->Protocol().ControlPlane().ModifyPhysicalLink(EOverrideLPM, iSAP->RemoteDev());
+		iSAP->Protocol().ControlPlane().ModifyPhysicalLink(EOverrideLPMWithTimeout, iSAP->RemoteDev());
 		}
 	}
-
-void CL2CapSAPSignalHandler::UndoOverrideLPM()
-	{
-	LOG_FUNC
-	// Remove the temporary override of all low power modes.  A reference to the SAP is 
-	// required to get the remote device address.
-	if(iSAP)
-		{
-		iSAP->Protocol().ControlPlane().ModifyPhysicalLink(EUndoOverrideLPM, iSAP->RemoteDev());
-		}
-	}
-
+	

@@ -202,6 +202,7 @@ public:
 	inline TAvdtpMessage Signal() const;
 protected:
 	CAvdtpSignallingMessage();
+	~CAvdtpSignallingMessage();
 protected:
 	TAvdtpMessageType		iMessageType;
 	TAvdtpMessage			iSignal;
@@ -219,6 +220,7 @@ represents outgoing signalling messages, and has parsing methods for inbound pac
 	{
 public:
 	explicit CAvdtpInboundSignallingMessage(CSignallingChannel& aSignallingChannel);
+	~CAvdtpInboundSignallingMessage();
 	virtual TInt NewData(TUint aCount);
 private:	
 	static TAvdtpMessage SignalIdentifier(const RMBufChain& aMessage);

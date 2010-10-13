@@ -1187,6 +1187,11 @@ CBTManSubSession::CBTManSubSession(CBTManSession& aSession, CBTRegistry& aRegist
 	LOG_FUNC
 	}
 
+CBTManSubSession::~CBTManSubSession()
+	{
+	LOG_FUNC
+	}
+
 void CBTManSubSession::NotifyChange(TUint aTableChanged)
 	{
 	LOG_FUNC

@@ -165,6 +165,7 @@ enum TPanic
 	EAvctpInvalidChannelIoctl = 66,
 	EAvctpSapClosed = 67,
 	ENullAvctpProtocol = 68,
+	EObjectAlreadyExists = 69,
 	};
 
 /**

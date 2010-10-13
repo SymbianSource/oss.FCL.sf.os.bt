@@ -39,7 +39,10 @@ CSEPConfigurator::CSEPConfigurator(CSignallingSession& aSignallingSession,
 	}
 
 
-
+CSEPConfigurator::~CSEPConfigurator()
+	{
+	LOG_FUNC
+	}
 
 CRemoteSEPConfigurator* CRemoteSEPConfigurator::NewL(CSignallingSession& aSignallingSession,
 													 CAvdtpProtocol& aProtocol,

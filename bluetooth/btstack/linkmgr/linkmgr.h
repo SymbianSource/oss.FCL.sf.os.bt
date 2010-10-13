@@ -182,6 +182,7 @@ public:
 
 	void SetLimitedDiscoverableIfChangedL(TBool aOn);
 	void SetLocalVersion(THCIErrorCode aErr, TBTDevHCIVersion aHCIVersion, TBTDevLMPVersion aLMPVersion);
+	void SetOverrideLPMTimeout(TUint aOverrideLPMTimeout);
 	void SetLocalFeatures(THCIErrorCode aErr, const TBTFeatures& aMask);
 	void SetLocalCommands(THCIErrorCode aErr, const TBluetoothHciCommands& aMask);
 	void SetDeviceClassL(TUint32 aCod);
@@ -265,6 +266,8 @@ friend class CBTCodServiceMan;
 	CSyncLinkStateFactory*	iSCOStateFactory;
 
 	RPointerArray<CSubscriber>	iSubscribers;
+
+	TUint 					iOverrideLPMTimeout;
 
 	// protocol state objects
 	TBool                   iClosePending;	// the protocol is closing

@@ -46,7 +46,6 @@ class CACLLink;
 class CRoleSwitcher;
 class CBTNumericComparator;
 class CBTPasskeyEntry;
-class CEncryptionKeyRefresher;
 
 enum TPhysicalLinkSimplePairingMode
 	{
@@ -71,6 +70,7 @@ NONSHARABLE_CLASS(CArbitrationDelayTimer) : public CTimer
 	{
 public:
 	static CArbitrationDelayTimer* NewL(CPhysicalLink* aParent);
+	~CArbitrationDelayTimer();
 	TInt Start(TBool aImmediate, TBool aLocalPriority);
 	void Restart();
 
@@ -114,8 +114,6 @@ public:
 	
 	TInt ExitMode(TBTLinkMode aMode, THCIConnHandle aHandle);
 	TInt ChangeMode(TBTLinkMode aMode, THCIConnHandle aHandle);
-	
-	TInt ExecuteModeChange(TBTLinkMode aTargetMode);
 
 private:	// events from MHCICommandQueueClient
 	virtual void MhcqcCommandEventReceived(const THCIEventBase& aEvent, const CHCICommandBase* aRelatedCommand);
@@ -130,12 +128,11 @@ private:
 	void HoldL(THCIConnHandle aHandle);
 	void ParkL(THCIConnHandle aHandleToRemote);
 	void ExitParkL(THCIConnHandle aHandleToRemote);
-	
+
 private:
 	CPhysicalLink&		iParent;
 	MHCICommandQueue&	iCmdController;
 	TBool				iOutstandingCmd;
-	TBTLinkMode			iTargetMode;
 	};
 
 /**
@@ -336,13 +333,18 @@ public:
 
 	TInt ChangeConnectionPacketType(TUint16 aType);
 
+	TInt ExitMode(TBTLinkMode aMode);
 	TInt RequestHold();
+	TInt RequestSniff();
+	TInt RequestPark();
+	TInt RequestActive();
 	TInt RequestChangeRole(TBTBasebandRole aRole);
 
 	void ReadNewPhysicalLinkMetricValue(TUint aIoctlName, CBTProxySAP& aSAP, TInt aCurrentValue);
 
 	TInt OverridePark();
 	TInt UndoOverridePark();
+	TInt OverrideLPMWithTimeout(TUint aTimeout);
 	TInt OverrideLPM();
 	TInt UndoOverrideLPM();
 	inline TBool IsParked() const;
@@ -375,8 +377,7 @@ public:
 	virtual void RoleChange(THCIErrorCode aErr, const TBTDevAddr& aAddr, TBTBasebandRole aRole);
 	virtual void ClockOffset(THCIErrorCode aErr, THCIConnHandle aConnH, TBasebandTime aClockOffset);
 	virtual void RemoteName(THCIErrorCode aErr, const TBTDevAddr& aAddr, const TBTDeviceName8& aName);
-	virtual void EncryptionKeyRefreshComplete(THCIErrorCode aErr, THCIConnHandle aConnH);
-
+	
 	void ConnectionComplete(TInt aResult, const TBTConnect& aConn);
 
 	TBool LinkKeyRequestPending();
@@ -413,7 +414,6 @@ public:
 	TBTLinkMode LinkMode() const; 
 	
 	void AsyncDeleteRoleSwitcher();
-	void AsyncDeleteKeyRefresher();
 	
 	inline const TLinkPolicy& LinkPolicy() const;
 	inline const TBTFeatures& RemoteFeatures() const;
@@ -487,9 +487,11 @@ private:
 	void QueueIdleTimer(TInt aTime);
 	void RemoveIdleTimer();
 
+	void QueueLPMOverrideTimer(TInt aTimeout);
 	void NotifyStateChange(TBTBasebandEventNotification & aEvent);
 
 	TBool IsPhysicalLinkIdle() const;
+	TInt RequestMode(TBTLinkMode aMode);
 	TBasebandTime CalculatePageTimeout(TBasebandPageTimePolicy aPolicy, TUint8 aRepMode, TBool aValidClockOffset);
 	TBool IsPasskeyMinLengthOK();
 	TBool PeerSupportsLinkKeyRegeneration() const;
@@ -497,9 +499,6 @@ private:
 	void DeleteRoleSwitcher();
 	static TInt RoleSwitchCompleteCallBack(TAny* CPhysicalLink);
 	TInt ManageEncryptionEnforcement(THCIEncryptModeFlag aEnable);
-	
-	void DeleteKeyRefresher();
-	static TInt KeyRefreshCompleteCallBack(TAny* CPhysicalLink);
 
 	void HandlePrefetch();
 	void PINCodeRequestReply(const TBTDevAddr& aDevAddr,const TDesC8& aPin);
@@ -556,11 +555,13 @@ private:
 	TSglQue<CBTProxySAP>		iProxySAPs;			// the proxies bound to us
 	TDeltaTimerEntry			iIdleTimerEntry;
 	TBool						iIdleTimerQueued;
+	TDeltaTimerEntry			iOverrideLPMTimerEntry;
 
 	TLinkPolicy					iLinkPolicy;
 	TUint16						iPreviousRequestedModeMask;
 	TBool						iOverrideParkRequests; //for maybe temporary unpark
 	TBool						iOverrideLPMRequests; //for maybe temporary force active
+	TBool						iLPMOverrideTimerQueued;
 	TBool						iConnectionPacketTypeChanged; //for triggering h/w 
 	
 	TBool						iPreventLinkKeyUpdateReg; //for case e.g. user has called unpair when there is a paired logical channel
@@ -572,8 +573,6 @@ private:
 	CArbitrationDelayTimer*		iArbitrationDelay; //for lower power modes
 	CRoleSwitcher*				iRoleSwitcher; //class handles role switch, prevents LPM, removes encryption		
 	CAsyncCallBack*				iRoleSwitchCompleteCallBack;// Async Callback to delete role swticher class.
-	CEncryptionKeyRefresher*	iKeyRefresher; //class handles key refresh 
-	CAsyncCallBack*				iKeyRefreshCompleteCallBack;// Async Callback to delete key refresher class.
 
 	TLowPowModeCmdController	iLowPowModeCtrl;
 	CPhysicalLinkMetrics*		iPhysicalLinkMetrics;

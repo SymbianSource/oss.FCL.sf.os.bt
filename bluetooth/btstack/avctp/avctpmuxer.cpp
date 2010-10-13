@@ -37,10 +37,6 @@
 _LIT8(KLogComponent, LOG_COMPONENT_AVCTP);
 #endif
 
-#ifdef _DEBUG
-PANICCATEGORY("avctpmux");
-#endif
-
 using namespace SymbianAvctp;
 
 #ifdef __FLOG_ACTIVE	
@@ -939,6 +935,7 @@ TBool CAvctpTransport::HasClient(TUint16 aClientId)
 
 void CAvctpTransport::BindSecondaryChannelSap(CServProviderBase& aSAP)
 	{
+	__ASSERT_DEBUG(!iChannelSAPs[KAvctpSecondaryChannel], Panic(EObjectAlreadyExists));
 	iChannelSAPs[KAvctpSecondaryChannel] = &aSAP;
 	iChannelSAPs[KAvctpSecondaryChannel]->SetNotify(&iSecondChannelSocket);
 	}

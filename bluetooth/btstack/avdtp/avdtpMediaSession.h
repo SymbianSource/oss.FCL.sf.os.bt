@@ -34,6 +34,7 @@ NONSHARABLE_CLASS(CMediaSession) : public CUserPlaneTransportSession
 public:
 	static CMediaSession* NewLC(CAvdtpProtocol& aProtocol, CAvdtpSAP& aSAP, CAVStream& aStream);
 	static CMediaSession* NewL(CAvdtpProtocol& aProtocol, CAvdtpSAP& aSAP, CAVStream& aStream);
+	~CMediaSession();
 
 	virtual TInt GetOption(TUint aLevel, TUint aName, TDes8& aOption) const;
 	virtual void Ioctl(TUint aLevel, TUint aName,  const TDesC8* aOption);

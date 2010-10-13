@@ -1996,21 +1996,37 @@ void CATExtMetadata::CreateAndFindSupportL(
     TRACE_FUNC_ENTRY
     // First extract the base of AT command from aAtCmdFull
     // ('=' and everything after that)
-    TInt newLength = aAtCmdFull.Length();
+    TInt fullLength = aAtCmdFull.Length();
+    TInt newLength = fullLength;
+    TInt findIndex = KErrNotFound;
     TInt foundPos = aAtCmdFull.Locate( '=' );
+    TRACE_INFO(( _L8("Base length before = %d"), fullLength ));
     if ( foundPos >= 2 )  // After "AT"
         {
+        findIndex = foundPos - 1;
         newLength = foundPos;
         }
-    else if ( newLength >= 1 )
+    else if ( fullLength >= 3 )  // At least "AT?"
         {
         // There was no '=' so check if the last character is '?'.
         // If it is then remove it.
-        if ( aAtCmdFull[newLength-1] == '?' )
+        TInt lastIndex = fullLength - 1;
+        if ( aAtCmdFull[lastIndex] == '?' )
             {
-            newLength--;
+            findIndex = lastIndex - 1;
+            newLength = fullLength - 1;
             }
         }
+    // Next correct newLength so that it doesn't contain the space(s)
+    for ( ; findIndex>=2; findIndex--,newLength-- )
+        {
+        TChar character = aAtCmdFull[findIndex];
+        if ( !(character.IsSpace()||character==0x00) )
+            {
+            break;
+            }
+        }
+    TRACE_INFO(( _L8("Base length after = %d"), newLength ));
     HBufC8* baseCmd = HBufC8::NewMaxLC( newLength );
     TPtr8 baseCmdPtr = baseCmd->Des();
     baseCmdPtr.Copy( &aAtCmdFull[0], newLength );

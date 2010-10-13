@@ -310,7 +310,6 @@ private:
 	void LinkKeyRequestEvent(const THCIEventBase& aEvent, const CHCICommandBase* aRelatedCommand);
 	void LinkKeyNotificationEvent(const THCIEventBase& aEvent, const CHCICommandBase* aRelatedCommand);
 	void MaxSlotsChangeEvent(const THCIEventBase& aEvent, const CHCICommandBase* aRelatedCommand);
-	void EncryptionKeyRefreshCompleteEvent(const THCIEventBase& aEvent, const CHCICommandBase* aRelatedCommand);
 
 	// Data event processing functions
 	void NumberOfCompletedPacketsEvent(THCIEventBase& aEvent);

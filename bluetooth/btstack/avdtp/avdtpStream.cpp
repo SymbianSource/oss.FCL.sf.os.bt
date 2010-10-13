@@ -343,11 +343,10 @@ void CAVStream::Released()
 
 TInt CAVStream::AddSession(TAvdtpTransportSessionType aType,
 						   CUserPlaneTransportSession& aSession,
-						   CTransportChannel*& aChannel,
-						   TL2CapConfig::TChannelPriority aPriority)
+						   CTransportChannel*& aChannel)
 	{
 	LOG_FUNC
-	return iState->AddSession(*this, aType, aSession, aChannel, aPriority);
+	return iState->AddSession(*this, aType, aSession, aChannel);
 	}
 	
 void CAVStream::DropSession(TAvdtpTransportSessionType aType, CUserPlaneTransportSession& aSession)
@@ -652,7 +651,12 @@ CWatchdogTimer::CWatchdogTimer(CAVStream& aObserver)
 	LOG_FUNC
 	CActiveScheduler::Add(this);
 	}
-	
+
+CWatchdogTimer::~CWatchdogTimer()
+	{
+	LOG_FUNC
+	}
+
 void CWatchdogTimer::RunL()
 	{
 	LOG_FUNC

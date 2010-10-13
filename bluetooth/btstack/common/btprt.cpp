@@ -350,6 +350,7 @@ void CBluetoothProtocolBase::DoStartListeningL(TUint aPort, TUint aSockType, TUi
 	{
 	LOG_FUNC
 	CServProviderBase* sap =iLowerProtocol->NewSAPL(aSockType);
+	ASSERT_DEBUG(!iListener);
 	iListener=CIncomingConnectionListener::NewL(*this, sap, aPort, aQueSize, aUid);
 	}
 

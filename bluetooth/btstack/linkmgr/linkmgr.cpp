@@ -800,6 +800,12 @@ void CLinkMgrProtocol::SetLocalVersion(THCIErrorCode aErr, TBTDevHCIVersion aHCI
 		}
 	}
 
+void CLinkMgrProtocol::SetOverrideLPMTimeout(TUint aOverrideLPMTimeout)
+	{
+	LOG_FUNC
+	iOverrideLPMTimeout =aOverrideLPMTimeout;
+	}
+
 TInt CLinkMgrProtocol::StartProtocolListening()
 	{
 	LOG_FUNC
@@ -1358,6 +1364,9 @@ TInt CLinkMgrProtocol::ControlPlaneMessage(TBTControlPlaneMessage aMessage, TAny
 				break;
 			case EUndoOverridePark:
 				rerr = con->UndoOverridePark();
+				break;
+			case EOverrideLPMWithTimeout:
+				rerr = con->OverrideLPMWithTimeout(iOverrideLPMTimeout);
 				break;
 			case EOverrideLPM:
 				rerr = con->OverrideLPM();

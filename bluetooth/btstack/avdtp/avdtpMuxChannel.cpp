@@ -295,7 +295,7 @@ TInt CMuxChannel::SessionDataReceived(TTSID aTSID, RMBufChain& aChain)
 	#pragma message("is there n pools for eg media, or just one?")
 	}
 */	
-TInt CMuxChannel::AttachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType aType, TL2CapConfig::TChannelPriority aPriority)
+TInt CMuxChannel::AttachTransportSession(CUserPlaneTransportSession& aSession, TAvdtpTransportSessionType aType)
 /**
 Protocol must ensure it has found appropriate muxchannel for
 Recovery packets
@@ -321,45 +321,7 @@ Recovery packets
 	
 	__ASSERT_DEBUG(sessionArray, Panic(EAVDTPBadSessionAttachToTransportChannel));
 	
-	TInt err = sessionArray->Append(TUserPlaneTransportSessionState(aSession, aPriority));
-	if(err == KErrNone)
-		{
-		UpdateChannelPriority();
-		}
-	return err;
-	}
-
-void CMuxChannel::UpdateChannelPriority()
-	{
-	LOG_FUNC
-	
-	TL2CapConfig::TChannelPriority maxPriority = TL2CapConfig::ELow;
-	
-	MaxChannelPriority(maxPriority, iMediaSessions);
-	MaxChannelPriority(maxPriority, iReportingSessions);
-	MaxChannelPriority(maxPriority, iRecoverySessions);
-	
-	if(iLogicalChannel)
-		{
-		TPckgBuf<TL2CapConfig> configBuf;
-		configBuf().ConfigureChannelPriority(maxPriority);
-		(void)iLogicalChannel->SetOption(KSolBtL2CAP, KL2CAPUpdateChannelConfig, configBuf);
-		}
-	}
-
-
-void CMuxChannel::MaxChannelPriority(TL2CapConfig::TChannelPriority& aMaxPriority, const RArray<TUserPlaneTransportSessionState>& aSessions)
-	{
-	LOG_STATIC_FUNC
-	
-	for(TInt i=0; i < aSessions.Count(); ++i)
-		{
-		TL2CapConfig::TChannelPriority priority = aSessions[i].iChannelPriority;
-		if(aMaxPriority < priority)
-			{
-			aMaxPriority = priority;
-			}
-		}
+	return sessionArray->Append(TUserPlaneTransportSessionState(aSession));
 	}
 
 /**
@@ -457,7 +419,6 @@ void CMuxChannel::DetachTransportSession(CUserPlaneTransportSession& aSession, T
 		}
 	__ASSERT_DEBUG(found==1, Panic(EAVDTPBadSessionDetachFromTransportChannel));
 
-	UpdateChannelPriority();
 	CheckForClose();
 	}
 

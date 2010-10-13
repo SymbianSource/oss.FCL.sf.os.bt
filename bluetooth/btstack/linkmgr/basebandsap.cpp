@@ -47,6 +47,11 @@ void CBTBasebandSAP::ConstructL()
 	CBluetoothSAP::ConstructL();
 	}
 
+CBTBasebandSAP::~CBTBasebandSAP()
+	{
+	LOG_FUNC
+	}
+
 // from CServProviderBase - the saps will not do all of these
 void CBTBasebandSAP::Start()
 	{

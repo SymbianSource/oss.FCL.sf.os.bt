@@ -33,6 +33,8 @@ NONSHARABLE_CLASS(CSEPConfigurator) : public CBase
 public:
 	virtual TInt AddCapability(const TDesC8& aOption) =0;
 	virtual TInt Finalise() =0;
+	~CSEPConfigurator();
+
 protected:
 	CSEPConfigurator(CSignallingSession& aSignallingSession, CAvdtpProtocol& aProtocol);
 	inline CSignallingSession& SignallingSession() const 

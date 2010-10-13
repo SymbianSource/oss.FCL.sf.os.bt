@@ -286,8 +286,6 @@ void TL2CAPSigStateClosed::OpenChannel(CL2CapSAPSignalHandler& aSignalHandler) c
 	{
 	LOG_FUNC
 	// The SAP has requested a channel be opened.
-	// Override all LPMs to try and avoid signalling timeouts
-	aSignalHandler.OverrideLPM();
 
 	TInt err = aSignalHandler.ChannelConfig().UpdateLocalConfigWithEntityCapabilities();
 	if (err == KErrNone)
@@ -299,6 +297,9 @@ void TL2CAPSigStateClosed::OpenChannel(CL2CapSAPSignalHandler& aSignalHandler) c
 			{
 			// Update local Port.
 			aSignalHandler.SetLocalPort(port);
+	
+			// Override park to allow the connection to be made.
+			aSignalHandler.OverrideParkMode();
 	
 			// Active connection.  Send a Connect Request command.
 			err = aSignalHandler.ConstructConnectionRequest();
@@ -329,8 +330,10 @@ void TL2CAPSigStateClosed::ConnectRequestReceived(CL2CapSAPSignalHandler& aSigna
 		// Update local Port.
 		aSignalHandler.SetLocalPort(port);
 
-		// Override all LPMs to try and avoid signalling timeouts
-		aSignalHandler.OverrideLPM();
+		// Override park to allow the connection to be made.
+		aSignalHandler.OverrideParkMode();
+		// Override all LPMs (if timeout not set to zero)
+		aSignalHandler.OverrideLPMWithTimeout();
 
 		// Send a response with a 'pending' result and start security procedure.
 		err = aSignalHandler.ConstructConnectionResponse(aSignalHandler.GetOutstandingRequestID(),
@@ -381,16 +384,10 @@ void TL2CAPSigStateClosed::Enter(CL2CapSAPSignalHandler& aSignalHandler) const
 
 	aSignalHandler.iOpenChannelRequestAwaitingPeerEntityConfig = EFalse;
 
-	// Depending where we came from we may have applied either a
-	// park override or an all LPM override.  We remove both these
-	// overrides because it's safe to remove an override that 
-	// hasn't been applied.
-	// Note that although park is one of the LPMs the different
-	// levels of override are managed separately, so an
-	// UndoOverrideLPM does not remove an explicit park only 
-	// override.
+	// If Park mode has been overridden during either channel establishment or
+	// channel disconnect, remove the override.
+	// NB It is safe to call this method multiple times.
 	aSignalHandler.UndoOverrideParkMode();
-	aSignalHandler.UndoOverrideLPM();
 
 	// If the signal handler has left the closed state, it will have been added
 	// to the SH list in the Muxer.  Now that the closed state is being
@@ -1094,16 +1091,8 @@ void TL2CAPSigStateOpen::Enter(CL2CapSAPSignalHandler& aSignalHandler) const
 		}
 	else
 		{
-		// Depending where we came from we may have applied either a
-		// park override or an all LPM override.  We remove both these
-		// overrides because it's safe to remove an override that 
-		// hasn't been applied.
-		// Note that although park is one of the LPMs the different
-		// levels of override are managed separately, so an
-		// UndoOverrideLPM does not remove an explicit park only 
-		// override.
+		// Remove and park override.
 		aSignalHandler.UndoOverrideParkMode();
-		aSignalHandler.UndoOverrideLPM();
 
 		// Cancel the configuration timer.
 		aSignalHandler.CancelTimer();
@@ -1160,23 +1149,7 @@ void TL2CAPSigStateWaitDisconnect::DisconnectRequest(CL2CapSAPSignalHandler& aSi
 void TL2CAPSigStateWaitDisconnect::DisconnectResponse(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
-	// We've got a disconnect response, we're done.  Any remaing stuff on the queue
-	// is redundant, so ditch it and close synchronously.
-	aSignalHandler.FlushAllQueues();
-	
-	// If an error condition has been recorded forward the error 
-	// to the SAP.
-	if(aSignalHandler.SignalHandlerErrorCode() != KErrNone)
-		{
-		Error(aSignalHandler, aSignalHandler.SignalHandlerErrorCode(), aSignalHandler.SignalHandlerErrorAction());
-		}
-	else
-		{
-		// This will delete the signal handler if the SAP has detached.
-		aSignalHandler.SetState(iFactory.GetState(CL2CAPSignalStateFactory::EClosed));
-		aSignalHandler.SignalHandlerDisconnectedCanClose();
-		}
-
+	aSignalHandler.DrainPendingCommands();
 	}
 
 // "Artificial" state events
@@ -1200,9 +1173,7 @@ void TL2CAPSigStateWaitDisconnect::PendingCommandsDrained(CL2CapSAPSignalHandler
 void TL2CAPSigStateWaitDisconnect::Enter(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
-	// Only override park for disconnect.  We need to be able
-	// to send the signalling, but we don't care if it takes
-	// ages.  No point starting a sniff bun-fight.
+	// Override park to allow the disconnect to continue.
 	aSignalHandler.OverrideParkMode();
 
 	// Cancel the configuration timer.

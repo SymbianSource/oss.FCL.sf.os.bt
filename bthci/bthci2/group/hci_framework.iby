@@ -32,6 +32,6 @@ file=ABI_DIR\HCIF_DIR\hciutil.dll			System\Libs\hciutil.dll
 file=ABI_DIR\HCIF_DIR\hcicmdq.dll				System\Libs\hcicmdq.dll
 
 REM Command Queue configuration file
-data=ZPRIVATE\101f7989\bluetooth\cmdq.ini	Private\101F7989\Bluetooth\cmdq.ini
+data=ZPRIVATE\101F7989\Bluetooth\cmdq.ini	Private\101F7989\Bluetooth\cmdq.ini
 
 #endif //  HCI_FRAMEWORK_IBY

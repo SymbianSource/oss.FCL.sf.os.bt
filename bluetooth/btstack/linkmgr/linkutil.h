@@ -193,8 +193,6 @@ enum TLinkPanic
 	EBTACLSAPUnexpectedSecurityResult		=252,
 	ELinkMgrFlowControlUnexpectedUpdate		=253,
 	ELinkMgrFlowControlChangeOfMind			=254,
-	EEncryptionKeyRefresherInvalidState		=255,
-	EEncryptionKeyRefresherStateMachineInvalidEvent = 256,
 	};
 
 /**

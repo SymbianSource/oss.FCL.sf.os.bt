@@ -37,9 +37,19 @@ CAvdtpSignallingMessage::CAvdtpSignallingMessage()
 	LOG_FUNC
 	Data().Init();
 	}
-	
+
+CAvdtpSignallingMessage::~CAvdtpSignallingMessage()
+	{
+	LOG_FUNC
+	}
+
 CAvdtpInboundSignallingMessage::CAvdtpInboundSignallingMessage(CSignallingChannel& aSignallingChannel)
 : iSignallingChannel(aSignallingChannel)
+	{
+	LOG_FUNC
+	}
+
+CAvdtpInboundSignallingMessage::~CAvdtpInboundSignallingMessage()
 	{
 	LOG_FUNC
 	}

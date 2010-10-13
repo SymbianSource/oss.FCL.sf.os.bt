@@ -1,4 +1,4 @@
-// Copyright (c) 2008-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2008-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -788,6 +788,7 @@ void CDedicatedBondingSession::StartBondingL(const RMessage2& aMessage)
 
 	TBTSockAddr addr;
 	addr.SetBTAddr(addrBuf());
+	__ASSERT_DEBUG(!iProxySap, PANIC(KPairingServerFaultCat, EPairingServerObjectAlreadyExists));
 	iProxySap = CBTProxySAP::NewL(iPhysicalLinksManager, NULL);
 	
 	iStartBondingMsg = aMessage;
@@ -812,7 +813,7 @@ void CDedicatedBondingSession::DoAccessRequestL()
 	security.SetAuthentication(EMitmDesired);
 	security.SetUid(KBluetoothDedicatedBondingUid);
 
-	iPhysicalLinksManager.SecMan().AccessRequestL(security, NULL, iProxySap->RemoteAddress(), EDedicatedBonding, *this);
+	iPhysicalLinksManager.SecMan().AccessRequestL(security, NULL, iProxySap->RemoteAddress(), EDedicatedBonding, EFalse, *this);
 	}
 
 void CDedicatedBondingSession::AccessRequestComplete(TInt aResult)

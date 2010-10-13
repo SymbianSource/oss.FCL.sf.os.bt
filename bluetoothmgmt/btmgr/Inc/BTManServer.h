@@ -228,6 +228,7 @@ public:
 	virtual void Cleanup(TInt aError)=0;
 	virtual TBool IsOverlappingView(const TDesC& aViewDescriptor);
 	virtual void SetViewChangeNotificationMessage(const RMessage2& aMessage);
+	~CBTManSubSession();
 
 protected:
 	CBTManSubSession(CBTManSession& aSession, CBTRegistry& aRegistry);

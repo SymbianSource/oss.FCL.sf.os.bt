@@ -266,6 +266,7 @@ void CBTSecMan::AccessRequestL(const TBTServiceSecurity& aSecurity,
 							   const TBTServiceSecurityPerDevice* const aOverride,
 							   const TBTDevAddr& aBDAddr,
 							   TAccessType aAccessType,
+							   TBool aNoSecurityRequired,
 							   MAccessRequestResponseHandler& aRequester)
 /**
 Handle an access request...
@@ -288,6 +289,7 @@ Create a new CBTAccessRequester object to handle the request.
 													  aOverride,
 													  aRequester,
 													  aAccessType,
+													  aNoSecurityRequired,
 													  *this);
 	
 	CBTAccessRequester* requester = FindActiveAccessRequester(aBDAddr);

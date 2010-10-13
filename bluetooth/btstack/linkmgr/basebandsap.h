@@ -142,7 +142,9 @@ public:
 	virtual TBool IsIdle() const;
 	virtual TPhysicalLinkObserverQLink& ObserverQLink() {return iQueLink;};
 	virtual void ParentClosing();
-	
+
+	~CBTBasebandSAP();
+
 protected:
 	CBTBasebandSAP(CPhysicalLinksManager& aConnectionMan, CPhysicalLink* aConnection);
 	void ConstructL();
