@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 Nokia Corporation and/or its subsidiary(-ies).
+// Copyright (c) 2006-2010 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // This component and the accompanying materials are made available
 // under the terms of "Eclipse Public License v1.0"
@@ -57,8 +57,7 @@ _LIT(KHciUtilComponentName, "corehci_symbian");
 
 void CCoreHCIPluginImpl::ConstructL()
 /*
-Start up the HCTL plugin, then the initialisation plugin, as per the information
-in section 2.3 of PREQ750_Improvements document.
+Start up the HCTL plugin, then the initialisation plugin.
 */
 	{
 	LOG_FUNC
@@ -148,7 +147,7 @@ CCoreHCIPluginImpl::~CCoreHCIPluginImpl()
 	{
 	LOG_FUNC
 	
-	//delete in the order given in section 2.4 of PREQ750_Improvements document
+	//delete in the correct order
 	delete iInitialisationPlugin;
 	delete iHCTLPlugin;	
 	delete iHCIServer;
@@ -226,7 +225,7 @@ TAny* CCoreHCIPluginImpl::Interface(TUid aUid)
 		}
 	
 	case KHCTLInterfaceUid:
-		{		
+		{
 		ret = iHCTLPlugin->Interface(aUid);
 		break;
 		}
@@ -239,7 +238,7 @@ TAny* CCoreHCIPluginImpl::Interface(TUid aUid)
 			}
 		break;
 		}
-					
+		
 	case KHCIClientUsageCallbackUid:
 		{
 		ret = reinterpret_cast<TAny*>(static_cast<MHCIClientUsageCallback*>(this));
@@ -447,8 +446,13 @@ void CCoreHCIPluginImpl::MchSetChannelObserver(MHCTLChannelObserver& aHCIChannel
 	{
 	LOG_FUNC
 	__ASSERT_DEBUG(!iHCTLChannelObserver, PANIC(KCoreHciPanicCat, EInterfaceAlreadyInitialised));
-	
+
 	iHCTLChannelObserver = &aHCIChannelObserver;
+	// Inform observer of current state (if one is ready).
+	if(iHCTLChannelState)
+		{
+		iHCTLChannelObserver->MhcoChannelOpen(iHCTLChannelState);
+		}
 	}
 
 void CCoreHCIPluginImpl::MchSetControllerStateObserver(MControllerStateObserver& aControllerStateObserver)
@@ -470,16 +474,25 @@ void CCoreHCIPluginImpl::MhcoChannelOpen(THCITransportChannel aChannels)
 	{
 	LOG_FUNC
 	
-	// Just pass on to the upper HCLT channel observer. 
-	iHCTLChannelObserver->MhcoChannelOpen(aChannels);
+	iHCTLChannelState |= aChannels;
+	LOG1(_L("\tiHCTLChannelObserver = 0x%08x"), iHCTLChannelObserver)
+	if(iHCTLChannelObserver)
+		{
+		iHCTLChannelObserver->MhcoChannelOpen(aChannels);
+		}
+
 	}
 	
 void CCoreHCIPluginImpl::MhcoChannelClosed(THCITransportChannel aChannels)
 	{
 	LOG_FUNC
 	
-	// Just pass on to the upper HCTL channel observer. 
-	iHCTLChannelObserver->MhcoChannelClosed(aChannels);
+	iHCTLChannelState &= ~aChannels;
+	LOG1(_L("\tiHCTLChannelObserver = 0x%08x"), iHCTLChannelObserver)
+	if(iHCTLChannelObserver)
+		{
+		iHCTLChannelObserver->MhcoChannelClosed(aChannels);
+		}
 	}
 
 void CCoreHCIPluginImpl::MhcucSetClientUsage(MHCIClientUsage& aClientUsage)

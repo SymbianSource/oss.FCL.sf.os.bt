@@ -22,6 +22,8 @@ corehci_symbian.ini /epoc32/release/winscw/urel/z/private/101f7989/bluetooth/cor
 
 corehci_symbian_ti.ini /epoc32/data/z/private/101f7989/bluetooth/corehci_symbian_ti.ini // Preconfigured for TI hardware
 
+corehci_symbian_usboriginal.ini /epoc32/data/z/private/101f7989/bluetooth/corehci_symbian_usboriginal.ini // Preconfigured for USB
+
 corehci_symbian.iby		/epoc32/rom/include/corehci_symbian.iby
 
 

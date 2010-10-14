@@ -1,0 +1,62 @@
+// Copyright (c) 2007-2010 Nokia Corporation and/or its subsidiary(-ies).
+// All rights reserved.
+// This component and the accompanying materials are made available
+// under the terms of "Eclipse Public License v1.0"
+// which accompanies this distribution, and is available
+// at the URL "http://www.eclipse.org/legal/epl-v10.html".
+//
+// Initial Contributors:
+// Nokia Corporation - initial contribution.
+//
+// Contributors:
+//
+// Description:
+// 
+
+/**
+@file
+@internalComponent
+*/
+
+target hctl_usb_original.dll
+targettype plugin
+// UID2 = 0x10009d8d for ECOM plugins.
+// UID3 = the 'DLL UID' (see resource file)
+uid 0x10009d8d 0x200345E5
+vendorid 0x70000001
+
+capability CommDD PowerMgmt ReadDeviceData WriteDeviceData TrustedUI ProtServ NetworkControl NetworkServices LocalServices ReadUserData WriteUserData
+
+noexportlibrary
+
+userinclude ../inc
+OS_LAYER_SYSTEMINCLUDE_SYMBIAN
+systeminclude ../../hctl/public
+systeminclude ../../fdc/public
+
+sourcepath ../src
+source hctlusboriginalmain.cpp
+source hctlusboriginal.cpp
+source hctlusboriginalcommand.cpp
+source hctlusboriginalevent.cpp
+source hctlusboriginalaclout.cpp
+source hctlusboriginalaclin.cpp
+source controllermanager.cpp
+source devicestatemanager.cpp
+source hctlusboriginalserver.cpp
+
+resource hctl_usb_original.rss
+
+library esock.lib
+library euser.lib
+library hctl_base.lib
+library usbdi_utils.lib
+library usbdescriptors.lib
+
+#include <bluetooth/btlogger.mmh>
+
+macro ENABLE_HCI_FRAME_LOGGING  // Enable the HCI logging
+
+unpaged
+
+smpsafe

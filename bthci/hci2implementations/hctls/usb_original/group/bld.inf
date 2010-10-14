@@ -1,0 +1,34 @@
+// Copyright (c) 2007-2010 Nokia Corporation and/or its subsidiary(-ies).
+// All rights reserved.
+// This component and the accompanying materials are made available
+// under the terms of "Eclipse Public License v1.0"
+// which accompanies this distribution, and is available
+// at the URL "http://www.eclipse.org/legal/epl-v10.html".
+//
+// Initial Contributors:
+// Nokia Corporation - initial contribution.
+//
+// Contributors:
+//
+// Description:
+// 
+
+#if defined(SYMBIAN_ENABLE_USB_OTG_HOST)
+
+PRJ_EXPORTS
+
+hctl_usb_original.iby /epoc32/rom/include/hctl_usb_original.iby
+
+#if !defined(WINS)
+#if !defined(X86)
+
+PRJ_MMPFILES
+
+../hctl/group/hctl_usb_original
+
+../fdc/group/fdc_hctl_original
+
+#endif // X86
+#endif // WINS
+
+#endif // SYMBIAN_ENABLE_USB_OTG_HOST

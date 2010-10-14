@@ -1,0 +1,59 @@
+// Copyright (c) 2007-2010 Nokia Corporation and/or its subsidiary(-ies).
+// All rights reserved.
+// This component and the accompanying materials are made available
+// under the terms of "Eclipse Public License v1.0"
+// which accompanies this distribution, and is available
+// at the URL "http://www.eclipse.org/legal/epl-v10.html".
+//
+// Initial Contributors:
+// Nokia Corporation - initial contribution.
+//
+// Contributors:
+//
+// Description:
+// Function Driver Controller for Bluetooth USB (H2) HCTL.
+//
+
+/** 
+@file
+@internalComponent
+*/
+
+// The following macro defines whether the FDC will attempt to
+// retrieve the Device Firmware Update interface.  Some controllers
+// provide this (and so to enable "fully" successful driver loading
+// it needs to be claimed by something.  Nothing is done with the
+// interface - it is simply claimed from the FDF.
+macro SYMBIAN_FDC_HCTL_ORIGINAL_ACCEPT_FIRMWARE_UPDATE
+
+target fdc_hctl_original.dll
+targettype plugin
+// UID2 = 0x10009d8d for ECOM plugins.
+// UID3 = the 'DLL UID' (see resource file)
+uid 0x10009d8d 0x200345E8
+vendorid 0x70000001
+
+#include <usbhost/internal/fdfcaps.mmh>
+
+noexportlibrary
+
+userinclude ../inc
+OS_LAYER_SYSTEMINCLUDE_SYMBIAN
+systeminclude ../../fdc/public
+systeminclude ../../hctl/public
+
+sourcepath ../src
+source fdchctloriginalmain.cpp
+source fdchctloriginal.cpp
+source fdchctloriginalserver.cpp
+
+resource fdc_hctl_original.rss
+
+library euser.lib
+library fdcbase.lib
+library usbdescriptors.lib
+library esock.lib
+
+#include <bluetooth/btlogger.mmh>
+
+smpsafe

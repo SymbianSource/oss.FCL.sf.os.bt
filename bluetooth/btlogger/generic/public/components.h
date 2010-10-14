@@ -24,15 +24,6 @@
 // This file provides a centralised place for the definition
 // of log component strings for use with the Bluetooth logger.
 
-// The Bluetooth PRT
-#define LOG_COMPONENT_BT_PRT				"BtPrt"
-
-// Class of Device (CoD) Service Manager
-#define LOG_COMPONENT_BT_COD				"CoD"
-
-// Incoming connection listener
-#define LOG_COMPONENT_IN_CONN_LISTENER		"InConnListener"
-
 // The Bluetooth Logger
 #define LOG_COMPONENT_LOGGER				"LogEngine"
 
@@ -56,11 +47,17 @@
 #define LOG_COMPONENT_HCTL_UART_ORIGINAL	"HctlUartOriginal"
 #define LOG_COMPONENT_HCTL_TI				"HctlTi"
 #define LOG_COMPONENT_HCTL_BCSP				"HctlBcsp"
-#define LOG_COMPONENT_HCI_FACADE			"HciFacade"
-#define LOG_COMPONENT_HCI_CSCOLINK			"CSCOLink"
+#define LOG_COMPONENT_HCTL_USB_ORIGINAL		"HctlUsbOriginal"
+
 #define LOG_COMPONENT_HCI_WATCHDOG			"HciWatchdog"
 
 // Bluetooth Stack Components
+//// The common Bluetooth protocol components
+#define LOG_COMPONENT_BT_PRT				"BtPrt"
+//// Class of Device (CoD) Service Manager
+#define LOG_COMPONENT_BT_COD				"CoD"
+//// Incoming connection listener
+#define LOG_COMPONENT_IN_CONN_LISTENER		"InConnListener"
 #define LOG_COMPONENT_SECMAN				"SecMan"
 #define LOG_COMPONENT_HOSTRESOLVER			"HostResolver"
 #define LOG_COMPONENT_LINKMGR				"LinkMgr"
@@ -75,6 +72,8 @@
 #define LOG_COMPONENT_SDP					"Sdp"
 #define LOG_COMPONENT_AVDTP					"Avdtp"
 #define LOG_COMPONENT_AVCTP					"Avctp"
+#define LOG_COMPONENT_HCI_FACADE			"HciFacade"
+#define LOG_COMPONENT_HCI_CSCOLINK			"CSCOLink"
 
 // Bluetooth User Components
 #define LOG_COMPONENT_BTLIB					"BtLib"
@@ -98,7 +97,7 @@
 #define LOG_COMPONENT_BT_REGISTRY			"BtRegistry"
 
 // A2DP Optimiser
-#define LOG_COMPONENT_A2DP_OPTIMISER        "A2dpOptimiser"
+#define LOG_COMPONENT_A2DP_OPTIMISER		"A2dpOptimiser"
 
 // Bluetooth PAN profile
 #define LOG_COMPONENT_PAN_BNEP				"Bnep"
@@ -126,9 +125,9 @@
 #define LOG_COMPONENT_AVRCP_MEDIA_INFO		"AvrcpMediaInfo"
 #define LOG_COMPONENT_AVRCP_PLAYER_INFO		"AvrcpPlayerInfo"
 #define LOG_COMPONENT_AVRCP_FRAME			"AvrcpFrame"
-#define LOG_COMPONENT_REMCONABSOLUTEVOLUME  "RemConAbsoluteVolumeApi"
-#define LOG_COMPONENT_REMCONMEDIABROWSEAPI  "RemConMediaBrowseApi"
-#define LOG_COMPONENT_REMCONNOWPLAYINGAPI   "RemConNowPlayingApi"
+#define LOG_COMPONENT_REMCONABSOLUTEVOLUME	"RemConAbsoluteVolumeApi"
+#define LOG_COMPONENT_REMCONMEDIABROWSEAPI	"RemConMediaBrowseApi"
+#define LOG_COMPONENT_REMCONNOWPLAYINGAPI	"RemConNowPlayingApi"
 
 // Test Components
 #define LOG_COMPONENT_BT_COMM_TCSY			"BtCommTcsy"
