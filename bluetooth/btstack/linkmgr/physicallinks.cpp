@@ -650,7 +650,7 @@ void CPhysicalLink::ReadRemoteSupportedFeaturesComplete(THCIErrorCode aErr, THCI
 			}
 
 		//If remote host supports extended features, then send request to read these.
-		if (iRemoteFeatures[ESupportedExtendedFeaturesBit])
+		if (iRemoteFeatures[ESupportedExtendedFeaturesBit] && iRemoteFeatures[ESupportedSecureSimplePairingBit])
 			{
 			TRAP_IGNORE(iLinksMan.HCIFacade().ReadRemoteExtendedFeaturesL(iHandle, KRemoteExtendedFeaturesPage1));
 			}

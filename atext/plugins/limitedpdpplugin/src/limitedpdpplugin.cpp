@@ -23,7 +23,7 @@
 // Internal constants
 const TInt KDialupOverrideEnabled = 1;
 const TInt KCloseTimeoutInterval = 15000000; // 15 secs
-const TInt KCleanUpWaitTimeout = 1000000; // 1 secs
+const TInt KCleanUpWaitTimeout = 3000000; // 3 secs
 #ifdef _DEBUG 
 const TInt KUsecToMSecDivider = 1000;
 #endif

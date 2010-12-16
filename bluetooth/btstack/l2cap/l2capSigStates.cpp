@@ -1149,7 +1149,23 @@ void TL2CAPSigStateWaitDisconnect::DisconnectRequest(CL2CapSAPSignalHandler& aSi
 void TL2CAPSigStateWaitDisconnect::DisconnectResponse(CL2CapSAPSignalHandler& aSignalHandler) const
 	{
 	LOG_FUNC
-	aSignalHandler.DrainPendingCommands();
+	// We've got a disconnect response, we're done.  Any remaing stuff on the queue
+	// is redundant, so ditch it and close synchronously.
+	aSignalHandler.FlushAllQueues();
+	
+	// If an error condition has been recorded forward the error 
+	// to the SAP.
+	if(aSignalHandler.SignalHandlerErrorCode() != KErrNone)
+		{
+		Error(aSignalHandler, aSignalHandler.SignalHandlerErrorCode(), aSignalHandler.SignalHandlerErrorAction());
+		}
+	else
+		{
+		// This will delete the signal handler if the SAP has detached.
+		aSignalHandler.SetState(iFactory.GetState(CL2CAPSignalStateFactory::EClosed));
+		aSignalHandler.SignalHandlerDisconnectedCanClose();
+		}
+
 	}
 
 // "Artificial" state events
